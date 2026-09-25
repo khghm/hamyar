@@ -102,7 +102,22 @@ export default function Store() {
   );
 
   return (
-    <div className="fade-in max-w-7xl mx-auto px-4 py-8">
+    <div className="fade-in">
+      {/* Hero Banner */}
+      <div className="relative h-64 md:h-96 overflow-hidden">
+        <img 
+          src="https://image.qwenlm.ai/generated-images/9457689d-cfab-485b-9c4b-437a4dabb462/_result.png" 
+          alt="فروشگاه محصولات دیجیتال" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">فروشگاه محصولات دیجیتال</h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">فلش مموری، هارد، کابل، شارژر، دوربین مداربسته و لوازم جانبی</p>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="flex-1 relative">
@@ -195,6 +210,7 @@ export default function Store() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

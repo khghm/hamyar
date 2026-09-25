@@ -8,11 +8,22 @@ export default function News() {
   const activeNews = news.filter(n => n.active);
 
   return (
-    <div className="fade-in max-w-7xl mx-auto px-4 py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-black mb-4">اخبار کافی نت همیار</h1>
-        <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>آخرین اخبار، تخفیف‌ها و اطلاعیه‌ها</p>
+    <div className="fade-in">
+      {/* Hero Banner */}
+      <div className="relative h-64 md:h-96 overflow-hidden">
+        <img 
+          src="https://image.qwenlm.ai/generated-images/fa2e43a4-ff2d-4e87-820e-4a835049c30d/_result.png" 
+          alt="اخبار کافی نت همیار" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">اخبار کافی نت همیار</h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">آخرین اخبار، تخفیف‌ها و اطلاعیه‌ها</p>
+        </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-12">
 
       <div className="space-y-6">
         {activeNews.map(item => (
@@ -45,6 +56,7 @@ export default function News() {
           <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>خبری منتشر نشده است</p>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -20,11 +20,22 @@ export default function Contact() {
   ];
 
   return (
-    <div className="fade-in max-w-7xl mx-auto px-4 py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-black mb-4">تماس با ما</h1>
-        <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>ما آماده پاسخگویی به شما هستیم</p>
+    <div className="fade-in">
+      {/* Hero Banner */}
+      <div className="relative h-64 md:h-96 overflow-hidden">
+        <img 
+          src="https://image.qwenlm.ai/generated-images/fee27274-9d94-4aad-8962-1cc1496347b3/_result.png" 
+          alt="تماس با ما" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">تماس با ما</h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">ما آماده پاسخگویی به شما هستیم</p>
+        </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-12">
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Contact Info */}
@@ -111,6 +122,7 @@ export default function Contact() {
         <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
           پشتیبانی ما با شماره‌های 09913911880 و 09204767001 در تمامی پیام‌رسان‌ها (ایتا، روبیکا، بله، تلگرام و اینستاگرام) فعال است.
         </p>
+      </div>
       </div>
     </div>
   );

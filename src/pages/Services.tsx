@@ -63,11 +63,22 @@ export default function Services() {
   };
 
   return (
-    <div className="fade-in max-w-7xl mx-auto px-4 py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold mb-4">خدمات کافی‌نت همیار</h1>
-        <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>لیست کامل خدمات و تعرفه‌ها</p>
+    <div className="fade-in">
+      {/* Hero Banner */}
+      <div className="relative h-64 md:h-96 overflow-hidden">
+        <img 
+          src="https://image.qwenlm.ai/generated-images/bbba49ef-6db2-4768-afc4-0fb99c0bafc5/_result.png" 
+          alt="خدمات کافی‌نت همیار" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">خدمات کافی‌نت همیار</h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">لیست کامل خدمات و تعرفه‌ها</p>
+        </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-12">
 
       {/* Search & Filter Bar */}
       <div className={`flex flex-col md:flex-row gap-4 mb-6 p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white shadow-sm border border-gray-100'}`}>
@@ -207,6 +218,7 @@ export default function Services() {
           <li>- برای اطلاع از قیمت دقیق و زمان انجام، با ما تماس بگیرید</li>
           <li>- تمامی خدمات با ضمانت کیفیت ارائه می‌شوند</li>
         </ul>
+      </div>
       </div>
     </div>
   );
