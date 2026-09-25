@@ -15,6 +15,8 @@ export default function PublicLayout() {
     { path: '/media', label: 'کالکشن فیلم و سریال' },
     { path: '/store', label: 'فروشگاه' },
     { path: '/webdesign', label: 'طراحی سایت' },
+    { path: '/track', label: 'پیگیری سفارش' },
+    { path: '/faq', label: 'سوالات متداول' },
     { path: '/news', label: 'اخبار' },
     { path: '/about', label: 'درباره ما' },
     { path: '/contact', label: 'تماس با ما' },

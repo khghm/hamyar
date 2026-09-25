@@ -16,6 +16,9 @@ import Profile from './pages/Profile';
 import ProductDetail from './pages/ProductDetail';
 import MediaDetail from './pages/MediaDetail';
 import NewsDetail from './pages/NewsDetail';
+import TrackOrder from './pages/TrackOrder';
+import FAQ from './pages/FAQ';
+import SupportChat from './components/SupportChat';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminOrders from './pages/admin/Orders';
 import AdminCustomers from './pages/admin/Customers';
@@ -26,6 +29,9 @@ import AdminProjects from './pages/admin/Projects';
 import AdminFinance from './pages/admin/Finance';
 import AdminSettings from './pages/admin/Settings';
 import AdminNotes from './pages/admin/Notes';
+import AdminAnalytics from './pages/admin/Analytics';
+import AdminSuppliers from './pages/admin/Suppliers';
+import { AdminEmployees, AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup, AdminFaqManager } from './pages/admin/Management';
 
 function AppRoutes() {
   const { currentUser } = useApp();
@@ -47,6 +53,8 @@ function AppRoutes() {
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/media/:id" element={<MediaDetail />} />
         <Route path="/news/:id" element={<NewsDetail />} />
+        <Route path="/track" element={<TrackOrder />} />
+        <Route path="/faq" element={<FAQ />} />
       </Route>
 
       {/* Admin Routes */}
@@ -61,6 +69,15 @@ function AppRoutes() {
         <Route path="finance" element={<AdminFinance />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="notes" element={<AdminNotes />} />
+        <Route path="analytics" element={<AdminAnalytics />} />
+        <Route path="suppliers" element={<AdminSuppliers />} />
+        <Route path="employees" element={<AdminEmployees />} />
+        <Route path="campaigns" element={<AdminCampaigns />} />
+        <Route path="sms" element={<AdminSmsPanel />} />
+        <Route path="reviews" element={<AdminReviews />} />
+        <Route path="audit" element={<AdminAuditLog />} />
+        <Route path="backup" element={<AdminBackup />} />
+        <Route path="faq" element={<AdminFaqManager />} />
       </Route>
     </Routes>
   );
@@ -71,6 +88,7 @@ export default function App() {
     <AppProvider>
       <BrowserRouter>
         <AppRoutes />
+        <SupportChat />
       </BrowserRouter>
     </AppProvider>
   );

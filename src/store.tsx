@@ -136,6 +136,76 @@ export interface Note {
   content: string;
 }
 
+export interface Review {
+  id: string;
+  productId: string;
+  customerName: string;
+  rating: number;
+  comment: string;
+  date: string;
+  approved: boolean;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  products: string[];
+  balance: number;
+  notes?: string;
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  phone: string;
+  role: 'admin' | 'seller' | 'operator' | 'designer' | 'accountant';
+  salary: number;
+  startDate: string;
+  active: boolean;
+  commission: number;
+}
+
+export interface Campaign {
+  id: string;
+  title: string;
+  code: string;
+  discount: number;
+  type: 'percent' | 'fixed';
+  minPurchase: number;
+  maxUses: number;
+  usedCount: number;
+  startDate: string;
+  endDate: string;
+  active: boolean;
+}
+
+export interface SmsLog {
+  id: string;
+  phone: string;
+  message: string;
+  date: string;
+  status: 'sent' | 'failed' | 'pending';
+}
+
+export interface AuditLog {
+  id: string;
+  user: string;
+  action: string;
+  details: string;
+  date: string;
+  ip?: string;
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+}
+
 interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -167,6 +237,20 @@ interface AppContextType {
   setAboutContent: (a: AboutContent) => void;
   notes: Note[];
   setNotes: (n: Note[]) => void;
+  reviews: Review[];
+  setReviews: (r: Review[]) => void;
+  suppliers: Supplier[];
+  setSuppliers: (s: Supplier[]) => void;
+  employees: Employee[];
+  setEmployees: (e: Employee[]) => void;
+  campaigns: Campaign[];
+  setCampaigns: (c: Campaign[]) => void;
+  smsLogs: SmsLog[];
+  setSmsLogs: (s: SmsLog[]) => void;
+  auditLogs: AuditLog[];
+  setAuditLogs: (a: AuditLog[]) => void;
+  faqs: FaqItem[];
+  setFaqs: (f: FaqItem[]) => void;
 }
 
 export interface AboutContent {
@@ -445,6 +529,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('hamyar_notes');
     return saved ? JSON.parse(saved) : [];
   });
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    const saved = localStorage.getItem('hamyar_reviews');
+    return saved ? JSON.parse(saved) : [
+      { id: 'r1', productId: 'p1', customerName: 'علی محمدی', rating: 5, comment: 'محصول بسیار با کیفیت و قیمت مناسب', date: '1403/07/15', approved: true },
+      { id: 'r2', productId: 'p1', customerName: 'مریم احمدی', rating: 4, comment: 'کیفیت خوب، ارسال سریع', date: '1403/07/10', approved: true },
+      { id: 'r3', productId: 'p4', customerName: 'رضا کریمی', rating: 5, comment: 'هارد بسیار با کیفیت و قابل اعتماد', date: '1403/07/05', approved: true },
+    ];
+  });
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    const saved = localStorage.getItem('hamyar_suppliers');
+    return saved ? JSON.parse(saved) : [
+      { id: 'sup1', name: 'شرکت سامسونگ ایران', phone: '02188776655', email: 'info@samsung.ir', address: 'تهران، خیابان ولیعصر', products: ['فلش مموری', 'شارژر'], balance: 0 },
+      { id: 'sup2', name: 'نمایندگی وسترن دیجیتال', phone: '02144556677', products: ['هارد', 'SSD'], balance: 500000 },
+      { id: 'sup3', name: 'پخش لوازم جانبی پارسیان', phone: '09121234567', products: ['کابل', 'شارژر', 'لوازم جانبی'], balance: 0 },
+    ];
+  });
+  const [employees, setEmployees] = useState<Employee[]>(() => {
+    const saved = localStorage.getItem('hamyar_employees');
+    return saved ? JSON.parse(saved) : [
+      { id: 'emp1', name: 'محمد رضایی', phone: '09121111111', role: 'seller', salary: 8000000, startDate: '1402/01/01', active: true, commission: 5 },
+      { id: 'emp2', name: 'زهرا محمدی', phone: '09122222222', role: 'operator', salary: 7000000, startDate: '1402/03/15', active: true, commission: 3 },
+      { id: 'emp3', name: 'امیر حسینی', phone: '09123333333', role: 'designer', salary: 12000000, startDate: '1402/05/01', active: true, commission: 10 },
+    ];
+  });
+  const [campaigns, setCampaigns] = useState<Campaign[]>(() => {
+    const saved = localStorage.getItem('hamyar_campaigns');
+    return saved ? JSON.parse(saved) : [
+      { id: 'c1', title: 'تخفیف آغاز سال تحصیلی', code: 'SCHOOL1403', discount: 20, type: 'percent', minPurchase: 100000, maxUses: 100, usedCount: 15, startDate: '1403/07/01', endDate: '1403/07/31', active: true },
+      { id: 'c2', title: 'تخفیف ویژه پایان سال', code: 'ENDYEAR', discount: 50000, type: 'fixed', minPurchase: 500000, maxUses: 50, usedCount: 8, startDate: '1403/12/01', endDate: '1403/12/29', active: true },
+    ];
+  });
+  const [smsLogs, setSmsLogs] = useState<SmsLog[]>(() => {
+    const saved = localStorage.getItem('hamyar_sms');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
+    const saved = localStorage.getItem('hamyar_audit');
+    return saved ? JSON.parse(saved) : [
+      { id: 'a1', user: 'admin', action: 'ورود به سیستم', details: 'ورود موفق', date: new Date().toISOString(), ip: '192.168.1.1' },
+    ];
+  });
+  const [faqs, setFaqs] = useState<FaqItem[]>(() => {
+    const saved = localStorage.getItem('hamyar_faqs');
+    return saved ? JSON.parse(saved) : [
+      { id: 'f1', question: 'ساعات کاری کافی نت همیار چگونه است؟', answer: 'ما شنبه تا پنج‌شنبه از ساعت ۹ صبح تا ۹ شب و جمعه‌ها از ۱۰ صبح تا ۲ بعدازظهر در خدمت شما هستیم.', category: 'عمومی' },
+      { id: 'f2', question: 'آیا امکان ارسال محصولات وجود دارد؟', answer: 'بله، برای سفارش‌های بالای ۵۰۰ هزار تومان ارسال رایگان است. برای سایر سفارش‌ها هزینه ارسال بر عهده مشتری است.', category: 'فروشگاه' },
+      { id: 'f3', question: 'چگونه می‌توانم سفارش خود را پیگیری کنم؟', answer: 'با استفاده از کد رهگیری که هنگام ثبت سفارش دریافت کرده‌اید، می‌توانید از بخش پیگیری سفارش وضعیت سفارش خود را مشاهده کنید.', category: 'سفارش' },
+      { id: 'f4', question: 'آیا محصولات گارانتی دارند؟', answer: 'بله، تمامی محصولات دیجیتال دارای گارانتی اصالت و سلامت فیزیکی هستند. محصولات خاص مانند دوربین مداربسته و دستگاه پوز دارای گارانتی شرکتی می‌باشند.', category: 'فروشگاه' },
+      { id: 'f5', question: 'زمان انجام خدمات کافی نت چقدر است؟', answer: 'بسته به نوع خدمت متفاوت است. خدمات ساده مانند پرینت و کپی در همان لحظه انجام می‌شوند. خدمات پیچیده‌تر مانند ترجمه و طراحی سایت زمان بیشتری نیاز دارند.', category: 'خدمات' },
+      { id: 'f6', question: 'آیا امکان پرداخت اقساطی وجود دارد؟', answer: 'برای خریدهای بالای ۲ میلیون تومان امکان پرداخت اقساطی با چک صیادی وجود دارد. برای اطلاعات بیشتر با ما تماس بگیرید.', category: 'فروشگاه' },
+    ];
+  });
 
   useEffect(() => {
     localStorage.setItem('hamyar_dark', String(darkMode));
@@ -462,6 +598,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_expenses', JSON.stringify(expenses)); }, [expenses]);
   useEffect(() => { localStorage.setItem('hamyar_projects', JSON.stringify(projects)); }, [projects]);
   useEffect(() => { localStorage.setItem('hamyar_notes', JSON.stringify(notes)); }, [notes]);
+  useEffect(() => { localStorage.setItem('hamyar_reviews', JSON.stringify(reviews)); }, [reviews]);
+  useEffect(() => { localStorage.setItem('hamyar_suppliers', JSON.stringify(suppliers)); }, [suppliers]);
+  useEffect(() => { localStorage.setItem('hamyar_employees', JSON.stringify(employees)); }, [employees]);
+  useEffect(() => { localStorage.setItem('hamyar_campaigns', JSON.stringify(campaigns)); }, [campaigns]);
+  useEffect(() => { localStorage.setItem('hamyar_sms', JSON.stringify(smsLogs)); }, [smsLogs]);
+  useEffect(() => { localStorage.setItem('hamyar_audit', JSON.stringify(auditLogs)); }, [auditLogs]);
+  useEffect(() => { localStorage.setItem('hamyar_faqs', JSON.stringify(faqs)); }, [faqs]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
 
@@ -538,7 +681,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       orders, setOrders, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
       addToFavorites, selectMedia, aboutContent, setAboutContent,
-      notes, setNotes
+      notes, setNotes,
+      reviews, setReviews,
+      suppliers, setSuppliers,
+      employees, setEmployees,
+      campaigns, setCampaigns,
+      smsLogs, setSmsLogs,
+      auditLogs, setAuditLogs,
+      faqs, setFaqs
     }}>
       {children}
     </AppContext.Provider>

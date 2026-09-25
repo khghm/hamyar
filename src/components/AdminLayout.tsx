@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
-import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star } from 'lucide-react';
 
 export default function AdminLayout() {
   const { darkMode, toggleDarkMode, logout } = useApp();
@@ -11,14 +11,23 @@ export default function AdminLayout() {
 
   const menuItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'داشبورد' },
+    { path: '/admin/analytics', icon: BarChart3, label: 'تحلیل و گزارش' },
     { path: '/admin/orders', icon: ShoppingCart, label: 'سفارش‌ها' },
-    { path: '/admin/notes', icon: StickyNote, label: 'یادداشت‌های شخصی' },
+    { path: '/admin/notes', icon: StickyNote, label: 'یادداشت‌ها' },
     { path: '/admin/customers', icon: Users, label: 'مشتریان' },
-    { path: '/admin/products', icon: Package, label: 'محصولات و انبار' },
+    { path: '/admin/products', icon: Package, label: 'محصولات' },
     { path: '/admin/media', icon: Film, label: 'کالکشن مدیا' },
-    { path: '/admin/services', icon: Wrench, label: 'خدمات کافی‌نت' },
-    { path: '/admin/projects', icon: FolderOpen, label: 'پروژه‌های طراحی' },
+    { path: '/admin/services', icon: Wrench, label: 'خدمات' },
+    { path: '/admin/projects', icon: FolderOpen, label: 'پروژه‌ها' },
     { path: '/admin/finance', icon: DollarSign, label: 'حسابداری' },
+    { path: '/admin/employees', icon: UserCog, label: 'کارمندان' },
+    { path: '/admin/suppliers', icon: Truck, label: 'تأمین‌کنندگان' },
+    { path: '/admin/campaigns', icon: Percent, label: 'کمپین تخفیف' },
+    { path: '/admin/sms', icon: MessageSquare, label: 'پیامک انبوه' },
+    { path: '/admin/reviews', icon: Star, label: 'نظرات' },
+    { path: '/admin/faq', icon: HelpCircle, label: 'سوالات متداول' },
+    { path: '/admin/audit', icon: Shield, label: 'لاگ فعالیت' },
+    { path: '/admin/backup', icon: Download, label: 'پشتیبان‌گیری' },
     { path: '/admin/settings', icon: Settings, label: 'تنظیمات' },
   ];
 
