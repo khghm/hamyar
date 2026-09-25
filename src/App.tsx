@@ -13,6 +13,9 @@ import Contact from './pages/Contact';
 import News from './pages/News';
 import Auth from './pages/Auth';
 import Profile from './pages/Profile';
+import ProductDetail from './pages/ProductDetail';
+import MediaDetail from './pages/MediaDetail';
+import NewsDetail from './pages/NewsDetail';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminOrders from './pages/admin/Orders';
 import AdminCustomers from './pages/admin/Customers';
@@ -41,6 +44,9 @@ function AppRoutes() {
         <Route path="/news" element={<News />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/profile" element={currentUser && currentUser.role === 'customer' ? <Profile /> : <Navigate to="/auth" />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/media/:id" element={<MediaDetail />} />
+        <Route path="/news/:id" element={<NewsDetail />} />
       </Route>
 
       {/* Admin Routes */}

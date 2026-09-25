@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Newspaper, Calendar } from 'lucide-react';
 
@@ -15,7 +16,7 @@ export default function News() {
 
       <div className="space-y-6">
         {activeNews.map(item => (
-          <article key={item.id} className={`rounded-2xl border overflow-hidden ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <Link key={item.id} to={`/news/${item.id}`} className={`block rounded-2xl border overflow-hidden transition-all hover:shadow-lg ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
             <div className="flex flex-col md:flex-row">
               {item.image ? (
                 <img src={item.image} alt={item.title} className="md:w-64 h-48 md:h-auto object-cover" />
@@ -34,7 +35,7 @@ export default function News() {
                 <p className={`leading-7 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{item.content}</p>
               </div>
             </div>
-          </article>
+          </Link>
         ))}
       </div>
 

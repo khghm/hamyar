@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Search, SlidersHorizontal, ShoppingCart, X, Star, ChevronDown, Heart } from 'lucide-react';
 
@@ -145,7 +146,7 @@ export default function Store() {
           <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{filtered.length} محصول</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(product => (
-              <div key={product.id} className={`rounded-xl border overflow-hidden transition-all hover:shadow-lg ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <Link key={product.id} to={`/product/${product.id}`} className={`rounded-xl border overflow-hidden transition-all hover:shadow-lg block ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
                 <div className={`h-48 flex items-center justify-center ${darkMode ? 'bg-slate-700' : 'bg-gray-50'} relative`}>
                   <img src={product.image} alt={product.name} className="w-full h-full object-cover"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -169,13 +170,13 @@ export default function Store() {
                         <div className="text-xs text-slate-400 line-through">{formatPrice(product.originalPrice)}</div>
                       )}
                     </div>
-                    <button onClick={() => addToCart(product.id)}
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(product.id); }}
                       className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all">
                       <ShoppingCart size={16} />
                     </button>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

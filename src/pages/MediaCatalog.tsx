@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Search, Filter, Star, Heart, Eye, ChevronDown, X, SlidersHorizontal } from 'lucide-react';
 
@@ -132,8 +133,7 @@ export default function MediaCatalog() {
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
           {filtered.map(item => (
-            <div key={item.id} className={`group rounded-xl overflow-hidden border transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'}`}
-              onClick={() => setSelectedItem(item.id)}>
+            <Link key={item.id} to={`/media/${item.id}`} className={`group rounded-xl overflow-hidden border transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer block ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
               <div className="relative aspect-[2/3] overflow-hidden">
                 {item.image ? (
                   <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -172,7 +172,7 @@ export default function MediaCatalog() {
                   <span className="truncate">{item.genre[0]}</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 
