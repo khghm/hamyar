@@ -32,12 +32,12 @@ export default function ProductDetail() {
       rating: newRating,
       comment: newComment,
       date: new Date().toLocaleDateString('fa-IR'),
-      approved: true
+      approved: false // نظرات جدید باید توسط ادمین تایید شوند
     };
     setReviews([...reviews, review]);
     setNewComment('');
     setNewRating(5);
-    alert('نظر شما ثبت شد');
+    alert('نظر شما با موفقیت ثبت شد و پس از تایید مدیریت نمایش داده خواهد شد');
   };
 
   if (!product) {

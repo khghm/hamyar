@@ -208,6 +208,22 @@ export interface FaqItem {
   category: string;
 }
 
+export interface ContentProject {
+  id: string;
+  title: string;
+  type: 'video' | 'photo' | 'article' | 'social' | 'ad';
+  scenario: string;
+  equipment: string[];
+  contentPlan: string;
+  assignedTo: string[];
+  startDate: string;
+  deadline: string;
+  status: 'planning' | 'in-progress' | 'review' | 'completed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  notes: string;
+  createdAt: string;
+}
+
 interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -253,6 +269,8 @@ interface AppContextType {
   setAuditLogs: (a: AuditLog[]) => void;
   faqs: FaqItem[];
   setFaqs: (f: FaqItem[]) => void;
+  contentProjects: ContentProject[];
+  setContentProjects: (p: ContentProject[]) => void;
 }
 
 export interface AboutContent {
@@ -583,6 +601,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       { id: 'f6', question: 'آیا امکان پرداخت اقساطی وجود دارد؟', answer: 'برای خریدهای بالای ۲ میلیون تومان امکان پرداخت اقساطی با چک صیادی وجود دارد. برای اطلاعات بیشتر با ما تماس بگیرید.', category: 'فروشگاه' },
     ];
   });
+  const [contentProjects, setContentProjects] = useState<ContentProject[]>(() => {
+    const saved = localStorage.getItem('hamyar_content_projects');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
     localStorage.setItem('hamyar_dark', String(darkMode));
@@ -607,6 +629,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_sms', JSON.stringify(smsLogs)); }, [smsLogs]);
   useEffect(() => { localStorage.setItem('hamyar_audit', JSON.stringify(auditLogs)); }, [auditLogs]);
   useEffect(() => { localStorage.setItem('hamyar_faqs', JSON.stringify(faqs)); }, [faqs]);
+  useEffect(() => { localStorage.setItem('hamyar_content_projects', JSON.stringify(contentProjects)); }, [contentProjects]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
 
@@ -692,7 +715,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       campaigns, setCampaigns,
       smsLogs, setSmsLogs,
       auditLogs, setAuditLogs,
-      faqs, setFaqs
+      faqs, setFaqs,
+      contentProjects, setContentProjects
     }}>
       {children}
     </AppContext.Provider>
