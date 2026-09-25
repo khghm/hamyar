@@ -1,16 +1,24 @@
 import React from 'react';
 import { useApp } from '../store';
-import { Heart, Star, Gift, Users, Copy, Film, Award, ChevronLeft } from 'lucide-react';
+import { Heart, Star, Gift, Users, Copy, Film, Award, ChevronLeft, ShoppingCart, Package, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Profile() {
-  const { darkMode, currentUser, mediaItems, orders, addToFavorites, selectMedia } = useApp();
+  const { darkMode, currentUser, mediaItems, orders, products, addToFavorites, selectMedia } = useApp();
 
   if (!currentUser) return null;
 
   const favMedia = mediaItems.filter(m => currentUser.favorites.includes(m.id));
   const selectedMedia = mediaItems.filter(m => currentUser.selectedMedia.includes(m.id));
   const userOrders = orders.filter(o => o.customerId === currentUser.id);
+  
+  // Get products from cart (localStorage)
+  const cartData = localStorage.getItem('hamyar_cart');
+  const cart = cartData ? JSON.parse(cartData) : [];
+  const cartProducts = cart.map((item: any) => {
+    const product = products.find(p => p.id === item.id);
+    return product ? { ...product, qty: item.qty } : null;
+  }).filter(Boolean);
 
   const levelLabels: Record<string, string> = { normal: 'عادی', silver: 'نقره‌ای', gold: 'طلایی', vip: 'VIP' };
   const levelColors: Record<string, string> = { normal: 'bg-gray-400', silver: 'bg-gray-300', gold: 'bg-yellow-400', vip: 'bg-purple-500' };
@@ -136,7 +144,7 @@ export default function Profile() {
 
       {/* Selected Media */}
       {selectedMedia.length > 0 && (
-        <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className={`p-6 rounded-2xl border mb-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center gap-3 mb-4">
             <Film size={20} className="text-blue-500" />
             <h3 className="font-bold">انتخاب‌های من برای کپی</h3>
@@ -154,6 +162,117 @@ export default function Profile() {
           </p>
         </div>
       )}
+
+      {/* Cart Products */}
+      {cartProducts.length > 0 && (
+        <div className={`p-6 rounded-2xl border mb-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center gap-3 mb-4">
+            <ShoppingCart size={20} className="text-green-500" />
+            <h3 className="font-bold">محصولات در سبد خرید</h3>
+          </div>
+          <div className="space-y-2">
+            {cartProducts.map((item: any) => (
+              <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{item.name}</p>
+                  <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    تعداد: {item.qty} | قیمت: {(item.price * item.qty).toLocaleString('fa-IR')} تومان
+                  </p>
+                </div>
+                <Link to="/store" className="text-blue-600 text-xs hover:underline">مشاهده</Link>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex justify-between items-center">
+            <span className="font-bold">جمع کل:</span>
+            <span className="text-blue-600 font-bold">
+              {cartProducts.reduce((sum: number, item: any) => sum + (item.price * item.qty), 0).toLocaleString('fa-IR')} تومان
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* User Orders */}
+      {userOrders.length > 0 && (
+        <div className={`p-6 rounded-2xl border mb-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center gap-3 mb-4">
+            <Package size={20} className="text-purple-500" />
+            <h3 className="font-bold">سفارش‌های من</h3>
+          </div>
+          <div className="space-y-3">
+            {userOrders.map(order => (
+              <div key={order.id} className={`p-4 rounded-lg border ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="font-mono text-sm font-bold text-blue-600">{order.trackingCode}</p>
+                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {new Date(order.createdAt).toLocaleDateString('fa-IR')}
+                    </p>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-lg">{order.total.toLocaleString('fa-IR')} تومان</p>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      order.status === 'new' ? 'bg-blue-100 text-blue-700' :
+                      order.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
+                      order.status === 'ready' ? 'bg-green-100 text-green-700' :
+                      order.status === 'delivered' ? 'bg-gray-100 text-gray-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {order.status === 'new' ? 'جدید' :
+                       order.status === 'processing' ? 'در حال انجام' :
+                       order.status === 'ready' ? 'آماده' :
+                       order.status === 'delivered' ? 'تحویل شده' : 'لغو شده'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Link to={`/track?code=${order.trackingCode}`} className="text-blue-600 text-xs hover:underline flex items-center gap-1">
+                    <Eye size={12} /> پیگیری سفارش
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Invite Code Section */}
+      <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-800' : 'bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200'}`}>
+        <div className="flex items-center gap-3 mb-4">
+          <Gift size={24} className="text-purple-600" />
+          <h3 className="font-bold text-lg">کد دعوت شما</h3>
+        </div>
+        <p className={`text-sm mb-4 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+          با به اشتراک گذاشتن کد دعوت خود، هم شما و هم دوستتان ۵۰ امتیاز وفاداری دریافت می‌کنید!
+        </p>
+        <div className={`flex items-center gap-2 p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+          <code className="flex-1 text-2xl font-mono font-bold text-purple-600">{currentUser.inviteCode || '---'}</code>
+          <button 
+            onClick={copyInviteCode}
+            className="px-6 py-3 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700 flex items-center gap-2"
+          >
+            <Copy size={16} /> کپی کد
+          </button>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className={`p-3 rounded-lg text-center ${darkMode ? 'bg-slate-800/50' : 'bg-white/50'}`}>
+            <p className="text-2xl font-bold text-purple-600">{currentUser.invitedCount || 0}</p>
+            <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>دعوت‌های موفق</p>
+          </div>
+          <div className={`p-3 rounded-lg text-center ${darkMode ? 'bg-slate-800/50' : 'bg-white/50'}`}>
+            <p className="text-2xl font-bold text-green-600">{(currentUser.invitedCount || 0) * 50}</p>
+            <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>امتیاز کسب شده</p>
+          </div>
+        </div>
+        <div className={`mt-4 p-3 rounded-lg text-sm ${darkMode ? 'bg-slate-800/50' : 'bg-white/50'}`}>
+          <p className="font-medium mb-2">چگونه کار می‌کند؟</p>
+          <ul className={`space-y-1 text-xs ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+            <li>• کد دعوت خود را با دوستان به اشتراک بگذارید</li>
+            <li>• دوست شما هنگام ثبت‌نام کد شما را وارد کند</li>
+            <li>• هر دو نفر ۵۰ امتیاز وفاداری دریافت می‌کنید</li>
+            <li>• امتیازها را به تخفیف تبدیل کنید</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

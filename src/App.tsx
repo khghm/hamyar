@@ -31,6 +31,7 @@ import AdminSettings from './pages/admin/Settings';
 import AdminNotes from './pages/admin/Notes';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminSuppliers from './pages/admin/Suppliers';
+import AdminInvites from './pages/admin/Invites';
 import { AdminEmployees, AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup, AdminFaqManager } from './pages/admin/Management';
 
 function AppRoutes() {
@@ -62,6 +63,7 @@ function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="customers" element={<AdminCustomers />} />
+        <Route path="invites" element={<AdminInvites />} />
         <Route path="products" element={<AdminProducts />} />
         <Route path="media" element={<AdminMedia />} />
         <Route path="services" element={<AdminServices />} />

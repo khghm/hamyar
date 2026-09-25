@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
-import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift } from 'lucide-react';
 
 export default function AdminLayout() {
   const { darkMode, toggleDarkMode, logout } = useApp();
@@ -15,6 +15,7 @@ export default function AdminLayout() {
     { path: '/admin/orders', icon: ShoppingCart, label: 'سفارش‌ها' },
     { path: '/admin/notes', icon: StickyNote, label: 'یادداشت‌ها' },
     { path: '/admin/customers', icon: Users, label: 'مشتریان' },
+    { path: '/admin/invites', icon: Gift, label: 'کدهای دعوت' },
     { path: '/admin/products', icon: Package, label: 'محصولات' },
     { path: '/admin/media', icon: Film, label: 'کالکشن مدیا' },
     { path: '/admin/services', icon: Wrench, label: 'خدمات' },
