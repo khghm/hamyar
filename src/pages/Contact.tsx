@@ -64,21 +64,43 @@ export default function Contact() {
             پشتیبانی ما در تمامی پیام‌رسان‌ها با شماره‌های موبایل فوق فعال است.
           </p>
           <div className="space-y-3">
-            {socialChannels.map((ch, i) => (
-              <a key={i} href={ch.link} target="_blank" rel="noopener noreferrer"
-                className={`flex items-center justify-between p-4 rounded-xl transition-all ${darkMode ? 'bg-slate-700/50 hover:bg-slate-700' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                    <MessageCircle size={20} className="text-purple-600" />
+            {socialChannels.map((ch, i) => {
+              const getIcon = () => {
+                switch(ch.name) {
+                  case 'ایتا': return 'fa-telegram';
+                  case 'روبیکا': return 'fa-instagram';
+                  case 'بله': return 'fa-facebook';
+                  case 'تلگرام': return 'fa-telegram';
+                  case 'اینستاگرام': return 'fa-instagram';
+                  default: return 'fa-share-alt';
+                }
+              };
+              const getColor = () => {
+                switch(ch.name) {
+                  case 'ایتا': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-600';
+                  case 'روبیکا': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600';
+                  case 'بله': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600';
+                  case 'تلگرام': return 'bg-sky-100 dark:bg-sky-900/30 text-sky-600';
+                  case 'اینستاگرام': return 'bg-pink-100 dark:bg-pink-900/30 text-pink-600';
+                  default: return 'bg-gray-100 dark:bg-gray-900/30 text-gray-600';
+                }
+              };
+              return (
+                <a key={i} href={ch.link} target="_blank" rel="noopener noreferrer"
+                  className={`flex items-center justify-between p-4 rounded-xl transition-all ${darkMode ? 'bg-slate-700/50 hover:bg-slate-700' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getColor()}`}>
+                      <i className={`fa-brands ${getIcon()} text-xl`}></i>
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm">{ch.name}</p>
+                      <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{ch.handle}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-sm">{ch.name}</p>
-                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{ch.handle}</p>
-                  </div>
-                </div>
-                <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>مشاهده</span>
-              </a>
-            ))}
+                  <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>مشاهده</span>
+                </a>
+              );
+            })}
           </div>
         </div>
       </div>

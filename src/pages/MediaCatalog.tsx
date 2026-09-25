@@ -40,12 +40,16 @@ export default function MediaCatalog() {
   return (
     <div className="fade-in">
       {/* Hero Banner */}
-      <div className={`relative h-64 md:h-80 overflow-hidden ${darkMode ? 'bg-slate-800' : 'bg-gray-900'}`}>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/60 to-purple-900/60"></div>
+      <div className="relative h-64 md:h-96 overflow-hidden">
+        <img 
+          src="https://image.qwenlm.ai/generated-images/dafa2905-55af-4a19-9235-93202ba272f8/_result.png" 
+          alt="کالکشن فیلم و سریال" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-          <h1 className="text-3xl md:text-4xl font-black text-white mb-2">کالکشن فیلم و سریال</h1>
-          <p className="text-white/70 text-sm md:text-base">مجموعه‌ای کامل از فیلم، سریال، انیمیشن و انیمه با بهترین کیفیت</p>
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">کالکشن فیلم و سریال</h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">مجموعه‌ای کامل از فیلم، سریال، انیمیشن و انیمه با بهترین کیفیت</p>
         </div>
       </div>
 
