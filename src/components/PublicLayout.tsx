@@ -151,14 +151,36 @@ export default function PublicLayout() {
             {/* Social */}
             <div>
               <h4 className="font-bold mb-4">شبکه‌های اجتماعی</h4>
-              <div className="flex flex-wrap gap-2">
-                {['ایتا', 'روبیکا', 'بله', 'تلگرام', 'اینستاگرام'].map(s => (
-                  <a key={s} href="https://eitaa.com/@hamyar_service1" target="_blank" rel="noopener noreferrer"
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium ${darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-100 hover:bg-gray-200'}`}>
-                    {s}: @hamyar_service1
-                  </a>
-                ))}
+              <div className="flex flex-wrap gap-3">
+                <a href="https://eitaa.com/@hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-orange-600' : 'bg-gray-100 hover:bg-orange-500 hover:text-white'}`}
+                  title="ایتا">
+                  <i className="fa-brands fa-telegram text-lg"></i>
+                </a>
+                <a href="https://rubika.ir/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-purple-600' : 'bg-gray-100 hover:bg-purple-500 hover:text-white'}`}
+                  title="روبیکا">
+                  <i className="fa-brands fa-instagram text-lg"></i>
+                </a>
+                <a href="https://ble.ir/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-blue-600' : 'bg-gray-100 hover:bg-blue-500 hover:text-white'}`}
+                  title="بله">
+                  <i className="fa-brands fa-facebook text-lg"></i>
+                </a>
+                <a href="https://t.me/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-sky-600' : 'bg-gray-100 hover:bg-sky-500 hover:text-white'}`}
+                  title="تلگرام">
+                  <i className="fa-brands fa-telegram text-lg"></i>
+                </a>
+                <a href="https://instagram.com/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-pink-600' : 'bg-gray-100 hover:bg-pink-500 hover:text-white'}`}
+                  title="اینستاگرام">
+                  <i className="fa-brands fa-instagram text-lg"></i>
+                </a>
               </div>
+              <p className={`text-xs mt-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                @hamyar_service1
+              </p>
             </div>
           </div>
 
