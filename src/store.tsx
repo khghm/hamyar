@@ -121,6 +121,21 @@ export interface Project {
   description: string;
 }
 
+export interface Note {
+  id: string;
+  title: string;
+  customerName: string;
+  customerPhone: string;
+  task: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'pending' | 'in-progress' | 'done';
+  dueDate?: string;
+  createdAt: string;
+  completedAt?: string;
+  tags: string[];
+  content: string;
+}
+
 interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -150,6 +165,8 @@ interface AppContextType {
   selectMedia: (mediaId: string) => void;
   aboutContent: AboutContent;
   setAboutContent: (a: AboutContent) => void;
+  notes: Note[];
+  setNotes: (n: Note[]) => void;
 }
 
 export interface AboutContent {
@@ -314,6 +331,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('hamyar_about');
     return saved ? JSON.parse(saved) : defaultAbout;
   });
+  const [notes, setNotes] = useState<Note[]>(() => {
+    const saved = localStorage.getItem('hamyar_notes');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   useEffect(() => {
     localStorage.setItem('hamyar_dark', String(darkMode));
@@ -330,6 +351,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_portfolio', JSON.stringify(portfolio)); }, [portfolio]);
   useEffect(() => { localStorage.setItem('hamyar_expenses', JSON.stringify(expenses)); }, [expenses]);
   useEffect(() => { localStorage.setItem('hamyar_projects', JSON.stringify(projects)); }, [projects]);
+  useEffect(() => { localStorage.setItem('hamyar_notes', JSON.stringify(notes)); }, [notes]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
 
@@ -405,7 +427,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       products, setProducts, mediaItems, setMediaItems, services, setServices,
       orders, setOrders, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
-      addToFavorites, selectMedia, aboutContent, setAboutContent
+      addToFavorites, selectMedia, aboutContent, setAboutContent,
+      notes, setNotes
     }}>
       {children}
     </AppContext.Provider>
