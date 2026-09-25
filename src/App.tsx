@@ -32,6 +32,7 @@ import AdminNotes from './pages/admin/Notes';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminSuppliers from './pages/admin/Suppliers';
 import AdminInvites from './pages/admin/Invites';
+import AdminContentTeam from './pages/admin/ContentTeam';
 import { AdminEmployees, AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup, AdminFaqManager } from './pages/admin/Management';
 
 function AppRoutes() {
@@ -80,6 +81,7 @@ function AppRoutes() {
         <Route path="audit" element={<AdminAuditLog />} />
         <Route path="backup" element={<AdminBackup />} />
         <Route path="faq" element={<AdminFaqManager />} />
+        <Route path="content-team" element={<AdminContentTeam />} />
       </Route>
     </Routes>
   );
