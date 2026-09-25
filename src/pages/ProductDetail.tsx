@@ -1,14 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
-import { ArrowRight, ShoppingCart, Star, Package, Shield, Truck } from 'lucide-react';
+import { ArrowRight, ShoppingCart, Star, Package, Shield, Truck, MessageSquare } from 'lucide-react';
 
 export default function ProductDetail() {
   const { id } = useParams();
-  const { darkMode, products } = useApp();
+  const { darkMode, products, reviews, setReviews, currentUser } = useApp();
   const navigate = useNavigate();
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
   
   const product = products.find(p => p.id === id);
+  const productReviews = reviews.filter(r => r.productId === id && r.approved);
+  const avgRating = productReviews.length > 0 
+    ? productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length 
+    : 0;
+
+  const submitReview = () => {
+    if (!currentUser) {
+      alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
+      return;
+    }
+    if (!newComment.trim()) {
+      alert('لطفاً نظر خود را بنویسید');
+      return;
+    }
+    const review = {
+      id: 'r' + Date.now(),
+      productId: id!,
+      customerName: currentUser.name,
+      rating: newRating,
+      comment: newComment,
+      date: new Date().toLocaleDateString('fa-IR'),
+      approved: true
+    };
+    setReviews([...reviews, review]);
+    setNewComment('');
+    setNewRating(5);
+    alert('نظر شما ثبت شد');
+  };
 
   if (!product) {
     return (
@@ -126,7 +156,23 @@ export default function ProductDetail() {
 
           {/* Actions */}
           <div className="flex gap-3">
-            <button className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+            <button 
+              onClick={() => {
+                const saved = localStorage.getItem('hamyar_cart');
+                const cart = saved ? JSON.parse(saved) : [];
+                const existing = cart.find((c: any) => c.id === product.id);
+                if (existing) {
+                  const updated = cart.map((c: any) => c.id === product.id ? { ...c, qty: c.qty + 1 } : c);
+                  localStorage.setItem('hamyar_cart', JSON.stringify(updated));
+                } else {
+                  cart.push({ id: product.id, qty: 1 });
+                  localStorage.setItem('hamyar_cart', JSON.stringify(cart));
+                }
+                window.dispatchEvent(new Event('cartUpdated'));
+                alert('محصول به سبد خرید اضافه شد');
+              }}
+              className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+            >
               <ShoppingCart size={20} />
               افزودن به سبد خرید
             </button>
@@ -135,6 +181,86 @@ export default function ProductDetail() {
             </a>
           </div>
         </div>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="mt-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <MessageSquare size={24} className="text-blue-600" />
+            نظرات کاربران
+          </h2>
+          {avgRating > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <Star key={i} size={18} className={i <= Math.round(avgRating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} />
+                ))}
+              </div>
+              <span className="text-sm font-bold">{avgRating.toFixed(1)}</span>
+              <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>({productReviews.length} نظر)</span>
+            </div>
+          )}
+        </div>
+
+        {/* Add Review Form */}
+        <div className={`p-6 rounded-2xl border mb-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <h3 className="font-bold mb-4">ثبت نظر</h3>
+          <div className="mb-3">
+            <label className="text-sm font-medium block mb-2">امتیاز شما:</label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map(i => (
+                <button key={i} onClick={() => setNewRating(i)}>
+                  <Star size={28} className={i <= newRating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <textarea
+            value={newComment}
+            onChange={e => setNewComment(e.target.value)}
+            placeholder="نظر خود را درباره این محصول بنویسید..."
+            rows={3}
+            className={`w-full px-3 py-2 rounded-lg border mb-3 ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`}
+          />
+          <button
+            onClick={submitReview}
+            className="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700"
+          >
+            ثبت نظر
+          </button>
+        </div>
+
+        {/* Reviews List */}
+        {productReviews.length > 0 ? (
+          <div className="space-y-4">
+            {productReviews.map(review => (
+              <div key={review.id} className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                      {review.customerName.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm">{review.customerName}</p>
+                      <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{review.date}</p>
+                    </div>
+                  </div>
+                  <div className="flex">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <Star key={i} size={14} className={i <= review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} />
+                    ))}
+                  </div>
+                </div>
+                <p className={`text-sm leading-6 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{review.comment}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={`text-center py-8 rounded-xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+            <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>هنوز نظری ثبت نشده است. اولین نفر باشید!</p>
+          </div>
+        )}
       </div>
 
       {/* Related Products */}

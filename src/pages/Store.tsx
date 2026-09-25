@@ -12,6 +12,49 @@ export default function Store() {
   const [sortBy, setSortBy] = useState('default');
   const [showMobileFilter, setShowMobileFilter] = useState(false);
   const [cart, setCart] = useState<{ id: string; qty: number }[]>([]);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState('');
+  const { campaigns } = useApp();
+
+  const cartTotal = cart.reduce((sum, c) => {
+    const p = products.find(pr => pr.id === c.id);
+    return sum + (p ? p.price * c.qty : 0);
+  }, 0);
+
+  const applyCoupon = () => {
+    const campaign = campaigns.find(c => c.code === couponCode.toUpperCase() && c.active);
+    if (!campaign) {
+      setCouponError('کد تخفیف معتبر نیست');
+      setAppliedCoupon(null);
+      return;
+    }
+    if (new Date(campaign.endDate) < new Date()) {
+      setCouponError('کد تخفیف منقضی شده است');
+      setAppliedCoupon(null);
+      return;
+    }
+    if (campaign.usedCount >= campaign.maxUses) {
+      setCouponError('ظرفیت استفاده از این کد تکمیل شده است');
+      setAppliedCoupon(null);
+      return;
+    }
+    if (cartTotal < campaign.minPurchase) {
+      setCouponError(`حداقل خرید برای این کد: ${campaign.minPurchase.toLocaleString('fa-IR')} تومان`);
+      setAppliedCoupon(null);
+      return;
+    }
+    setAppliedCoupon(campaign);
+    setCouponError('');
+  };
+
+  const discountAmount = appliedCoupon 
+    ? appliedCoupon.type === 'percent' 
+      ? Math.round(cartTotal * appliedCoupon.discount / 100)
+      : appliedCoupon.discount
+    : 0;
+  
+  const finalTotal = cartTotal - discountAmount;
 
   const categories = Array.from(new Set(products.map(p => p.category)));
   const brands = Array.from(new Set(products.map(p => p.brand)));
@@ -101,11 +144,6 @@ export default function Store() {
     setCart([]);
     alert(`سفارش شما با کد رهگیری ${newOrder.trackingCode} ثبت شد. برای پرداخت با ما تماس بگیرید.`);
   };
-
-  const cartTotal = cart.reduce((sum, c) => {
-    const p = products.find(pr => pr.id === c.id);
-    return sum + (p ? p.price * c.qty : 0);
-  }, 0);
 
   const FilterSidebar = () => (
     <div className="space-y-6">
@@ -299,10 +337,43 @@ export default function Store() {
             })}
           </div>
           
-          <div className="border-t pt-2 mb-3">
-            <div className="flex justify-between items-center mb-2">
+          {/* Coupon */}
+          <div className="mb-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={couponCode}
+                onChange={e => setCouponCode(e.target.value)}
+                placeholder="کد تخفیف"
+                className={`flex-1 px-2 py-1.5 rounded text-xs ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'} border`}
+              />
+              <button
+                onClick={applyCoupon}
+                className="px-3 py-1.5 rounded bg-purple-600 text-white text-xs hover:bg-purple-700"
+              >
+                اعمال
+              </button>
+            </div>
+            {couponError && <p className="text-red-500 text-xs mt-1">{couponError}</p>}
+            {appliedCoupon && (
+              <p className="text-green-600 text-xs mt-1">✓ کد {appliedCoupon.title} اعمال شد</p>
+            )}
+          </div>
+
+          <div className="border-t pt-2 mb-3 space-y-1">
+            <div className="flex justify-between items-center">
               <span className="text-sm">جمع کل:</span>
-              <span className="text-blue-600 font-bold">{formatPrice(cartTotal)} تومان</span>
+              <span className="text-sm">{formatPrice(cartTotal)} تومان</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between items-center text-green-600">
+                <span className="text-sm">تخفیف:</span>
+                <span className="text-sm">-{formatPrice(discountAmount)} تومان</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-1 border-t border-gray-200 dark:border-slate-700">
+              <span className="text-sm font-bold">مبلغ نهایی:</span>
+              <span className="text-blue-600 font-bold">{formatPrice(finalTotal)} تومان</span>
             </div>
           </div>
           
