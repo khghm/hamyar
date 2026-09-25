@@ -63,26 +63,91 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Services Grid */}
+      {/* Services Banners */}
       <section className="py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">خدمات ما</h2>
             <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>چهار جریان خدماتی برای پاسخگویی به تمامی نیازهای دیجیتال شما</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((f, i) => {
-              const Icon = f.icon;
-              return (
-                <Link key={i} to={f.path} className={`group p-6 rounded-2xl border transition-all hover:shadow-xl hover:-translate-y-1 ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
-                  <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                    <Icon size={28} className="text-white" />
+          
+          {/* Banner Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Services Banner */}
+            <Link to="/services" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <img 
+                src="https://image.qwenlm.ai/generated-images/193d7018-ae58-4523-90d8-e520f4fd3d97/_result.png" 
+                alt="خدمات کافی‌نت" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                    <Monitor size={24} className="text-white" />
                   </div>
-                  <h3 className="font-bold text-lg mb-2">{f.title}</h3>
-                  <p className={`text-sm leading-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{f.desc}</p>
-                </Link>
-              );
-            })}
+                  <h3 className="text-2xl font-bold text-white">خدمات کافی‌نت</h3>
+                </div>
+                <p className="text-white/90 text-sm">پرینت، اسکن، تایپ، ترجمه و تمامی خدمات اداری</p>
+              </div>
+            </Link>
+
+            {/* Media Collection Banner */}
+            <Link to="/media" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <img 
+                src="https://image.qwenlm.ai/generated-images/2e802200-4ad1-479d-ad9f-a372419b960f/_result.png" 
+                alt="کالکشن فیلم و سریال" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <Film size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">کالکشن فیلم و سریال</h3>
+                </div>
+                <p className="text-white/90 text-sm">بزرگ‌ترین مجموعه فیلم، سریال، انیمیشن و انیمه</p>
+              </div>
+            </Link>
+
+            {/* Store Banner */}
+            <Link to="/store" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <img 
+                src="https://image.qwenlm.ai/generated-images/e227c9df-ac37-42c1-8e31-b03668cfbf0b/_result.png" 
+                alt="فروشگاه محصولات" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                    <ShoppingBag size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">فروشگاه محصولات</h3>
+                </div>
+                <p className="text-white/90 text-sm">فلش، هارد، کابل، شارژر، دوربین مداربسته و لوازم جانبی</p>
+              </div>
+            </Link>
+
+            {/* Web Design Banner */}
+            <Link to="/webdesign" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <img 
+                src="https://image.qwenlm.ai/generated-images/3071704e-8190-450f-9e28-67597a67b94c/_result.png" 
+                alt="طراحی وب‌سایت" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                    <Globe size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">طراحی وب‌سایت</h3>
+                </div>
+                <p className="text-white/90 text-sm">طراحی سایت فروشگاهی، شرکتی و شخصی با جدیدترین تکنولوژی‌ها</p>
+              </div>
+            </Link>
           </div>
         </div>
       </section>
