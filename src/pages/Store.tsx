@@ -37,12 +37,69 @@ export default function Store() {
   }, [products, categoryFilter, brandFilter, priceRange, search, sortBy]);
 
   const formatPrice = (p: number) => p.toLocaleString('fa-IR');
+  const { currentUser, orders, setOrders } = useApp();
+  
   const addToCart = (id: string) => {
     setCart(prev => {
       const existing = prev.find(c => c.id === id);
       if (existing) return prev.map(c => c.id === id ? { ...c, qty: c.qty + 1 } : c);
       return [...prev, { id, qty: 1 }];
     });
+  };
+
+  const removeFromCart = (id: string) => {
+    setCart(prev => prev.filter(c => c.id !== id));
+  };
+
+  const updateQuantity = (id: string, qty: number) => {
+    if (qty <= 0) {
+      removeFromCart(id);
+    } else {
+      setCart(prev => prev.map(c => c.id === id ? { ...c, qty } : c));
+    }
+  };
+
+  const checkout = () => {
+    if (!currentUser) {
+      alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
+      return;
+    }
+    if (cart.length === 0) {
+      alert('سبد خرید شما خالی است');
+      return;
+    }
+
+    const orderItems = cart.map(c => {
+      const product = products.find(p => p.id === c.id);
+      return {
+        productId: c.id,
+        name: product?.name || '',
+        price: product?.price || 0,
+        quantity: c.qty,
+        total: (product?.price || 0) * c.qty
+      };
+    });
+
+    const newOrder = {
+      id: 'o' + Date.now(),
+      trackingCode: 'HMY-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+      customerId: currentUser.id,
+      customerName: currentUser.name,
+      type: 'product' as const,
+      channel: 'وب‌سایت',
+      status: 'new' as const,
+      priority: 'normal' as const,
+      items: orderItems,
+      total: cartTotal,
+      paid: 0,
+      remaining: cartTotal,
+      createdAt: new Date().toISOString(),
+      description: 'سفارش از فروشگاه آنلاین'
+    };
+
+    setOrders([...orders, newOrder]);
+    setCart([]);
+    alert(`سفارش شما با کد رهگیری ${newOrder.trackingCode} ثبت شد. برای پرداخت با ما تماس بگیرید.`);
   };
 
   const cartTotal = cart.reduce((sum, c) => {
@@ -199,13 +256,60 @@ export default function Store() {
 
       {/* Cart Summary */}
       {cart.length > 0 && (
-        <div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 p-4 rounded-xl shadow-2xl border z-40 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center justify-between mb-2">
+        <div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 p-4 rounded-xl shadow-2xl border z-40 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center justify-between mb-3">
             <span className="font-bold text-sm">سبد خرید ({cart.reduce((s, c) => s + c.qty, 0)} کالا)</span>
-            <button onClick={() => setCart([])} className="text-red-500 text-xs">پاک کردن</button>
+            <button onClick={() => setCart([])} className="text-red-500 text-xs hover:underline">پاک کردن همه</button>
           </div>
-          <div className="text-blue-600 font-bold mb-3">{formatPrice(cartTotal)} تومان</div>
-          <button className="w-full py-2.5 rounded-lg bg-green-600 text-white font-medium text-sm hover:bg-green-700">
+          
+          {/* Cart Items */}
+          <div className="max-h-60 overflow-y-auto mb-3 space-y-2">
+            {cart.map(item => {
+              const product = products.find(p => p.id === item.id);
+              if (!product) return null;
+              return (
+                <div key={item.id} className={`flex items-center gap-2 p-2 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{product.name}</p>
+                    <p className="text-xs text-blue-600">{formatPrice(product.price * item.qty)} تومان</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => updateQuantity(item.id, item.qty - 1)}
+                      className={`w-6 h-6 rounded text-xs ${darkMode ? 'bg-slate-600 hover:bg-slate-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+                    >
+                      -
+                    </button>
+                    <span className="text-xs w-6 text-center">{item.qty}</span>
+                    <button 
+                      onClick={() => updateQuantity(item.id, item.qty + 1)}
+                      className={`w-6 h-6 rounded text-xs ${darkMode ? 'bg-slate-600 hover:bg-slate-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+                    >
+                      +
+                    </button>
+                    <button 
+                      onClick={() => removeFromCart(item.id)}
+                      className="w-6 h-6 rounded text-xs bg-red-500 text-white hover:bg-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="border-t pt-2 mb-3">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm">جمع کل:</span>
+              <span className="text-blue-600 font-bold">{formatPrice(cartTotal)} تومان</span>
+            </div>
+          </div>
+          
+          <button 
+            onClick={checkout}
+            className="w-full py-2.5 rounded-lg bg-green-600 text-white font-medium text-sm hover:bg-green-700 transition-all"
+          >
             ثبت سفارش
           </button>
         </div>
