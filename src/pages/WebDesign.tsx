@@ -14,10 +14,16 @@ export default function WebDesign() {
   return (
     <div className="fade-in">
       {/* Hero */}
-      <section className={`py-20 ${darkMode ? 'bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900' : 'bg-gradient-to-br from-purple-50 via-white to-blue-50'}`}>
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h1 className="text-4xl font-black mb-4">طراحی وب‌سایت حرفه‌ای</h1>
-          <p className={`text-lg mb-8 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+      <section className="relative h-64 md:h-96 overflow-hidden">
+        <img 
+          src="https://image.qwenlm.ai/generated-images/f176a0ca-e78a-405e-b84e-9b37fbaa319d/_result.png" 
+          alt="طراحی وب‌سایت حرفه‌ای" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 text-center">
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">طراحی وب‌سایت حرفه‌ای</h1>
+          <p className="text-white/90 text-sm md:text-lg mb-6 drop-shadow">
             طراحی سایت با جدیدترین تکنولوژی‌ها و بهترین کیفیت
           </p>
           <a href="tel:09913911880" className="inline-block bg-purple-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-purple-700 transition-all">

@@ -6,12 +6,22 @@ export default function About() {
   const { darkMode, aboutContent } = useApp();
 
   return (
-    <div className="fade-in max-w-7xl mx-auto px-4 py-12">
-      {/* Header */}
-      <div className="text-center mb-16">
-        <h1 className="text-4xl font-black mb-4">درباره کافی نت همیار</h1>
-        <p className={`text-lg ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>مرکز خدمات و فروش دیجیتال</p>
+    <div className="fade-in">
+      {/* Hero Banner */}
+      <div className="relative h-64 md:h-96 overflow-hidden">
+        <img 
+          src="https://image.qwenlm.ai/generated-images/62908c70-02c9-4588-8706-7c7cadc5777e/_result.png" 
+          alt="درباره کافی نت همیار" 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">درباره کافی نت همیار</h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">مرکز خدمات و فروش دیجیتال</p>
+        </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-12">
 
       {/* Description */}
       <div className={`max-w-4xl mx-auto p-8 rounded-2xl border mb-12 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
@@ -103,6 +113,7 @@ export default function About() {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );
