@@ -1,0 +1,49 @@
+import React from 'react';
+import { useApp } from '../store';
+import { Newspaper, Calendar } from 'lucide-react';
+
+export default function News() {
+  const { darkMode, news } = useApp();
+  const activeNews = news.filter(n => n.active);
+
+  return (
+    <div className="fade-in max-w-7xl mx-auto px-4 py-12">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-black mb-4">اخبار کافی نت همیار</h1>
+        <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>آخرین اخبار، تخفیف‌ها و اطلاعیه‌ها</p>
+      </div>
+
+      <div className="space-y-6">
+        {activeNews.map(item => (
+          <article key={item.id} className={`rounded-2xl border overflow-hidden ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <div className="flex flex-col md:flex-row">
+              {item.image ? (
+                <img src={item.image} alt={item.title} className="md:w-64 h-48 md:h-auto object-cover" />
+              ) : (
+                <div className="md:w-64 h-48 md:h-auto bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <Newspaper size={48} className="text-white/50" />
+                </div>
+              )}
+              <div className="p-6 flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar size={14} className="text-slate-400" />
+                  <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.date}</span>
+                </div>
+                <h2 className="text-xl font-bold mb-2">{item.title}</h2>
+                <p className={`text-sm mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.caption}</p>
+                <p className={`leading-7 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{item.content}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {activeNews.length === 0 && (
+        <div className="text-center py-16">
+          <Newspaper size={48} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
+          <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>خبری منتشر نشده است</p>
+        </div>
+      )}
+    </div>
+  );
+}

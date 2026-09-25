@@ -1,5 +1,69 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AppProvider, useApp } from './store';
+import PublicLayout from './components/PublicLayout';
+import AdminLayout from './components/AdminLayout';
+import Home from './pages/Home';
+import Services from './pages/Services';
+import MediaCatalog from './pages/MediaCatalog';
+import Store from './pages/Store';
+import WebDesign from './pages/WebDesign';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import News from './pages/News';
+import Auth from './pages/Auth';
+import Profile from './pages/Profile';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminOrders from './pages/admin/Orders';
+import AdminCustomers from './pages/admin/Customers';
+import AdminProducts from './pages/admin/Products';
+import AdminMedia from './pages/admin/Media';
+import AdminServices from './pages/admin/Services';
+import AdminProjects from './pages/admin/Projects';
+import AdminFinance from './pages/admin/Finance';
+import AdminSettings from './pages/admin/Settings';
+
+function AppRoutes() {
+  const { currentUser } = useApp();
+
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route element={<PublicLayout />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/media" element={<MediaCatalog />} />
+        <Route path="/store" element={<Store />} />
+        <Route path="/webdesign" element={<WebDesign />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/news" element={<News />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/profile" element={currentUser && currentUser.role === 'customer' ? <Profile /> : <Navigate to="/auth" />} />
+      </Route>
+
+      {/* Admin Routes */}
+      <Route path="/admin" element={currentUser?.role === 'admin' ? <AdminLayout /> : <Navigate to="/" />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="customers" element={<AdminCustomers />} />
+        <Route path="products" element={<AdminProducts />} />
+        <Route path="media" element={<AdminMedia />} />
+        <Route path="services" element={<AdminServices />} />
+        <Route path="projects" element={<AdminProjects />} />
+        <Route path="finance" element={<AdminFinance />} />
+        <Route path="settings" element={<AdminSettings />} />
+      </Route>
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
-    <div/>
+    <AppProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AppProvider>
   );
 }
