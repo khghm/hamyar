@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
-import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote } from 'lucide-react';
 
 export default function AdminLayout() {
   const { darkMode, toggleDarkMode, logout } = useApp();
@@ -12,6 +12,7 @@ export default function AdminLayout() {
   const menuItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'داشبورد' },
     { path: '/admin/orders', icon: ShoppingCart, label: 'سفارش‌ها' },
+    { path: '/admin/notes', icon: StickyNote, label: 'یادداشت‌های شخصی' },
     { path: '/admin/customers', icon: Users, label: 'مشتریان' },
     { path: '/admin/products', icon: Package, label: 'محصولات و انبار' },
     { path: '/admin/media', icon: Film, label: 'کالکشن مدیا' },

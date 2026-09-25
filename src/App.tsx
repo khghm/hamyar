@@ -22,6 +22,7 @@ import AdminServices from './pages/admin/Services';
 import AdminProjects from './pages/admin/Projects';
 import AdminFinance from './pages/admin/Finance';
 import AdminSettings from './pages/admin/Settings';
+import AdminNotes from './pages/admin/Notes';
 
 function AppRoutes() {
   const { currentUser } = useApp();
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="projects" element={<AdminProjects />} />
         <Route path="finance" element={<AdminFinance />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="notes" element={<AdminNotes />} />
       </Route>
     </Routes>
   );
