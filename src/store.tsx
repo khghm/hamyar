@@ -9,6 +9,8 @@ export interface User {
   name: string;
   phone: string;
   inviteCode?: string;
+  invitedBy?: string;
+  invitedCount?: number;
   loyaltyPoints: number;
   level: 'normal' | 'silver' | 'gold' | 'vip';
   favorites: string[];
@@ -210,7 +212,7 @@ interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
   currentUser: User | null;
-  login: (phone: string, name: string) => void;
+  login: (phone: string, name: string, invitedBy?: string) => void;
   adminLogin: (username: string, password: string) => boolean;
   logout: () => void;
   products: Product[];
@@ -610,7 +612,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
-  const login = (phone: string, name: string) => {
+  const login = (phone: string, name: string, invitedBy?: string) => {
     let user = users.find(u => u.phone === phone);
     if (!user) {
       user = {
@@ -621,7 +623,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name,
         phone,
         inviteCode: 'INV' + Math.random().toString(36).substr(2, 6).toUpperCase(),
-        loyaltyPoints: 0,
+        invitedBy,
+        invitedCount: 0,
+        loyaltyPoints: invitedBy ? 50 : 0, // New user gets 50 points if invited
         level: 'normal',
         favorites: [],
         selectedMedia: [],

@@ -1,12 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../store';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Package, CheckCircle, Clock, Truck, XCircle } from 'lucide-react';
 
 export default function TrackOrder() {
   const { darkMode, orders } = useApp();
+  const [searchParams] = useSearchParams();
   const [trackingCode, setTrackingCode] = useState('');
   const [foundOrder, setFoundOrder] = useState<any>(null);
   const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (code) {
+      setTrackingCode(code);
+      const order = orders.find(o => o.trackingCode.toLowerCase() === code.toLowerCase());
+      if (order) {
+        setFoundOrder(order);
+        setNotFound(false);
+      } else {
+        setNotFound(true);
+      }
+    }
+  }, [searchParams, orders]);
 
   const handleTrack = () => {
     const order = orders.find(o => o.trackingCode.toLowerCase() === trackingCode.toLowerCase());
