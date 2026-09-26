@@ -281,6 +281,47 @@ export interface KPI {
   createdAt: string;
 }
 
+export interface Affiliate {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  referralCode: string;
+  commissionRate: number; // درصد پورسانت
+  walletBalance: number; // موجودی کیف پول
+  totalEarnings: number; // کل درآمد
+  totalWithdrawn: number; // کل برداشت شده
+  totalSpent: number; // کل خرج شده در خدمات
+  status: 'active' | 'inactive' | 'pending';
+  joinDate: string;
+  lastActivity?: string;
+  notes?: string;
+}
+
+export interface AffiliateOrder {
+  id: string;
+  affiliateId: string;
+  orderId: string;
+  customerName: string;
+  orderType: 'webdesign' | 'bot' | 'app' | 'product' | 'content' | 'service' | 'media';
+  orderAmount: number;
+  commissionAmount: number;
+  status: 'pending' | 'completed' | 'cancelled';
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface AffiliateTransaction {
+  id: string;
+  affiliateId: string;
+  type: 'commission' | 'withdrawal' | 'expense';
+  amount: number;
+  description: string;
+  status: 'pending' | 'completed' | 'rejected';
+  createdAt: string;
+  completedAt?: string;
+}
+
 export interface DigitalMarketingData {
   // Financial Metrics
   gmv: number;
@@ -717,6 +758,12 @@ interface AppContextType {
   setKpis: (k: KPI[]) => void;
   digitalMarketingData: DigitalMarketingData;
   setDigitalMarketingData: (d: DigitalMarketingData) => void;
+  affiliates: Affiliate[];
+  setAffiliates: (a: Affiliate[]) => void;
+  affiliateOrders: AffiliateOrder[];
+  setAffiliateOrders: (o: AffiliateOrder[]) => void;
+  affiliateTransactions: AffiliateTransaction[];
+  setAffiliateTransactions: (t: AffiliateTransaction[]) => void;
 }
 
 export interface AboutContent {
@@ -1145,6 +1192,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       { id: 'perm33', name: 'پشتیبان‌گیری', description: 'ایجاد و بازیابی بکاپ', module: 'بکاپ' },
       { id: 'perm34', name: 'مشاهده تحلیل', description: 'مشاهده داشبورد تحلیلی', module: 'تحلیل' },
       { id: 'perm35', name: 'مدیریت نقش‌ها', description: 'ایجاد و ویرایش نقش‌ها و دسترسی‌ها', module: 'RBAC' },
+      { id: 'perm36', name: 'مشاهده همکاران', description: 'مشاهده لیست همکاران', module: 'همکاران' },
+      { id: 'perm37', name: 'مدیریت همکاران', description: 'ایجاد، ویرایش و حذف همکاران', module: 'همکاران' },
+      { id: 'perm38', name: 'مشاهده سفارشات همکار', description: 'مشاهده سفارشات ارجاعی همکاران', module: 'همکاران' },
+      { id: 'perm39', name: 'مدیریت کیف پول', description: 'مدیریت تراکنش‌های کیف پول همکاران', module: 'همکاران' },
+      { id: 'perm40', name: 'گزارش‌های همکاران', description: 'مشاهده گزارش‌های عملکرد همکاران', module: 'همکاران' },
     ];
   });
 
@@ -1191,6 +1243,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isDefault: false,
         createdAt: new Date().toISOString()
       },
+      {
+        id: 'role6',
+        name: 'همکار',
+        description: 'دسترسی به پنل همکاران و مشاهده پورسانت‌ها',
+        permissions: ['perm36', 'perm38'],
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      },
     ];
   });
 
@@ -1218,6 +1278,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [kpis, setKpis] = useState<KPI[]>(() => {
     const saved = localStorage.getItem('hamyar_kpis');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [affiliates, setAffiliates] = useState<Affiliate[]>(() => {
+    const saved = localStorage.getItem('hamyar_affiliates');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [affiliateOrders, setAffiliateOrders] = useState<AffiliateOrder[]>(() => {
+    const saved = localStorage.getItem('hamyar_affiliate_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [affiliateTransactions, setAffiliateTransactions] = useState<AffiliateTransaction[]>(() => {
+    const saved = localStorage.getItem('hamyar_affiliate_transactions');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -1316,6 +1391,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_system_users', JSON.stringify(systemUsers)); }, [systemUsers]);
   useEffect(() => { localStorage.setItem('hamyar_okrs', JSON.stringify(okrs)); }, [okrs]);
   useEffect(() => { localStorage.setItem('hamyar_kpis', JSON.stringify(kpis)); }, [kpis]);
+  useEffect(() => { localStorage.setItem('hamyar_affiliates', JSON.stringify(affiliates)); }, [affiliates]);
+  useEffect(() => { localStorage.setItem('hamyar_affiliate_orders', JSON.stringify(affiliateOrders)); }, [affiliateOrders]);
+  useEffect(() => { localStorage.setItem('hamyar_affiliate_transactions', JSON.stringify(affiliateTransactions)); }, [affiliateTransactions]);
   useEffect(() => { localStorage.setItem('hamyar_digital_marketing', JSON.stringify(digitalMarketingData)); }, [digitalMarketingData]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
@@ -1415,7 +1493,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       systemUsers, setSystemUsers,
       okrs, setOkrs,
       kpis, setKpis,
-      digitalMarketingData, setDigitalMarketingData
+      digitalMarketingData, setDigitalMarketingData,
+      affiliates, setAffiliates,
+      affiliateOrders, setAffiliateOrders,
+      affiliateTransactions, setAffiliateTransactions
     }}>
       {children}
     </AppContext.Provider>
