@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp, Employee, Campaign, SmsLog, AuditLog } from '../../store';
-import { Plus, X, Edit, Trash2, Send, Download, Shield } from 'lucide-react';
+import { Plus, X, Edit, Trash2, Send, Download, Shield, Upload } from 'lucide-react';
 
 // Employees Page
 export function AdminEmployees() {
@@ -231,27 +231,116 @@ export function AdminReviews() {
 
 // Audit Log
 export function AdminAuditLog() {
-  const { darkMode, auditLogs } = useApp();
+  const { darkMode, auditLogs, setAuditLogs } = useApp();
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
+
+  const filteredLogs = auditLogs.filter(log => {
+    if (filter !== 'all' && log.action !== filter) return false;
+    if (search && !log.user.includes(search) && !log.details.includes(search)) return false;
+    if (dateRange.from && new Date(log.date) < new Date(dateRange.from)) return false;
+    if (dateRange.to && new Date(log.date) > new Date(dateRange.to)) return false;
+    return true;
+  });
+
+  const uniqueActions = Array.from(new Set(auditLogs.map(l => l.action)));
+  const stats = {
+    total: auditLogs.length,
+    today: auditLogs.filter(l => new Date(l.date).toDateString() === new Date().toDateString()).length,
+    thisWeek: auditLogs.filter(l => {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return new Date(l.date) > weekAgo;
+    }).length,
+  };
+
+  const exportLogs = () => {
+    const csv = ['کاربر,عملیات,جزئیات,تاریخ,IP'];
+    filteredLogs.forEach(log => {
+      csv.push(`${log.user},${log.action},${log.details},${new Date(log.date).toLocaleString('fa-IR')},${log.ip || '-'}`);
+    });
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-log-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
   return (
-    <div className="fade-in space-y-4">
+    <div className="fade-in space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2"><Shield size={24} /> لاگ فعالیت‌ها</h1>
+        <button onClick={exportLogs} className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">خروجی CSV</button>
       </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="text-2xl font-bold">{stats.total}</div>
+          <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>کل فعالیت‌ها</div>
+        </div>
+        <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="text-2xl font-bold text-blue-600">{stats.today}</div>
+          <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>امروز</div>
+        </div>
+        <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="text-2xl font-bold text-purple-600">{stats.thisWeek}</div>
+          <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>هفته اخیر</div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input type="text" placeholder="جستجو..." value={search} onChange={e => setSearch(e.target.value)}
+            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`} />
+          <select value={filter} onChange={e => setFilter(e.target.value)}
+            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+            <option value="all">همه عملیات</option>
+            {uniqueActions.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <input type="date" value={dateRange.from} onChange={e => setDateRange({...dateRange, from: e.target.value})}
+            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`} />
+          <input type="date" value={dateRange.to} onChange={e => setDateRange({...dateRange, to: e.target.value})}
+            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`} />
+        </div>
+      </div>
+
+      {/* Logs Table */}
       <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-        <table className="w-full text-sm">
-          <thead className={darkMode ? 'bg-slate-700' : 'bg-gray-50'}><tr><th className="text-right p-3">کاربر</th><th className="text-right p-3">عملیات</th><th className="text-right p-3">جزئیات</th><th className="text-right p-3">تاریخ</th><th className="text-right p-3">IP</th></tr></thead>
-          <tbody>
-            {auditLogs.slice().reverse().map(log => (
-              <tr key={log.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
-                <td className="p-3 font-medium">{log.user}</td>
-                <td className="p-3">{log.action}</td>
-                <td className="p-3 text-xs">{log.details}</td>
-                <td className="p-3 text-xs">{new Date(log.date).toLocaleString('fa-IR')}</td>
-                <td className="p-3 font-mono text-xs">{log.ip || '-'}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className={darkMode ? 'bg-slate-700' : 'bg-gray-50'}>
+              <tr>
+                <th className="text-right p-3">کاربر</th>
+                <th className="text-right p-3">عملیات</th>
+                <th className="text-right p-3">جزئیات</th>
+                <th className="text-right p-3">تاریخ و ساعت</th>
+                <th className="text-right p-3">IP</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredLogs.slice().reverse().map(log => (
+                <tr key={log.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'} hover:${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                  <td className="p-3 font-medium">{log.user}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-1 rounded text-xs ${darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                      {log.action}
+                    </span>
+                  </td>
+                  <td className="p-3 text-xs">{log.details}</td>
+                  <td className="p-3 text-xs">{new Date(log.date).toLocaleString('fa-IR')}</td>
+                  <td className="p-3 font-mono text-xs">{log.ip || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {filteredLogs.length === 0 && (
+          <p className="text-center py-8 text-sm text-slate-400">لاگی یافت نشد</p>
+        )}
       </div>
     </div>
   );
@@ -260,24 +349,46 @@ export function AdminAuditLog() {
 // Backup
 export function AdminBackup() {
   const { darkMode } = useApp();
-  
-  const createBackup = () => {
+  const [backupHistory, setBackupHistory] = useState<{ date: string; size: string; name: string }[]>(() => {
+    const saved = localStorage.getItem('hamyar_backup_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const getAllData = () => {
     const data: Record<string, string | null> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('hamyar_')) data[key] = localStorage.getItem(key);
     }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    return data;
+  };
+
+  const createBackup = (type: 'full' | 'selective' = 'full') => {
+    const data = getAllData();
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    const filename = `hamyar-backup-${new Date().toISOString().split('T')[0]}-${Date.now()}.json`;
     a.href = url;
-    a.download = `hamyar-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = filename;
     a.click();
+
+    // Save to history
+    const newHistory = [...backupHistory, {
+      date: new Date().toISOString(),
+      size: (jsonString.length / 1024).toFixed(2) + ' KB',
+      name: filename
+    }];
+    setBackupHistory(newHistory);
+    localStorage.setItem('hamyar_backup_history', JSON.stringify(newHistory));
   };
 
   const restoreBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!confirm('آیا از بازیابی بکاپ اطمینان دارید؟ اطلاعات فعلی جایگزین خواهند شد.')) return;
+    
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
@@ -294,20 +405,91 @@ export function AdminBackup() {
     reader.readAsText(file);
   };
 
+  const clearAllData = () => {
+    if (!confirm('هشدار! این عمل تمام اطلاعات سیستم را حذف می‌کند. آیا مطمئن هستید؟')) return;
+    if (!confirm('این عمل غیرقابل بازگشت است. آیا واقعاً مطمئن هستید؟')) return;
+    
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('hamyar_')) keys.push(key);
+    }
+    keys.forEach(key => localStorage.removeItem(key));
+    alert('تمام اطلاعات حذف شد. صفحه را رفرش کنید.');
+    window.location.reload();
+  };
+
+  const dataSize = Object.keys(getAllData()).length;
+
   return (
     <div className="fade-in space-y-6">
       <h1 className="text-2xl font-bold">پشتیبان‌گیری و بازیابی</h1>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="text-2xl font-bold">{dataSize}</div>
+          <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>تعداد کلیدهای ذخیره‌شده</div>
+        </div>
+        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="text-2xl font-bold text-blue-600">{backupHistory.length}</div>
+          <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>تعداد بکاپ‌های ایجاد شده</div>
+        </div>
+        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="text-2xl font-bold text-green-600">
+            {backupHistory.length > 0 ? new Date(backupHistory[backupHistory.length - 1].date).toLocaleDateString('fa-IR') : '-'}
+          </div>
+          <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>آخرین بکاپ</div>
+        </div>
+      </div>
+
+      {/* Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <h3 className="font-bold mb-4">ایجاد بکاپ</h3>
+          <h3 className="font-bold mb-4 flex items-center gap-2"><Download size={20} className="text-blue-600" /> ایجاد بکاپ</h3>
           <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>تمامی اطلاعات سیستم را در یک فایل JSON ذخیره کنید</p>
-          <button onClick={createBackup} className="px-6 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 flex items-center gap-2"><Download size={16} /> دانلود بکاپ</button>
+          <button onClick={() => createBackup('full')} className="w-full px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 flex items-center justify-center gap-2">
+            <Download size={16} /> دانلود بکاپ کامل
+          </button>
         </div>
         <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <h3 className="font-bold mb-4">بازیابی از بکاپ</h3>
+          <h3 className="font-bold mb-4 flex items-center gap-2"><Upload size={20} className="text-green-600" /> بازیابی از بکاپ</h3>
           <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>فایل بکاپ قبلی را بارگذاری کنید</p>
-          <label className="px-6 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 inline-flex items-center gap-2 cursor-pointer"><Download size={16} /> انتخاب فایل<input type="file" accept=".json" onChange={restoreBackup} className="hidden" /></label>
+          <label className="w-full px-6 py-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 inline-flex items-center justify-center gap-2 cursor-pointer">
+            <Upload size={16} /> انتخاب فایل بکاپ
+            <input type="file" accept=".json" onChange={restoreBackup} className="hidden" />
+          </label>
         </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className={`p-6 rounded-xl border-2 border-red-500 ${darkMode ? 'bg-red-900/10' : 'bg-red-50'}`}>
+        <h3 className="font-bold mb-2 text-red-600 flex items-center gap-2">⚠️ منطقه خطر</h3>
+        <p className={`text-sm mb-4 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>این عملیات غیرقابل بازگشت هستند. قبل از انجام، حتماً بکاپ تهیه کنید.</p>
+        <button onClick={clearAllData} className="px-6 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700">
+          حذف تمام اطلاعات سیستم
+        </button>
+      </div>
+
+      {/* Backup History */}
+      <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <h3 className="font-bold mb-4">تاریخچه بکاپ‌ها</h3>
+        {backupHistory.length > 0 ? (
+          <div className="space-y-2">
+            {backupHistory.slice().reverse().map((backup, i) => (
+              <div key={i} className={`p-3 rounded-lg flex items-center justify-between ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                <div>
+                  <p className="font-medium text-sm">{backup.name}</p>
+                  <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {new Date(backup.date).toLocaleString('fa-IR')} | حجم: {backup.size}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={`text-sm text-center py-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>هنوز بکاپی ایجاد نشده است</p>
+        )}
       </div>
     </div>
   );
