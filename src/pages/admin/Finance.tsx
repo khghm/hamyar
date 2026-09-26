@@ -3,6 +3,7 @@ import { useApp, Expense } from '../../store';
 import { Plus, X, DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Download, PieChart, BarChart3 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
+import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminFinance() {
   const { darkMode, expenses, setExpenses, orders } = useApp();
@@ -244,7 +245,7 @@ export default function AdminFinance() {
                     </span>
                   </td>
                   <td className="p-3 text-red-500 font-bold">{e.amount.toLocaleString('fa-IR')}</td>
-                  <td className="p-3 text-xs">{e.date}</td>
+                  <td className="p-3 text-xs">{toJalaliString(e.date)}</td>
                   <td className="p-3">
                     <button onClick={() => setExpenses(expenses.filter(x => x.id !== e.id))} className="text-red-500 text-xs hover:underline">حذف</button>
                   </td>

@@ -6,7 +6,7 @@ import {
   CheckCircle, Clock, XCircle, Eye
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatJalali, getJalaliDayName } from '../../utils/jalali';
+import { formatJalali, getJalaliDayName, toJalaliString } from '../../utils/jalali';
 
 export default function AdminDashboard() {
   const { 
@@ -186,7 +186,7 @@ export default function AdminDashboard() {
                     <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">فوری</span>
                   </div>
                   {p.deadline && (
-                    <p className="text-xs text-red-500 mt-1">تحویل: {p.deadline}</p>
+                    <p className="text-xs text-red-500 mt-1">تحویل: {toJalaliString(p.deadline)}</p>
                   )}
                 </div>
               ))}

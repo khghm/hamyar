@@ -6,7 +6,7 @@ import {
   AlertTriangle, CheckCircle, Clock
 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
-import { formatJalali } from '../../utils/jalali';
+import { formatJalali, toJalaliString } from '../../utils/jalali';
 
 export default function AdminAnalytics() {
   const { 
@@ -90,13 +90,13 @@ export default function AdminAnalytics() {
     // آمار ماهانه
     const monthlyData: Record<string, { revenue: number; orders: number; expenses: number }> = {};
     filteredOrders.forEach(o => {
-      const month = new Date(o.createdAt).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long' });
+      const month = toJalaliString(o.createdAt);
       if (!monthlyData[month]) monthlyData[month] = { revenue: 0, orders: 0, expenses: 0 };
       monthlyData[month].revenue += o.paid;
       monthlyData[month].orders += 1;
     });
     expenses.forEach(e => {
-      const month = new Date(e.date).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long' });
+      const month = toJalaliString(e.date);
       if (!monthlyData[month]) monthlyData[month] = { revenue: 0, orders: 0, expenses: 0 };
       monthlyData[month].expenses += e.amount;
     });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp, NewsItem, PortfolioItem } from '../../store';
 import { Plus, X, Upload, Edit, Trash2, FileImage, Video } from 'lucide-react';
+import { formatJalali, toJalaliString } from '../../utils/jalali';
 
 export default function AdminSettings() {
   const { darkMode, news, setNews, portfolio, setPortfolio, aboutContent, setAboutContent } = useApp();
@@ -24,7 +25,7 @@ export default function AdminSettings() {
     if (editNewsId) {
       setNews(news.map(n => n.id === editNewsId ? { ...n, ...newsForm } as NewsItem : n));
     } else {
-      setNews([...news, { ...newsForm, id: 'n' + Date.now(), date: new Date().toLocaleDateString('fa-IR') } as NewsItem]);
+      setNews([...news, { ...newsForm, id: 'n' + Date.now(), date: formatJalali(new Date()) } as NewsItem]);
     }
     setShowNewsForm(false);
     setNewsForm({ title: '', image: '', caption: '', content: '', date: '', active: true });
@@ -113,7 +114,7 @@ export default function AdminSettings() {
                   </div>
                   <div>
                     <h4 className="font-bold text-sm">{n.title}</h4>
-                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{n.date}</p>
+                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{toJalaliString(n.date)}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">

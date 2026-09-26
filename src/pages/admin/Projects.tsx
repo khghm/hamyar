@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp, Project } from '../../store';
 import { Plus, X, Edit, Trash2, Kanban, List, Calendar, DollarSign, User, Clock, AlertCircle } from 'lucide-react';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
+import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminProjects() {
   const { darkMode, projects, setProjects } = useApp();
@@ -274,7 +275,7 @@ export default function AdminProjects() {
                       {project.deadline && (
                         <div className={`flex items-center gap-1 text-xs ${isOverdue(project.deadline) ? 'text-red-500' : darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                           {isOverdue(project.deadline) ? <AlertCircle size={12} /> : <Calendar size={12} />}
-                          <span>{isOverdue(project.deadline) ? 'عقب‌افتاده: ' : 'تحویل: '}{project.deadline}</span>
+                          <span>{isOverdue(project.deadline) ? 'عقب‌افتاده: ' : 'تحویل: '}{toJalaliString(project.deadline)}</span>
                         </div>
                       )}
                     </div>
@@ -329,7 +330,7 @@ export default function AdminProjects() {
                       </div>
                     </td>
                     <td className="p-3">{p.totalCost.toLocaleString('fa-IR')}</td>
-                    <td className={`p-3 text-xs ${isOverdue(p.deadline) ? 'text-red-500 font-bold' : ''}`}>{p.deadline}</td>
+                    <td className={`p-3 text-xs ${isOverdue(p.deadline) ? 'text-red-500 font-bold' : ''}`}>{toJalaliString(p.deadline)}</td>
                     <td className="p-3 flex gap-2">
                       <button onClick={() => openEdit(p)} className="text-blue-600 text-xs hover:underline">ویرایش</button>
                       <button onClick={() => setProjects(projects.filter(x => x.id !== p.id))} className="text-red-500 text-xs hover:underline">حذف</button>

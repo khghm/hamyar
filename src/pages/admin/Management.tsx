@@ -3,6 +3,7 @@ import { useApp, Employee, Campaign, SmsLog, AuditLog } from '../../store';
 import { Plus, X, Edit, Trash2, Send, Download, Shield, Upload } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
+import { toJalaliString } from '../../utils/jalali';
 
 // Employees Page
 export function AdminEmployees() {
@@ -216,7 +217,7 @@ export function AdminReviews() {
                 <td className="p-3">{r.customerName}</td>
                 <td className="p-3">{'⭐'.repeat(r.rating)}</td>
                 <td className="p-3 text-xs">{r.comment.substring(0, 50)}</td>
-                <td className="p-3 text-xs">{r.date}</td>
+                <td className="p-3 text-xs">{toJalaliString(r.date)}</td>
                 <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs ${r.approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{r.approved ? 'تایید شده' : 'در انتظار'}</span></td>
                 <td className="p-3 flex gap-2">
                   <button onClick={() => setReviews(reviews.map(x => x.id === r.id ? { ...x, approved: !x.approved } : x))} className="text-blue-600 text-xs">{r.approved ? 'رد' : 'تایید'}</button>
