@@ -33,6 +33,7 @@ body.dark {
 
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: #f1f5f9;
@@ -97,4 +98,106 @@ input[type="file"] {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* بهبود ریسپانسیو برای موبایل */
+@media (max-width: 640px) {
+  /* بهبود اندازه فونت در موبایل */
+  h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  h3 {
+    font-size: 1.125rem !important;
+  }
+  
+  /* بهبود padding در موبایل */
+  .p-5 {
+    padding: 1rem !important;
+  }
+  
+  .p-6 {
+    padding: 1.25rem !important;
+  }
+  
+  /* بهبود gap در موبایل */
+  .gap-4 {
+    gap: 0.75rem !important;
+  }
+  
+  .gap-6 {
+    gap: 1rem !important;
+  }
+  
+  /* بهبود دکمه‌ها در موبایل */
+  button {
+    min-height: 44px;
+  }
+  
+  input, select, textarea {
+    min-height: 44px;
+    font-size: 16px !important; /* جلوگیری از زوم خودکار در iOS */
+  }
+  
+  /* بهبود جداول در موبایل */
+  table {
+    font-size: 0.875rem;
+  }
+  
+  th, td {
+    padding: 0.5rem !important;
+  }
+  
+  /* بهبود مودال‌ها در موبایل */
+  .fixed {
+    padding: 1rem !important;
+  }
+  
+  .max-w-md {
+    max-width: 100% !important;
+  }
+  
+  .max-w-lg {
+    max-width: 100% !important;
+  }
+  
+  .max-w-2xl {
+    max-width: 100% !important;
+  }
+  
+  .max-w-3xl {
+    max-width: 100% !important;
+  }
+  
+  .max-w-4xl {
+    max-width: 100% !important;
+  }
+}
+
+/* بهبود برای تبلت */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .max-w-md {
+    max-width: 90% !important;
+  }
+  
+  .max-w-lg {
+    max-width: 90% !important;
+  }
+}
+
+/* بهبود اسکرول افقی در موبایل */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* بهبود touch targets */
+@media (max-width: 768px) {
+  a, button {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

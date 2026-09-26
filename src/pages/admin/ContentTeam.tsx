@@ -276,21 +276,21 @@ export default function AdminContentTeam() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
         {tabs.map(tab => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                 activeTab === tab.id
                   ? 'bg-blue-600 text-white'
                   : darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-white text-slate-600 hover:bg-gray-100 border border-gray-200'
               }`}
             >
-              <Icon size={16} />
-              {tab.label}
+              <Icon size={16} className="flex-shrink-0" />
+              <span className="truncate">{tab.label}</span>
             </button>
           );
         })}
@@ -325,10 +325,10 @@ export default function AdminContentTeam() {
             <div className="space-y-4">
               {/* Stage Filter Tabs */}
               <div className={`p-2 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-                <div className="flex gap-2 overflow-x-auto">
+                <div className="flex gap-2 overflow-x-auto scrollbar-thin">
                   <button
                     onClick={() => setActiveStageFilter('all')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                       activeStageFilter === 'all'
                         ? 'bg-blue-600 text-white'
                         : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
@@ -340,7 +340,7 @@ export default function AdminContentTeam() {
                     <button
                       key={key}
                       onClick={() => setActiveStageFilter(key)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
                         activeStageFilter === key
                           ? statusColors[key]
                           : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
@@ -353,9 +353,9 @@ export default function AdminContentTeam() {
               </div>
 
               {/* Kanban Board */}
-              <div className={`grid gap-4 ${
-                activeStageFilter === 'all' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5' :
-                'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+              <div className={`grid gap-3 sm:gap-4 ${
+                activeStageFilter === 'all' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5' :
+                'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
               }`}>
                 {(activeStageFilter === 'all' ? Object.keys(statusLabels) : [activeStageFilter]).map(status => {
                   const statusProjects = filtered.filter(p => p.status === status);
