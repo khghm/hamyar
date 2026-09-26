@@ -14,8 +14,7 @@ export default function AdminContentTeam() {
   const { 
     darkMode, contentProjects, setContentProjects, contentComments, setContentComments,
     contentAssets, setContentAssets, contentTemplates, setContentTemplates,
-    contentIdeas, setContentIdeas, brandBook, setBrandBook, employees, products, campaigns, currentUser,
-    okrs, kpis
+    contentIdeas, setContentIdeas, brandBook, setBrandBook, employees, products, campaigns, currentUser
   } = useApp();
   
   const [activeTab, setActiveTab] = useState('projects');
@@ -26,6 +25,21 @@ export default function AdminContentTeam() {
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [activeStageFilter, setActiveStageFilter] = useState<string>('all');
+  
+  // State های OKR و KPI
+  const { okrs, setOkrs, kpis, setKpis } = useApp();
+  const [showOKRForm, setShowOKRForm] = useState(false);
+  const [showKPIForm, setShowKPIForm] = useState(false);
+  const [okrForm, setOkrForm] = useState<any>({
+    title: '', description: '', type: 'employee', assignedTo: '',
+    keyResults: [], startDate: '', endDate: '', quarter: 'Q1',
+    year: new Date().getFullYear(), status: 'active'
+  });
+  const [kpiForm, setKpiForm] = useState<any>({
+    title: '', description: '', category: 'marketing', type: 'employee',
+    assignedTo: '', targetValue: 0, currentValue: 0, unit: '',
+    startDate: '', endDate: '', status: 'active'
+  });
   
   const [form, setForm] = useState<Partial<ContentProject>>({
     title: '', type: 'video', scenario: '', equipment: [], contentPlan: '',
@@ -220,6 +234,70 @@ export default function AdminContentTeam() {
     };
     setContentProjects([...contentProjects, newProject]);
     setContentIdeas(contentIdeas.map(i => i.id === ideaId ? { ...i, status: 'converted', convertedToProjectId: newProject.id } : i));
+  };
+
+  // توابع OKR و KPI
+  const saveOKR = () => {
+    if (okrForm.id) {
+      setOkrs(okrs.map(o => o.id === okrForm.id ? { ...o, ...okrForm } : o));
+    } else {
+      setOkrs([...okrs, { ...okrForm, id: 'okr' + Date.now(), createdAt: new Date().toISOString() }]);
+    }
+    setShowOKRForm(false);
+    setOkrForm({
+      title: '', description: '', type: 'employee', assignedTo: '',
+      keyResults: [], startDate: '', endDate: '', quarter: 'Q1',
+      year: new Date().getFullYear(), status: 'active'
+    });
+  };
+
+  const saveKPI = () => {
+    if (kpiForm.id) {
+      setKpis(kpis.map(k => k.id === kpiForm.id ? { ...k, ...kpiForm } : k));
+    } else {
+      setKpis([...kpis, { ...kpiForm, id: 'kpi' + Date.now(), createdAt: new Date().toISOString() }]);
+    }
+    setShowKPIForm(false);
+    setKpiForm({
+      title: '', description: '', category: 'marketing', type: 'employee',
+      assignedTo: '', targetValue: 0, currentValue: 0, unit: '',
+      startDate: '', endDate: '', status: 'active'
+    });
+  };
+
+  const addKeyResult = () => {
+    setOkrForm({
+      ...okrForm,
+      keyResults: [...(okrForm.keyResults || []), { id: 'kr' + Date.now(), title: '', targetValue: 0, currentValue: 0, unit: '' }]
+    });
+  };
+
+  const updateKeyResult = (index: number, field: string, value: any) => {
+    const updated = [...(okrForm.keyResults || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    setOkrForm({ ...okrForm, keyResults: updated });
+  };
+
+  const removeKeyResult = (index: number) => {
+    setOkrForm({ ...okrForm, keyResults: okrForm.keyResults?.filter((_: any, i: number) => i !== index) || [] });
+  };
+
+  const openOKRFormForEmployee = (employeeId: string) => {
+    setOkrForm({
+      title: '', description: '', type: 'employee', assignedTo: employeeId,
+      keyResults: [], startDate: '', endDate: '', quarter: 'Q1',
+      year: new Date().getFullYear(), status: 'active'
+    });
+    setShowOKRForm(true);
+  };
+
+  const openKPIFormForEmployee = (employeeId: string) => {
+    setKpiForm({
+      title: '', description: '', category: 'marketing', type: 'employee',
+      assignedTo: employeeId, targetValue: 0, currentValue: 0, unit: '',
+      startDate: '', endDate: '', status: 'active'
+    });
+    setShowKPIForm(true);
   };
 
   const exportReport = () => {
@@ -925,22 +1003,167 @@ export default function AdminContentTeam() {
                       </div>
                     )}
 
-                    {/* پیام در صورت عدم وجود OKR/KPI */}
-                    {empOKRs.length === 0 && empKPIs.length === 0 && (
-                      <div className={`p-4 rounded-lg text-center ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
-                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                          OKR یا KPI برای این کارمند تعریف نشده است
-                        </p>
-                        <p className={`text-xs mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                          از بخش "کارمندان" یا "OKR و KPI" می‌توانید تعریف کنید
-                        </p>
-                      </div>
-                    )}
+                    {/* دکمه‌های افزودن OKR و KPI */}
+                    <div className="flex gap-2 mt-4">
+                      <button 
+                        onClick={() => openOKRFormForEmployee(emp.id)}
+                        className="flex-1 px-3 py-2 rounded-lg bg-purple-600 text-white text-xs font-medium hover:bg-purple-700 flex items-center justify-center gap-1"
+                      >
+                        <Target size={14} />
+                        افزودن OKR
+                      </button>
+                      <button 
+                        onClick={() => openKPIFormForEmployee(emp.id)}
+                        className="flex-1 px-3 py-2 rounded-lg bg-orange-600 text-white text-xs font-medium hover:bg-orange-700 flex items-center justify-center gap-1"
+                      >
+                        <TrendingUp size={14} />
+                        افزودن KPI
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {/* فرم OKR */}
+          {showOKRForm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowOKRForm(false)}>
+              <div className={`w-full max-w-2xl p-6 rounded-2xl max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-slate-800' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <Target size={20} className="text-purple-600" />
+                    {okrForm.id ? 'ویرایش OKR' : 'OKR جدید'}
+                  </h3>
+                  <button onClick={() => setShowOKRForm(false)}><X size={20} /></button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium block mb-1">عنوان هدف *</label>
+                    <input type="text" value={okrForm.title} onChange={e => setOkrForm({...okrForm, title: e.target.value})}
+                      className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">توضیحات</label>
+                    <textarea value={okrForm.description} onChange={e => setOkrForm({...okrForm, description: e.target.value})} rows={2}
+                      className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium block mb-1">فصل</label>
+                      <select value={okrForm.quarter} onChange={e => setOkrForm({...okrForm, quarter: e.target.value})}
+                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`}>
+                        <option value="Q1">فصل اول</option>
+                        <option value="Q2">فصل دوم</option>
+                        <option value="Q3">فصل سوم</option>
+                        <option value="Q4">فصل چهارم</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-1">سال</label>
+                      <input type="number" value={okrForm.year} onChange={e => setOkrForm({...okrForm, year: Number(e.target.value)})}
+                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <JalaliDatePicker value={okrForm.startDate} onChange={date => setOkrForm({...okrForm, startDate: date})} label="تاریخ شروع" />
+                    <JalaliDatePicker value={okrForm.endDate} onChange={date => setOkrForm({...okrForm, endDate: date})} label="تاریخ پایان" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium">نتایج کلیدی</label>
+                      <button onClick={addKeyResult} className="text-blue-600 text-sm flex items-center gap-1">
+                        <Plus size={14} /> افزودن
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {(okrForm.keyResults || []).map((kr: any, idx: number) => (
+                        <div key={kr.id} className={`p-3 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                          <div className="flex gap-2 mb-2">
+                            <input type="text" placeholder="عنوان نتیجه کلیدی" value={kr.title} onChange={e => updateKeyResult(idx, 'title', e.target.value)}
+                              className={`flex-1 px-2 py-1 rounded border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`} />
+                            <button onClick={() => removeKeyResult(idx)} className="text-red-500"><X size={16} /></button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <input type="number" placeholder="مقدار هدف" value={kr.targetValue || ''} onChange={e => updateKeyResult(idx, 'targetValue', Number(e.target.value))}
+                              className={`px-2 py-1 rounded border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`} />
+                            <input type="number" placeholder="مقدار فعلی" value={kr.currentValue || ''} onChange={e => updateKeyResult(idx, 'currentValue', Number(e.target.value))}
+                              className={`px-2 py-1 rounded border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`} />
+                            <input type="text" placeholder="واحد" value={kr.unit} onChange={e => updateKeyResult(idx, 'unit', e.target.value)}
+                              className={`px-2 py-1 rounded border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <button onClick={saveOKR} className="w-full py-2.5 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700">ذخیره OKR</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* فرم KPI */}
+          {showKPIForm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowKPIForm(false)}>
+              <div className={`w-full max-w-md p-6 rounded-2xl ${darkMode ? 'bg-slate-800' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <TrendingUp size={20} className="text-orange-600" />
+                    {kpiForm.id ? 'ویرایش KPI' : 'KPI جدید'}
+                  </h3>
+                  <button onClick={() => setShowKPIForm(false)}><X size={20} /></button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium block mb-1">عنوان شاخص *</label>
+                    <input type="text" value={kpiForm.title} onChange={e => setKpiForm({...kpiForm, title: e.target.value})}
+                      className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">توضیحات</label>
+                    <textarea value={kpiForm.description} onChange={e => setKpiForm({...kpiForm, description: e.target.value})} rows={2}
+                      className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">دسته‌بندی</label>
+                    <select value={kpiForm.category} onChange={e => setKpiForm({...kpiForm, category: e.target.value})}
+                      className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`}>
+                      <option value="sales">فروش</option>
+                      <option value="marketing">بازاریابی</option>
+                      <option value="customer">مشتری</option>
+                      <option value="operations">عملیات</option>
+                      <option value="financial">مالی</option>
+                      <option value="digital">دیجیتال مارکتینگ</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-sm font-medium block mb-1">مقدار هدف</label>
+                      <input type="number" value={kpiForm.targetValue || ''} onChange={e => setKpiForm({...kpiForm, targetValue: Number(e.target.value)})}
+                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-1">مقدار فعلی</label>
+                      <input type="number" value={kpiForm.currentValue || ''} onChange={e => setKpiForm({...kpiForm, currentValue: Number(e.target.value)})}
+                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-1">واحد</label>
+                      <input type="text" value={kpiForm.unit} onChange={e => setKpiForm({...kpiForm, unit: e.target.value})}
+                        className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <JalaliDatePicker value={kpiForm.startDate} onChange={date => setKpiForm({...kpiForm, startDate: date})} label="تاریخ شروع" />
+                    <JalaliDatePicker value={kpiForm.endDate} onChange={date => setKpiForm({...kpiForm, endDate: date})} label="تاریخ پایان" />
+                  </div>
+                  <button onClick={saveKPI} className="w-full py-2.5 rounded-lg bg-orange-600 text-white font-medium hover:bg-orange-700">ذخیره KPI</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
