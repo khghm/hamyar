@@ -281,6 +281,259 @@ export interface KPI {
   createdAt: string;
 }
 
+export interface DigitalMarketingData {
+  // Financial Metrics
+  gmv: number;
+  nmv: number;
+  grossProfit: number;
+  profit: number;
+  cashFlow: number;
+  
+  // Traffic Metrics
+  totalImpressions: number;
+  sessions: number;
+  engagementRate: number;
+  users: number;
+  sessionsPerUser: number;
+  
+  // Sales Metrics
+  transactions: number;
+  totalProductsSold: number;
+  returnRate: number;
+  outOfStockRate: number;
+  avgLossPerReturn: number;
+  onTimeDeliveryRate: number;
+  avgDeliveryTime: number;
+  avgSupplyTime: number;
+  purchaseRate: number;
+  aov: number;
+  aop: number;
+  avgProductPrice: number;
+  avgPackagingCost: number;
+  avgClicksPerVisit: number;
+  
+  // Call Metrics
+  totalCalls: number;
+  callsPerSession: number;
+  callToCustomerRate: number;
+  clickOnCallRate: number;
+  phoneOrdersRate: number;
+  trackingCallsRate: number;
+  avgCallsPerUser: number;
+  costPerCall: number;
+  salesPerCall: number;
+  profitPerCall: number;
+  missedCallsRate: number;
+  
+  // Chat Metrics
+  chatSessionsInitiated: number;
+  chatPerSession: number;
+  
+  // Page Metrics
+  pagesPerSession: number;
+  totalPageviews: number;
+  uniquePageviews: number;
+  homepageViewsRate: number;
+  productPageviews: number;
+  productPageviewsRate: number;
+  blogPageviews: number;
+  blogPageviewsRate: number;
+  categoryPageviewsRate: number;
+  topProductViewsRate: number;
+  error404Rate: number;
+  
+  // Time Metrics
+  avgSessionDuration: number;
+  totalSessionTime: number;
+  avgEngagementTime: number;
+  avgTimeOnPage: number;
+  productVsBlogDuration: number;
+  videoVsNonVideoDuration: number;
+  
+  // Engagement Metrics
+  bounceRate: number;
+  deepSessionsRate: number;
+  longSessionsRate: number;
+  
+  // Registration Metrics
+  registrationToPurchaseRate: number;
+  profileCompletionRate: number;
+  registrationCompletionRate: number;
+  googleVsEmailRate: number;
+  
+  // Cart Metrics
+  addToCartToPurchaseRate: number;
+  cartCompletionRate: number;
+  cartAbandonmentRate: number;
+  
+  // Advertising Metrics
+  cpc: number;
+  cpv: number;
+  rpv: number;
+  rpl: number;
+  cpl: number;
+  organicVsPaidRate: number;
+  directRate: number;
+  directBrandedRate: number;
+  organicRate: number;
+  googleFirstTimeRate: number;
+  
+  // SEO Metrics
+  googleImpressions: number;
+  googleImageClickRate: number;
+  productOrganicRate: number;
+  avgCtr: number;
+  indexedPages: number;
+  internalLinks: number;
+  backlinkDomains: number;
+  domainAuthority: number;
+  spamScore: number;
+  topGoogleKeywords: number;
+  blogToShopVisits: number;
+  
+  // Growth Metrics
+  sessionGrowthRate: number;
+  organicGrowthRate: number;
+  internalSearchRate: number;
+  noResultSearchRate: number;
+  
+  // Email Metrics
+  subscriberGrowthRate: number;
+  openRate: number;
+  emailCtr: number;
+  
+  // ROI Metrics
+  roi: number;
+  roas: number;
+  
+  // Retention Metrics
+  avgSessionsPerUser: number;
+  avgDaysBetweenSessions: number;
+  singlePageViewsRate: number;
+  avgTimeToPurchase: number;
+  assistedPathPosition: number;
+  firstVisitPurchaseRate: number;
+  newVisitorPurchaseRate: number;
+  assistedConversionsRate: number;
+  returningVsNewRate: number;
+  returningValueVsNew: number;
+  
+  // Demographics
+  mobileVsDesktopRate: number;
+  maleVsFemaleRate: number;
+  avgUserAge: number;
+  
+  // Social Engagement
+  productComments: number;
+  avgCommentsPerUser: number;
+  avgScrollDepth: number;
+  scroll80Rate: number;
+  day1RetentionRate: number;
+  weeklyVsMonthlyRetention: number;
+  
+  // Customer Metrics
+  cac: number;
+  clv: number;
+  clvToCac: number;
+  retentionRate: number;
+  churnRate: number;
+  loyalCustomerRate: number;
+  purchaseFrequency: number;
+  avgTimeBetweenPurchases: number;
+  
+  // Top Customers
+  largestCartItems: number;
+  topCustomerOrders: number;
+  topCustomerAmount: number;
+  b2bVsB2cRate: number;
+  
+  // Market Metrics
+  marketShare: number;
+  cheaperCompetitorsRate: number;
+  
+  // UX Metrics
+  deadClicks: number;
+  quickBacks: number;
+  trustSymbolClickRate: number;
+  wishlistClicks: number;
+  
+  // Content Metrics
+  wordsGenerated: number;
+  imagesAdded: number;
+  infographicsCreated: number;
+  videosAdded: number;
+  productsAdded: number;
+  blogPosts: number;
+  productVsBlogWordsRate: number;
+  reports: number;
+  oldContentUpdates: number;
+  
+  // Referral Metrics
+  referralTraffic: number;
+  exitRate: number;
+  avgBlogPageValue: number;
+  blogVsTotalPageValue: number;
+  blogUsersRate: number;
+  blogToShopRate: number;
+  productImageClickRate: number;
+  productVideoClickRate: number;
+  
+  // Ratings
+  avgProductRating: number;
+  avgBlogRating: number;
+  
+  // Brand Metrics
+  brandAwareness: number;
+  topOfMind: number;
+  nps: number;
+  satisfactionRate: number;
+  womRate: number;
+  
+  // Usability
+  designScore: number;
+  findabilityScore: number;
+  readabilityScore: number;
+  trustScore: number;
+  supportScore: number;
+  
+  // Operations
+  suppliers: number;
+  personnel: number;
+  positions: number;
+  dailyWorkHours: number;
+  revenuePerHour: number;
+  avgHourlyWage: number;
+  
+  // Performance
+  avgPageLoadTime: number;
+  fcp: number;
+  lcp: number;
+  
+  // Social Media
+  socialTraffic: number;
+  socialIconClicks: number;
+  ugcContent: number;
+  totalFollowers: number;
+  followers: number;
+  avgLikes: number;
+  avgComments: number;
+  accountReach: number;
+  videoReach: number;
+  postReach: number;
+  storyReach: number;
+  topPostReach: number;
+  topStoryReach: number;
+  topVideoReach: number;
+  profileVisits: number;
+  socialImpressions: number;
+  contentInteractions: number;
+  postInteractions: number;
+  storyInteractions: number;
+  videoInteractions: number;
+  
+  lastUpdated: string;
+}
+
 export interface ContentProject {
   id: string;
   title: string;
@@ -462,6 +715,8 @@ interface AppContextType {
   setOkrs: (o: OKR[]) => void;
   kpis: KPI[];
   setKpis: (k: KPI[]) => void;
+  digitalMarketingData: DigitalMarketingData;
+  setDigitalMarketingData: (d: DigitalMarketingData) => void;
 }
 
 export interface AboutContent {
@@ -966,6 +1221,66 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [digitalMarketingData, setDigitalMarketingData] = useState<DigitalMarketingData>(() => {
+    const saved = localStorage.getItem('hamyar_digital_marketing');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    // مقادیر پیش‌فرض نمونه
+    return {
+      gmv: 0, nmv: 0, grossProfit: 0, profit: 0, cashFlow: 0,
+      totalImpressions: 0, sessions: 0, engagementRate: 0, users: 0, sessionsPerUser: 0,
+      transactions: 0, totalProductsSold: 0, returnRate: 0, outOfStockRate: 0, avgLossPerReturn: 0,
+      onTimeDeliveryRate: 0, avgDeliveryTime: 0, avgSupplyTime: 0, purchaseRate: 0, aov: 0,
+      aop: 0, avgProductPrice: 0, avgPackagingCost: 0, avgClicksPerVisit: 0,
+      totalCalls: 0, callsPerSession: 0, callToCustomerRate: 0, clickOnCallRate: 0,
+      phoneOrdersRate: 0, trackingCallsRate: 0, avgCallsPerUser: 0, costPerCall: 0,
+      salesPerCall: 0, profitPerCall: 0, missedCallsRate: 0,
+      chatSessionsInitiated: 0, chatPerSession: 0,
+      pagesPerSession: 0, totalPageviews: 0, uniquePageviews: 0, homepageViewsRate: 0,
+      productPageviews: 0, productPageviewsRate: 0, blogPageviews: 0, blogPageviewsRate: 0,
+      categoryPageviewsRate: 0, topProductViewsRate: 0, error404Rate: 0,
+      avgSessionDuration: 0, totalSessionTime: 0, avgEngagementTime: 0, avgTimeOnPage: 0,
+      productVsBlogDuration: 0, videoVsNonVideoDuration: 0,
+      bounceRate: 0, deepSessionsRate: 0, longSessionsRate: 0,
+      registrationToPurchaseRate: 0, profileCompletionRate: 0, registrationCompletionRate: 0, googleVsEmailRate: 0,
+      addToCartToPurchaseRate: 0, cartCompletionRate: 0, cartAbandonmentRate: 0,
+      cpc: 0, cpv: 0, rpv: 0, rpl: 0, cpl: 0, organicVsPaidRate: 0, directRate: 0,
+      directBrandedRate: 0, organicRate: 0, googleFirstTimeRate: 0,
+      googleImpressions: 0, googleImageClickRate: 0, productOrganicRate: 0, avgCtr: 0,
+      indexedPages: 0, internalLinks: 0, backlinkDomains: 0, domainAuthority: 0, spamScore: 0,
+      topGoogleKeywords: 0, blogToShopVisits: 0,
+      sessionGrowthRate: 0, organicGrowthRate: 0, internalSearchRate: 0, noResultSearchRate: 0,
+      subscriberGrowthRate: 0, openRate: 0, emailCtr: 0,
+      roi: 0, roas: 0,
+      avgSessionsPerUser: 0, avgDaysBetweenSessions: 0, singlePageViewsRate: 0, avgTimeToPurchase: 0,
+      assistedPathPosition: 0, firstVisitPurchaseRate: 0, newVisitorPurchaseRate: 0,
+      assistedConversionsRate: 0, returningVsNewRate: 0, returningValueVsNew: 0,
+      mobileVsDesktopRate: 0, maleVsFemaleRate: 0, avgUserAge: 0,
+      productComments: 0, avgCommentsPerUser: 0, avgScrollDepth: 0, scroll80Rate: 0,
+      day1RetentionRate: 0, weeklyVsMonthlyRetention: 0,
+      cac: 0, clv: 0, clvToCac: 0, retentionRate: 0, churnRate: 0, loyalCustomerRate: 0,
+      purchaseFrequency: 0, avgTimeBetweenPurchases: 0,
+      largestCartItems: 0, topCustomerOrders: 0, topCustomerAmount: 0, b2bVsB2cRate: 0,
+      marketShare: 0, cheaperCompetitorsRate: 0,
+      deadClicks: 0, quickBacks: 0, trustSymbolClickRate: 0, wishlistClicks: 0,
+      wordsGenerated: 0, imagesAdded: 0, infographicsCreated: 0, videosAdded: 0,
+      productsAdded: 0, blogPosts: 0, productVsBlogWordsRate: 0, reports: 0, oldContentUpdates: 0,
+      referralTraffic: 0, exitRate: 0, avgBlogPageValue: 0, blogVsTotalPageValue: 0,
+      blogUsersRate: 0, blogToShopRate: 0, productImageClickRate: 0, productVideoClickRate: 0,
+      avgProductRating: 0, avgBlogRating: 0,
+      brandAwareness: 0, topOfMind: 0, nps: 0, satisfactionRate: 0, womRate: 0,
+      designScore: 0, findabilityScore: 0, readabilityScore: 0, trustScore: 0, supportScore: 0,
+      suppliers: 0, personnel: 0, positions: 0, dailyWorkHours: 0, revenuePerHour: 0, avgHourlyWage: 0,
+      avgPageLoadTime: 0, fcp: 0, lcp: 0,
+      socialTraffic: 0, socialIconClicks: 0, ugcContent: 0, totalFollowers: 0, followers: 0,
+      avgLikes: 0, avgComments: 0, accountReach: 0, videoReach: 0, postReach: 0, storyReach: 0,
+      topPostReach: 0, topStoryReach: 0, topVideoReach: 0, profileVisits: 0, socialImpressions: 0,
+      contentInteractions: 0, postInteractions: 0, storyInteractions: 0, videoInteractions: 0,
+      lastUpdated: new Date().toISOString()
+    };
+  });
+
   useEffect(() => {
     localStorage.setItem('hamyar_dark', String(darkMode));
     if (darkMode) document.documentElement.classList.add('dark');
@@ -1001,6 +1316,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_system_users', JSON.stringify(systemUsers)); }, [systemUsers]);
   useEffect(() => { localStorage.setItem('hamyar_okrs', JSON.stringify(okrs)); }, [okrs]);
   useEffect(() => { localStorage.setItem('hamyar_kpis', JSON.stringify(kpis)); }, [kpis]);
+  useEffect(() => { localStorage.setItem('hamyar_digital_marketing', JSON.stringify(digitalMarketingData)); }, [digitalMarketingData]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
 
@@ -1098,7 +1414,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       roles, setRoles,
       systemUsers, setSystemUsers,
       okrs, setOkrs,
-      kpis, setKpis
+      kpis, setKpis,
+      digitalMarketingData, setDigitalMarketingData
     }}>
       {children}
     </AppContext.Provider>

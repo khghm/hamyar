@@ -37,6 +37,7 @@ import AdminRBAC from './pages/admin/RBAC';
 import AdminTraining from './pages/admin/Training';
 import AdminInvoices from './pages/admin/Invoices';
 import AdminOKRKPI from './pages/admin/OKRKPI';
+import AdminDigitalMarketing from './pages/admin/DigitalMarketing';
 import { AdminEmployees } from './pages/admin/Employees';
 import { AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup } from './pages/admin/Management';
 
@@ -78,6 +79,7 @@ function AppRoutes() {
         <Route path="settings" element={<AdminSettings />} />
         <Route path="notes" element={<AdminNotes />} />
         <Route path="analytics" element={<AdminAnalytics />} />
+        <Route path="digital-marketing" element={<AdminDigitalMarketing />} />
         <Route path="suppliers" element={<AdminSuppliers />} />
         <Route path="employees" element={<AdminEmployees />} />
         <Route path="okr-kpi" element={<AdminOKRKPI />} />
