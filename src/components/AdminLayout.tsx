@@ -26,6 +26,7 @@ export default function AdminLayout() {
     { path: '/admin', icon: LayoutDashboard, label: 'داشبورد' },
     { path: '/admin/analytics', icon: BarChart3, label: 'تحلیل و گزارش' },
     { path: '/admin/digital-marketing', icon: Globe, label: 'دیجیتال مارکتینگ' },
+    { path: '/admin/affiliates', icon: Users, label: 'همکاران' },
     { path: '/admin/orders', icon: ShoppingCart, label: 'سفارش‌ها' },
     { path: '/admin/notes', icon: StickyNote, label: 'یادداشت‌ها' },
     { path: '/admin/customers', icon: Users, label: 'مشتریان' },
