@@ -17,7 +17,8 @@ export default function JalaliDatePicker({ value, onChange, label, className = '
   const [currentJy, setCurrentJy] = useState(1403);
   const [currentJm, setCurrentJm] = useState(1);
   const [selectedDate, setSelectedDate] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // تبدیل تاریخ میلادی به شمسی هنگام تغییر value
   useEffect(() => {
@@ -38,10 +39,27 @@ export default function JalaliDatePicker({ value, onChange, label, className = '
     }
   }, [value]);
 
+  // محاسبه position dropdown
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const dropdownHeight = 400; // تقریبی
+      
+      // اگر فضای کافی در پایین وجود ندارد، در بالا نمایش بده
+      const showAbove = rect.bottom + dropdownHeight > viewportHeight;
+      
+      setDropdownPosition({
+        top: showAbove ? rect.top - dropdownHeight - 8 : rect.bottom + 8,
+        left: rect.left
+      });
+    }
+  }, [isOpen]);
+
   // بستن dropdown با کلیک بیرون
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -135,7 +153,7 @@ export default function JalaliDatePicker({ value, onChange, label, className = '
   }
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div className={`relative ${className}`} ref={containerRef}>
       {label && <label className="block text-sm font-medium mb-1">{label}</label>}
       <button
         type="button"
@@ -151,63 +169,72 @@ export default function JalaliDatePicker({ value, onChange, label, className = '
       </button>
 
       {isOpen && (
-        <div className={`absolute z-50 mt-2 rounded-xl shadow-2xl border p-4 w-80 ${
-          darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
-        }`}>
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              type="button"
-              onClick={prevMonth}
-              className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
-            >
-              <ChevronRight size={20} />
-            </button>
-            <div className="text-center">
-              <div className="font-bold text-lg">{getJalaliMonthName(currentJm)}</div>
-              <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{currentJy}</div>
-            </div>
-            <button
-              type="button"
-              onClick={nextMonth}
-              className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
-            >
-              <ChevronLeft size={20} />
-            </button>
-          </div>
-
-          {/* Days of Week */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(day => (
-              <div key={day} className={`text-center text-xs font-bold py-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                {day}
+        <div 
+          className="fixed z-[9999]"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`,
+            width: '320px'
+          }}
+        >
+          <div className={`rounded-xl shadow-2xl border p-4 ${
+            darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
+          }`}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <button
+                type="button"
+                onClick={prevMonth}
+                className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
+              >
+                <ChevronRight size={20} />
+              </button>
+              <div className="text-center">
+                <div className="font-bold text-lg">{getJalaliMonthName(currentJm)}</div>
+                <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{currentJy}</div>
               </div>
-            ))}
-          </div>
+              <button
+                type="button"
+                onClick={nextMonth}
+                className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
+              >
+                <ChevronLeft size={20} />
+              </button>
+            </div>
 
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-1 mb-4">
-            {days}
-          </div>
+            {/* Days of Week */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(day => (
+                <div key={day} className={`text-center text-xs font-bold py-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {day}
+                </div>
+              ))}
+            </div>
 
-          {/* Footer */}
-          <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-slate-700">
-            <button
-              type="button"
-              onClick={goToToday}
-              className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
-            >
-              امروز
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className={`flex-1 px-3 py-2 text-sm rounded-lg transition-all font-medium ${
-                darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
-            >
-              بستن
-            </button>
+            {/* Days Grid */}
+            <div className="grid grid-cols-7 gap-1 mb-4">
+              {days}
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-2 pt-3 border-t border-gray-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={goToToday}
+                className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium"
+              >
+                امروز
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className={`flex-1 px-3 py-2 text-sm rounded-lg transition-all font-medium ${
+                  darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                بستن
+              </button>
+            </div>
           </div>
         </div>
       )}
