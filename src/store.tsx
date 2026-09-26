@@ -218,10 +218,77 @@ export interface ContentProject {
   assignedTo: string[];
   startDate: string;
   deadline: string;
-  status: 'planning' | 'in-progress' | 'review' | 'completed';
+  publishDate?: string;
+  publishPlatform?: string[];
+  status: 'planning' | 'in-progress' | 'review' | 'completed' | 'published';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   notes: string;
+  tags: string[];
+  relatedProducts: string[];
+  relatedCampaigns: string[];
+  budget: number;
+  actualCost: number;
+  qualityScore: number;
+  qualityChecklist: { item: string; checked: boolean }[];
+  approvalStage: 'draft' | 'content-manager' | 'ceo' | 'client' | 'approved';
+  versions: { version: number; date: string; notes: string; data: any }[];
   createdAt: string;
+}
+
+export interface ContentComment {
+  id: string;
+  projectId: string;
+  userId: string;
+  userName: string;
+  text: string;
+  mentions: string[];
+  resolved: boolean;
+  createdAt: string;
+}
+
+export interface ContentAsset {
+  id: string;
+  projectId: string;
+  name: string;
+  type: 'image' | 'video' | 'audio' | 'document';
+  url: string;
+  size: number;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+export interface ContentTemplate {
+  id: string;
+  name: string;
+  type: 'video' | 'photo' | 'article' | 'social' | 'ad';
+  scenario: string;
+  equipment: string[];
+  contentPlan: string;
+  qualityChecklist: string[];
+  createdAt: string;
+}
+
+export interface ContentIdea {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  votes: number;
+  votedBy: string[];
+  status: 'new' | 'accepted' | 'rejected' | 'converted';
+  convertedToProjectId?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface BrandBook {
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  fonts: string[];
+  tone: string;
+  logoUrl: string;
+  guidelines: string;
 }
 
 interface AppContextType {
@@ -271,6 +338,16 @@ interface AppContextType {
   setFaqs: (f: FaqItem[]) => void;
   contentProjects: ContentProject[];
   setContentProjects: (p: ContentProject[]) => void;
+  contentComments: ContentComment[];
+  setContentComments: (c: ContentComment[]) => void;
+  contentAssets: ContentAsset[];
+  setContentAssets: (a: ContentAsset[]) => void;
+  contentTemplates: ContentTemplate[];
+  setContentTemplates: (t: ContentTemplate[]) => void;
+  contentIdeas: ContentIdea[];
+  setContentIdeas: (i: ContentIdea[]) => void;
+  brandBook: BrandBook;
+  setBrandBook: (b: BrandBook) => void;
 }
 
 export interface AboutContent {
@@ -605,6 +682,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('hamyar_content_projects');
     return saved ? JSON.parse(saved) : [];
   });
+  const [contentComments, setContentComments] = useState<ContentComment[]>(() => {
+    const saved = localStorage.getItem('hamyar_content_comments');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [contentAssets, setContentAssets] = useState<ContentAsset[]>(() => {
+    const saved = localStorage.getItem('hamyar_content_assets');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [contentTemplates, setContentTemplates] = useState<ContentTemplate[]>(() => {
+    const saved = localStorage.getItem('hamyar_content_templates');
+    return saved ? JSON.parse(saved) : [
+      { id: 't1', name: 'معرفی محصول', type: 'video', scenario: 'معرفی کوتاه محصول با نمایش ویژگی‌ها', equipment: ['دوربین', 'نور', 'میکروفون'], contentPlan: '1. معرفی 2. ویژگی‌ها 3. قیمت 4. دعوت به خرید', qualityChecklist: ['کیفیت تصویر', 'صدای واضح', 'رعایت برند بوک'], createdAt: new Date().toISOString() },
+      { id: 't2', name: 'استوری اینستاگرام', type: 'social', scenario: 'استوری کوتاه و جذاب', equipment: ['موبایل'], contentPlan: '1. هوک 2. محتوا 3. CTA', qualityChecklist: ['ابعاد صحیح', 'متن خوانا', 'کال تو اکشن'], createdAt: new Date().toISOString() },
+      { id: 't3', name: 'مقاله آموزشی', type: 'article', scenario: 'آموزش استفاده از محصول', equipment: [], contentPlan: '1. مقدمه 2. مراحل 3. نکات 4. نتیجه', qualityChecklist: ['صحت اطلاعات', 'لحن برند', 'سئو'], createdAt: new Date().toISOString() },
+    ];
+  });
+  const [contentIdeas, setContentIdeas] = useState<ContentIdea[]>(() => {
+    const saved = localStorage.getItem('hamyar_content_ideas');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [brandBook, setBrandBook] = useState<BrandBook>(() => {
+    const saved = localStorage.getItem('hamyar_brand_book');
+    return saved ? JSON.parse(saved) : {
+      primaryColor: '#2563eb',
+      secondaryColor: '#7c3aed',
+      accentColor: '#f59e0b',
+      fonts: ['Vazirmatn', 'IRANSans'],
+      tone: 'حرفه‌ای، دوستانه، قابل اعتماد',
+      logoUrl: '',
+      guidelines: 'در تمام محتواها از رنگ‌های آبی و بنفش به عنوان رنگ‌های اصلی استفاده شود. لحن برند باید حرفه‌ای اما دوستانه باشد.'
+    };
+  });
 
   useEffect(() => {
     localStorage.setItem('hamyar_dark', String(darkMode));
@@ -630,6 +739,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_audit', JSON.stringify(auditLogs)); }, [auditLogs]);
   useEffect(() => { localStorage.setItem('hamyar_faqs', JSON.stringify(faqs)); }, [faqs]);
   useEffect(() => { localStorage.setItem('hamyar_content_projects', JSON.stringify(contentProjects)); }, [contentProjects]);
+  useEffect(() => { localStorage.setItem('hamyar_content_comments', JSON.stringify(contentComments)); }, [contentComments]);
+  useEffect(() => { localStorage.setItem('hamyar_content_assets', JSON.stringify(contentAssets)); }, [contentAssets]);
+  useEffect(() => { localStorage.setItem('hamyar_content_templates', JSON.stringify(contentTemplates)); }, [contentTemplates]);
+  useEffect(() => { localStorage.setItem('hamyar_content_ideas', JSON.stringify(contentIdeas)); }, [contentIdeas]);
+  useEffect(() => { localStorage.setItem('hamyar_brand_book', JSON.stringify(brandBook)); }, [brandBook]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
 
@@ -716,7 +830,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       smsLogs, setSmsLogs,
       auditLogs, setAuditLogs,
       faqs, setFaqs,
-      contentProjects, setContentProjects
+      contentProjects, setContentProjects,
+      contentComments, setContentComments,
+      contentAssets, setContentAssets,
+      contentTemplates, setContentTemplates,
+      contentIdeas, setContentIdeas,
+      brandBook, setBrandBook
     }}>
       {children}
     </AppContext.Provider>
