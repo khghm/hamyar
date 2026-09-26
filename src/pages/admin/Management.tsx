@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp, Employee, Campaign, SmsLog, AuditLog } from '../../store';
 import { Plus, X, Edit, Trash2, Send, Download, Shield, Upload } from 'lucide-react';
+import { exportToExcel } from '../../utils/export';
 
 // Employees Page
 export function AdminEmployees() {
@@ -256,16 +257,15 @@ export function AdminAuditLog() {
   };
 
   const exportLogs = () => {
-    const csv = ['کاربر,عملیات,جزئیات,تاریخ,IP'];
-    filteredLogs.forEach(log => {
-      csv.push(`${log.user},${log.action},${log.details},${new Date(log.date).toLocaleString('fa-IR')},${log.ip || '-'}`);
-    });
-    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `audit-log-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const headers = ['کاربر', 'عملیات', 'جزئیات', 'تاریخ', 'IP'];
+    const rows = filteredLogs.map(log => [
+      log.user,
+      log.action,
+      log.details,
+      new Date(log.date).toLocaleString('fa-IR'),
+      log.ip || '-'
+    ]);
+    exportToExcel('audit-log', headers, rows, 'گزارش لاگ فعالیت‌ها');
   };
 
   return (

@@ -5,6 +5,7 @@ import {
   AlertCircle, MessageSquare, Upload, CheckSquare, DollarSign, Tag, History, BarChart3, 
   Lightbulb, Bell, Download, BookOpen, Eye, ThumbsUp, ArrowRight, Filter
 } from 'lucide-react';
+import { exportToExcel } from '../../utils/export';
 
 export default function AdminContentTeam() {
   const { 
@@ -217,23 +218,19 @@ export default function AdminContentTeam() {
   };
 
   const exportReport = () => {
-    const report = {
-      generatedAt: new Date().toISOString(),
-      stats,
-      projects: contentProjects,
-      ideas: contentIdeas,
-      teamPerformance: employees.map(emp => ({
-        name: emp.name,
-        assignedProjects: contentProjects.filter(p => p.assignedTo.includes(emp.id)).length,
-        completedProjects: contentProjects.filter(p => p.assignedTo.includes(emp.id) && p.status === 'completed').length
-      }))
-    };
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `content-report-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
+    const headers = ['عنوان پروژه', 'نوع', 'وضعیت', 'اولویت', 'تاریخ شروع', 'تاریخ تحویل', 'بودجه', 'هزینه واقعی', 'امتیاز کیفیت'];
+    const rows = contentProjects.map(p => [
+      p.title,
+      p.type,
+      p.status,
+      p.priority,
+      p.startDate || '',
+      p.deadline || '',
+      (p.budget || 0).toLocaleString('fa-IR'),
+      (p.actualCost || 0).toLocaleString('fa-IR'),
+      (p.qualityScore || 0).toString() + '%'
+    ]);
+    exportToExcel('content-team-report', headers, rows, 'گزارش تیم تولید محتوا');
   };
 
   return (
@@ -622,15 +619,19 @@ export default function AdminContentTeam() {
                 <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>خروجی JSON شامل تمام اطلاعات</p>
               </button>
               <button onClick={() => {
-                const csv = ['نوع,وضعیت,اولویت,بودجه,هزینه واقعی,امتیاز کیفیت'];
-                contentProjects.forEach(p => csv.push(`${typeLabels[p.type]},${statusLabels[p.status]},${priorityLabels[p.priority]},${p.budget},${p.actualCost},${p.qualityScore}`));
-                const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'content-report.csv'; a.click();
+                const headers = ['نوع', 'وضعیت', 'اولویت', 'بودجه (تومان)', 'هزینه واقعی (تومان)', 'امتیاز کیفیت'];
+                const rows = contentProjects.map(p => [
+                  typeLabels[p.type],
+                  statusLabels[p.status],
+                  priorityLabels[p.priority],
+                  (p.budget || 0).toLocaleString('fa-IR'),
+                  (p.actualCost || 0).toLocaleString('fa-IR'),
+                  (p.qualityScore || 0).toString() + '%'
+                ]);
+                exportToExcel('content-summary', headers, rows, 'خلاصه گزارش تیم محتوا');
               }} className={`p-4 rounded-lg border text-right ${darkMode ? 'border-slate-700 hover:bg-slate-700' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <div className="flex items-center gap-3 mb-2"><FileText size={20} className="text-green-600" /><span className="font-bold">گزارش CSV</span></div>
-                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>خروجی CSV برای Excel</p>
+                <div className="flex items-center gap-3 mb-2"><FileText size={20} className="text-green-600" /><span className="font-bold">گزارش خلاصه اکسل</span></div>
+                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>خروجی اکسل با پشتیبانی فارسی</p>
               </button>
             </div>
           </div>
