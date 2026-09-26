@@ -1,24 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp, NewsItem, PortfolioItem } from '../../store';
-import { Plus, X, Upload, Edit, Trash2, FileImage, Video } from 'lucide-react';
+import { Plus, X, Upload, Edit, Trash2, FileImage, Video, Image } from 'lucide-react';
 import { formatJalali, toJalaliString } from '../../utils/jalali';
+
+interface Banner {
+  page: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+}
 
 export default function AdminSettings() {
   const { darkMode, news, setNews, portfolio, setPortfolio, aboutContent, setAboutContent } = useApp();
-  const [tab, setTab] = useState<'news' | 'portfolio' | 'about' | 'general'>('general');
+  const [tab, setTab] = useState<'news' | 'portfolio' | 'about' | 'general' | 'banners'>('general');
   const [showNewsForm, setShowNewsForm] = useState(false);
   const [showPortfolioForm, setShowPortfolioForm] = useState(false);
   const [editNewsId, setEditNewsId] = useState<string | null>(null);
   const [editPortfolioId, setEditPortfolioId] = useState<string | null>(null);
   const [newsForm, setNewsForm] = useState<Partial<NewsItem>>({ title: '', image: '', caption: '', content: '', date: '', active: true });
   const [portfolioForm, setPortfolioForm] = useState<Partial<PortfolioItem>>({ title: '', description: '', image: '', link: '', type: 'فروشگاهی', technologies: [] });
+  
+  const [banners, setBanners] = useState<Banner[]>(() => {
+    const saved = localStorage.getItem('hamyar_banners');
+    return saved ? JSON.parse(saved) : [
+      { page: 'home', title: 'کافی نت همیار', description: 'مرکز خدمات و فروش دیجیتال', imageUrl: '' },
+      { page: 'services', title: 'خدمات کافی‌نت همیار', description: 'لیست کامل خدمات و تعرفه‌ها', imageUrl: '' },
+      { page: 'media', title: 'کالکشن فیلم و سریال', description: 'مجموعه‌ای کامل از فیلم، سریال، انیمیشن و انیمه با بهترین کیفیت', imageUrl: '' },
+      { page: 'store', title: 'فروشگاه محصولات دیجیتال', description: 'فلش مموری، هارد، کابل، شارژر، دوربین مداربسته و لوازم جانبی', imageUrl: '' },
+      { page: 'webdesign', title: 'طراحی وب‌سایت حرفه‌ای', description: 'طراحی سایت با جدیدترین تکنولوژی‌ها و بهترین کیفیت', imageUrl: '' },
+      { page: 'news', title: 'اخبار کافی نت همیار', description: 'آخرین اخبار، تخفیف‌ها و اطلاعیه‌ها', imageUrl: '' },
+      { page: 'about', title: 'درباره کافی نت همیار', description: 'مرکز خدمات و فروش دیجیتال', imageUrl: '' },
+      { page: 'contact', title: 'تماس با ما', description: 'ما آماده پاسخگویی به شما هستیم', imageUrl: '' },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('hamyar_banners', JSON.stringify(banners));
+  }, [banners]);
 
   const tabs = [
     { id: 'general', label: 'عمومی' },
+    { id: 'banners', label: 'بنرها' },
     { id: 'news', label: 'اخبار' },
     { id: 'portfolio', label: 'نمونه‌کارها' },
     { id: 'about', label: 'درباره ما' },
   ];
+
+  const pageLabels: Record<string, string> = {
+    home: 'صفحه اصلی',
+    services: 'خدمات کافی‌نت',
+    media: 'کالکشن فیلم و سریال',
+    store: 'فروشگاه',
+    webdesign: 'طراحی سایت',
+    news: 'اخبار',
+    about: 'درباره ما',
+    contact: 'تماس با ما',
+  };
 
   // News handlers
   const saveNews = () => {
@@ -293,6 +330,117 @@ export default function AdminSettings() {
           <button onClick={() => setAboutContent({...aboutContent})} className="px-6 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
             ذخیره تغییرات
           </button>
+        </div>
+      )}
+
+      {/* Banners Management */}
+      {tab === 'banners' && (
+        <div className="space-y-4">
+          <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <h3 className="font-bold mb-4 flex items-center gap-2">
+              <Image size={20} className="text-blue-600" />
+              مدیریت بنرهای صفحات
+            </h3>
+            <p className={`text-sm mb-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              در این بخش می‌توانید بنر هر صفحه را تغییر دهید یا تصویر جدید از هارد آپلود کنید.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {banners.map((banner, idx) => (
+                <div key={banner.page} className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-base">{pageLabels[banner.page]}</h4>
+                  </div>
+                  
+                  {/* Preview */}
+                  <div className={`mb-3 rounded-lg overflow-hidden border ${darkMode ? 'border-slate-600' : 'border-gray-300'}`}>
+                    {banner.imageUrl ? (
+                      <img src={banner.imageUrl} alt={banner.title} className="w-full h-32 object-cover" />
+                    ) : (
+                      <div className={`w-full h-32 flex items-center justify-center ${darkMode ? 'bg-slate-600' : 'bg-gray-200'}`}>
+                        <Image size={32} className={darkMode ? 'text-slate-400' : 'text-gray-400'} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Title */}
+                  <div className="mb-2">
+                    <label className="text-xs font-medium block mb-1">عنوان بنر</label>
+                    <input 
+                      type="text" 
+                      value={banner.title}
+                      onChange={e => {
+                        const updated = [...banners];
+                        updated[idx] = { ...banner, title: e.target.value };
+                        setBanners(updated);
+                      }}
+                      className={`w-full px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`}
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div className="mb-3">
+                    <label className="text-xs font-medium block mb-1">توضیحات</label>
+                    <input 
+                      type="text" 
+                      value={banner.description}
+                      onChange={e => {
+                        const updated = [...banners];
+                        updated[idx] = { ...banner, description: e.target.value };
+                        setBanners(updated);
+                      }}
+                      className={`w-full px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`}
+                    />
+                  </div>
+
+                  {/* Image Upload */}
+                  <div className="flex gap-2">
+                    <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border cursor-pointer text-sm font-medium transition-all ${
+                      darkMode ? 'border-slate-600 hover:bg-slate-600' : 'border-gray-300 hover:bg-gray-100'
+                    }`}>
+                      <Upload size={16} />
+                      آپلود تصویر
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const updated = [...banners];
+                              updated[idx] = { ...banner, imageUrl: ev.target?.result as string };
+                              setBanners(updated);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="hidden" 
+                      />
+                    </label>
+                    {banner.imageUrl && (
+                      <button 
+                        onClick={() => {
+                          const updated = [...banners];
+                          updated[idx] = { ...banner, imageUrl: '' };
+                          setBanners(updated);
+                        }}
+                        className="px-4 py-2 rounded-lg border border-red-500 text-red-500 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        حذف تصویر
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className={`mt-6 p-4 rounded-lg ${darkMode ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
+              <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                💡 <strong>نکته:</strong> تغییرات به صورت خودکار ذخیره می‌شوند و در سایت عمومی نمایش داده خواهند شد.
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>

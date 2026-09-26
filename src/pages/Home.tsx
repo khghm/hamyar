@@ -2,9 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Monitor, Film, ShoppingBag, Globe, ArrowLeft, Newspaper, Star, Shield, Clock } from 'lucide-react';
+import { useBanner } from '../hooks/useBanner';
 
 export default function Home() {
   const { darkMode, news } = useApp();
+  const banner = useBanner('home');
 
   const features = [
     { icon: Monitor, title: 'خدمات کافی‌نت', desc: 'پرینت، اسکن، تایپ، ترجمه، ثبت‌نام و تمامی خدمات اداری', path: '/services', color: 'from-blue-500 to-cyan-500' },
@@ -26,11 +28,19 @@ export default function Home() {
       <section className="relative overflow-hidden min-h-[600px] flex items-center">
         {/* Background Image */}
         <div className="absolute inset-0">
-          <img 
-            src="https://image.qwenlm.ai/generated-images/237dfaca-3d3f-4459-88a5-757847e70940/_result.png" 
-            alt="کافی نت همیار" 
-            className="w-full h-full object-cover"
-          />
+          {banner?.imageUrl ? (
+            <img 
+              src={banner.imageUrl} 
+              alt={banner.title} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img 
+              src="https://image.qwenlm.ai/generated-images/237dfaca-3d3f-4459-88a5-757847e70940/_result.png" 
+              alt="کافی نت همیار" 
+              className="w-full h-full object-cover"
+            />
+          )}
           {/* Overlay Gradient */}
           <div className={`absolute inset-0 ${darkMode ? 'bg-gradient-to-br from-slate-900/90 via-blue-900/80 to-slate-900/90' : 'bg-gradient-to-br from-blue-50/90 via-white/85 to-purple-50/90'}`}></div>
         </div>
@@ -45,10 +55,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-20 lg:py-32 relative z-10 w-full">
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-4xl lg:text-6xl font-black mb-6 leading-tight">
-              <span className="bg-gradient-to-l from-blue-600 to-purple-600 bg-clip-text text-transparent">کافی نت همیار</span>
+              <span className="bg-gradient-to-l from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {banner?.title || 'کافی نت همیار'}
+              </span>
             </h1>
             <p className={`text-lg lg:text-xl mb-8 leading-8 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-              مرکز خدمات و فروش دیجیتال - ارائه‌دهنده خدمات کافی‌نت، کپی مدیا، فروش محصولات دیجیتال و طراحی وب‌سایت
+              {banner?.description || 'مرکز خدمات و فروش دیجیتال - ارائه‌دهنده خدمات کافی‌نت، کپی مدیا، فروش محصولات دیجیتال و طراحی وب‌سایت'}
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link to="/services" className="bg-blue-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl">

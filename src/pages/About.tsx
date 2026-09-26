@@ -1,23 +1,37 @@
 import React from 'react';
 import { useApp } from '../store';
 import { Award, Target, Eye, Users } from 'lucide-react';
+import { useBanner } from '../hooks/useBanner';
 
 export default function About() {
   const { darkMode, aboutContent } = useApp();
+  const banner = useBanner('about');
 
   return (
     <div className="fade-in">
       {/* Hero Banner */}
       <div className="relative h-64 md:h-96 overflow-hidden">
-        <img 
-          src="https://image.qwenlm.ai/generated-images/62908c70-02c9-4588-8706-7c7cadc5777e/_result.png" 
-          alt="درباره کافی نت همیار" 
-          className="w-full h-full object-cover"
-        />
+        {banner?.imageUrl ? (
+          <img 
+            src={banner.imageUrl} 
+            alt={banner.title} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img 
+            src="https://image.qwenlm.ai/generated-images/62908c70-02c9-4588-8706-7c7cadc5777e/_result.png" 
+            alt="درباره کافی نت همیار" 
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">درباره کافی نت همیار</h1>
-          <p className="text-white/90 text-sm md:text-lg drop-shadow">مرکز خدمات و فروش دیجیتال</p>
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">
+            {banner?.title || 'درباره کافی نت همیار'}
+          </h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">
+            {banner?.description || 'مرکز خدمات و فروش دیجیتال'}
+          </p>
         </div>
       </div>
 

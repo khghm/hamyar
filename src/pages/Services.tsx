@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../store';
 import { Search, SlidersHorizontal, Clock, DollarSign, Filter } from 'lucide-react';
+import { useBanner } from '../hooks/useBanner';
 
 export default function Services() {
   const { darkMode, services } = useApp();
+  const banner = useBanner('services');
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 500000]);
@@ -66,15 +68,27 @@ export default function Services() {
     <div className="fade-in">
       {/* Hero Banner */}
       <div className="relative h-64 md:h-96 overflow-hidden">
-        <img 
-          src="https://image.qwenlm.ai/generated-images/bbba49ef-6db2-4768-afc4-0fb99c0bafc5/_result.png" 
-          alt="خدمات کافی‌نت همیار" 
-          className="w-full h-full object-cover"
-        />
+        {banner?.imageUrl ? (
+          <img 
+            src={banner.imageUrl} 
+            alt={banner.title} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img 
+            src="https://image.qwenlm.ai/generated-images/bbba49ef-6db2-4768-afc4-0fb99c0bafc5/_result.png" 
+            alt="خدمات کافی‌نت همیار" 
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">خدمات کافی‌نت همیار</h1>
-          <p className="text-white/90 text-sm md:text-lg drop-shadow">لیست کامل خدمات و تعرفه‌ها</p>
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">
+            {banner?.title || 'خدمات کافی‌نت همیار'}
+          </h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">
+            {banner?.description || 'لیست کامل خدمات و تعرفه‌ها'}
+          </p>
         </div>
       </div>
 

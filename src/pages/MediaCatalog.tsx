@@ -2,9 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Search, Filter, Star, Heart, Eye, ChevronDown, X, SlidersHorizontal } from 'lucide-react';
+import { useBanner } from '../hooks/useBanner';
 
 export default function MediaCatalog() {
   const { darkMode, mediaItems, currentUser, addToFavorites, selectMedia } = useApp();
+  const banner = useBanner('media');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [genreFilter, setGenreFilter] = useState('all');
@@ -41,15 +43,27 @@ export default function MediaCatalog() {
     <div className="fade-in">
       {/* Hero Banner */}
       <div className="relative h-64 md:h-96 overflow-hidden">
-        <img 
-          src="https://image.qwenlm.ai/generated-images/dafa2905-55af-4a19-9235-93202ba272f8/_result.png" 
-          alt="کالکشن فیلم و سریال" 
-          className="w-full h-full object-cover"
-        />
+        {banner?.imageUrl ? (
+          <img 
+            src={banner.imageUrl} 
+            alt={banner.title} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img 
+            src="https://image.qwenlm.ai/generated-images/dafa2905-55af-4a19-9235-93202ba272f8/_result.png" 
+            alt="کالکشن فیلم و سریال" 
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">کالکشن فیلم و سریال</h1>
-          <p className="text-white/90 text-sm md:text-lg drop-shadow">مجموعه‌ای کامل از فیلم، سریال، انیمیشن و انیمه با بهترین کیفیت</p>
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">
+            {banner?.title || 'کالکشن فیلم و سریال'}
+          </h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">
+            {banner?.description || 'مجموعه‌ای کامل از فیلم، سریال، انیمیشن و انیمه با بهترین کیفیت'}
+          </p>
         </div>
       </div>
 

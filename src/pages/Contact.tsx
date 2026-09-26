@@ -1,9 +1,11 @@
 import React from 'react';
 import { useApp } from '../store';
 import { Phone, MapPin, Clock, MessageCircle } from 'lucide-react';
+import { useBanner } from '../hooks/useBanner';
 
 export default function Contact() {
   const { darkMode } = useApp();
+  const banner = useBanner('contact');
 
   const contactInfo = [
     { icon: Phone, title: 'تلفن ثابت', value: '02136432665', link: 'tel:02136432665' },
@@ -23,15 +25,27 @@ export default function Contact() {
     <div className="fade-in">
       {/* Hero Banner */}
       <div className="relative h-64 md:h-96 overflow-hidden">
-        <img 
-          src="https://image.qwenlm.ai/generated-images/fee27274-9d94-4aad-8962-1cc1496347b3/_result.png" 
-          alt="تماس با ما" 
-          className="w-full h-full object-cover"
-        />
+        {banner?.imageUrl ? (
+          <img 
+            src={banner.imageUrl} 
+            alt={banner.title} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img 
+            src="https://image.qwenlm.ai/generated-images/fee27274-9d94-4aad-8962-1cc1496347b3/_result.png" 
+            alt="تماس با ما" 
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12">
-          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">تماس با ما</h1>
-          <p className="text-white/90 text-sm md:text-lg drop-shadow">ما آماده پاسخگویی به شما هستیم</p>
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">
+            {banner?.title || 'تماس با ما'}
+          </h1>
+          <p className="text-white/90 text-sm md:text-lg drop-shadow">
+            {banner?.description || 'ما آماده پاسخگویی به شما هستیم'}
+          </p>
         </div>
       </div>
 
