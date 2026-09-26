@@ -142,10 +142,37 @@ export function AdminSmsPanel() {
   const [message, setMessage] = useState('');
   const [target, setTarget] = useState('all');
   const [phones, setPhones] = useState('');
+  const [manualPhones, setManualPhones] = useState<string[]>([]);
+  const [newPhone, setNewPhone] = useState('');
+
+  const addManualPhone = () => {
+    if (newPhone.trim() && !manualPhones.includes(newPhone.trim())) {
+      setManualPhones([...manualPhones, newPhone.trim()]);
+      setNewPhone('');
+    }
+  };
+
+  const removeManualPhone = (phone: string) => {
+    setManualPhones(manualPhones.filter(p => p !== phone));
+  };
 
   const sendSms = () => {
     if (!message.trim()) { alert('متن پیام را وارد کنید'); return; }
-    const targetPhones = target === 'all' ? users.filter(u => u.role === 'customer').map(u => u.phone) : phones.split(',').map(p => p.trim());
+    
+    let targetPhones: string[] = [];
+    if (target === 'all') {
+      targetPhones = users.filter(u => u.role === 'customer').map(u => u.phone);
+    } else if (target === 'custom') {
+      targetPhones = phones.split(',').map(p => p.trim()).filter(p => p);
+    } else if (target === 'manual') {
+      targetPhones = manualPhones;
+    }
+
+    if (targetPhones.length === 0) {
+      alert('هیچ شماره‌ای برای ارسال انتخاب نشده است');
+      return;
+    }
+
     const newLogs: SmsLog[] = targetPhones.map(phone => ({
       id: 'sms' + Date.now() + Math.random(),
       phone,
@@ -156,6 +183,7 @@ export function AdminSmsPanel() {
     setSmsLogs([...smsLogs, ...newLogs]);
     setMessage('');
     setPhones('');
+    setManualPhones([]);
     alert(`${newLogs.length} پیامک با موفقیت ارسال شد`);
   };
 
@@ -169,11 +197,50 @@ export function AdminSmsPanel() {
             <label className="text-sm font-medium block mb-1">گیرندگان</label>
             <select value={target} onChange={e => setTarget(e.target.value)} className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`}>
               <option value="all">همه مشتریان ({users.filter(u => u.role === 'customer').length} نفر)</option>
-              <option value="custom">شماره‌های خاص</option>
+              <option value="custom">شماره‌های خاص (با کاما جدا کنید)</option>
+              <option value="manual">وارد کردن دستی شماره‌ها</option>
             </select>
           </div>
           {target === 'custom' && (
-            <textarea placeholder="شماره‌ها را با کاما جدا کنید" value={phones} onChange={e => setPhones(e.target.value)} rows={2} className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+            <textarea placeholder="شماره‌ها را با کاما جدا کنید (مثال: 09123456789,09187654321)" value={phones} onChange={e => setPhones(e.target.value)} rows={3} className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+          )}
+          {target === 'manual' && (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input 
+                  type="tel" 
+                  placeholder="شماره موبایل (مثال: 09123456789)" 
+                  value={newPhone} 
+                  onChange={e => setNewPhone(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && addManualPhone()}
+                  className={`flex-1 px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} 
+                />
+                <button 
+                  onClick={addManualPhone}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  افزودن
+                </button>
+              </div>
+              {manualPhones.length > 0 && (
+                <div className={`p-3 rounded-lg border ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                  <p className="text-sm font-medium mb-2">شماره‌های انتخاب شده ({manualPhones.length}):</p>
+                  <div className="flex flex-wrap gap-2">
+                    {manualPhones.map((phone, idx) => (
+                      <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${darkMode ? 'bg-slate-600' : 'bg-white border border-gray-300'}`}>
+                        <span className="text-sm font-mono">{phone}</span>
+                        <button 
+                          onClick={() => removeManualPhone(phone)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           <div>
             <label className="text-sm font-medium block mb-1">متن پیام</label>

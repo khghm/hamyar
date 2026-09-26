@@ -1,9 +1,11 @@
 import React from 'react';
 import { useApp } from '../store';
 import { Globe, Code, Palette, Shield, ArrowLeft, ExternalLink } from 'lucide-react';
+import { useBanner } from '../hooks/useBanner';
 
 export default function WebDesign() {
   const { darkMode, portfolio } = useApp();
+  const banner = useBanner('webdesign');
 
   const services = [
     { title: 'سایت فروشگاهی', desc: 'طراحی فروشگاه آنلاین با سبد خرید، پرداخت آنلاین و پنل مدیریت', features: ['مدیریت محصولات', 'سبد خرید', 'درگاه پرداخت', 'پنل مدیریت'] },
@@ -15,16 +17,26 @@ export default function WebDesign() {
     <div className="fade-in">
       {/* Hero */}
       <section className="relative h-64 md:h-96 overflow-hidden">
-        <img 
-          src="https://image.qwenlm.ai/generated-images/f176a0ca-e78a-405e-b84e-9b37fbaa319d/_result.png" 
-          alt="طراحی وب‌سایت حرفه‌ای" 
-          className="w-full h-full object-cover"
-        />
+        {banner?.imageUrl ? (
+          <img 
+            src={banner.imageUrl} 
+            alt={banner.title} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img 
+            src="https://image.qwenlm.ai/generated-images/f176a0ca-e78a-405e-b84e-9b37fbaa319d/_result.png" 
+            alt="طراحی وب‌سایت حرفه‌ای" 
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent"></div>
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 text-center">
-          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">طراحی وب‌سایت حرفه‌ای</h1>
+          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 drop-shadow-lg">
+            {banner?.title || 'طراحی وب‌سایت حرفه‌ای'}
+          </h1>
           <p className="text-white/90 text-sm md:text-lg mb-6 drop-shadow">
-            طراحی سایت با جدیدترین تکنولوژی‌ها و بهترین کیفیت
+            {banner?.description || 'طراحی سایت با جدیدترین تکنولوژی‌ها و بهترین کیفیت'}
           </p>
           <a href="tel:09913911880" className="inline-block bg-purple-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-purple-700 transition-all">
             درخواست مشاوره رایگان
