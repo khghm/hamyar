@@ -6,7 +6,7 @@ import {
   Lightbulb, Bell, Download, BookOpen, Eye, ThumbsUp, ArrowRight, Filter, Kanban, List
 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
-import JalaliDateInput from '../../components/JalaliDateInput';
+import JalaliDatePicker from '../../components/JalaliDatePicker';
 
 export default function AdminContentTeam() {
   const { 
@@ -993,17 +993,17 @@ export default function AdminContentTeam() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-sm font-medium block mb-1">تاریخ شروع</label>
-                  <JalaliDateInput value={form.startDate || ''} onChange={date => setForm({...form, startDate: date})}
+                  <JalaliDatePicker value={form.startDate || ''} onChange={date => setForm({...form, startDate: date})}
                     className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">تاریخ تحویل</label>
-                  <JalaliDateInput value={form.deadline || ''} onChange={date => setForm({...form, deadline: date})}
+                  <JalaliDatePicker value={form.deadline || ''} onChange={date => setForm({...form, deadline: date})}
                     className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">تاریخ انتشار</label>
-                  <JalaliDateInput value={form.publishDate || ''} onChange={date => setForm({...form, publishDate: date})}
+                  <JalaliDatePicker value={form.publishDate || ''} onChange={date => setForm({...form, publishDate: date})}
                     className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
                 </div>
               </div>

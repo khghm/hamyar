@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp, Note } from '../../store';
 import { Plus, Search, Edit, Trash2, X, CheckCircle, Clock, AlertCircle, Tag, Calendar, User, Phone, FileText } from 'lucide-react';
-import JalaliDateInput from '../../components/JalaliDateInput';
+import JalaliDatePicker from '../../components/JalaliDatePicker';
 
 export default function AdminNotes() {
   const { darkMode, notes, setNotes } = useApp();
@@ -292,7 +292,7 @@ export default function AdminNotes() {
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">مهلت انجام</label>
-                  <JalaliDateInput value={form.dueDate || ''} onChange={date => setForm({...form, dueDate: date})}
+                  <JalaliDatePicker value={form.dueDate || ''} onChange={date => setForm({...form, dueDate: date})}
                     className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
                 </div>
               </div>

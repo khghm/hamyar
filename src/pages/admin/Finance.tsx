@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp, Expense } from '../../store';
 import { Plus, X, DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Download, PieChart, BarChart3 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
-import JalaliDateInput from '../../components/JalaliDateInput';
+import JalaliDatePicker from '../../components/JalaliDatePicker';
 
 export default function AdminFinance() {
   const { darkMode, expenses, setExpenses, orders } = useApp();
@@ -183,9 +183,9 @@ export default function AdminFinance() {
             <option value="all">همه دسته‌ها</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <JalaliDateInput value={dateRange.from} onChange={date => setDateRange({...dateRange, from: date})}
+          <JalaliDatePicker value={dateRange.from} onChange={date => setDateRange({...dateRange, from: date})}
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
-          <JalaliDateInput value={dateRange.to} onChange={date => setDateRange({...dateRange, to: date})}
+          <JalaliDatePicker value={dateRange.to} onChange={date => setDateRange({...dateRange, to: date})}
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
         </div>
       </div>
@@ -273,7 +273,7 @@ export default function AdminFinance() {
               </select>
               <input type="number" placeholder="مبلغ (تومان)" value={form.amount || ''} onChange={e => setForm({...form, amount: Number(e.target.value)})}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
-              <JalaliDateInput value={form.date || defaultDate} onChange={date => setForm({...form, date})}
+              <JalaliDatePicker value={form.date || defaultDate} onChange={date => setForm({...form, date})}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
               <textarea placeholder="توضیحات" value={form.description} onChange={e => setForm({...form, description: e.target.value})}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} rows={2} />
