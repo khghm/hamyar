@@ -242,6 +242,45 @@ export interface Invoice {
   createdAt: string;
 }
 
+export interface KeyResult {
+  id: string;
+  title: string;
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+}
+
+export interface OKR {
+  id: string;
+  title: string;
+  description: string;
+  type: 'organizational' | 'employee';
+  assignedTo?: string; // employee ID
+  keyResults: KeyResult[];
+  startDate: string;
+  endDate: string;
+  quarter: string; // Q1, Q2, Q3, Q4
+  year: number;
+  status: 'active' | 'completed' | 'cancelled';
+  createdAt: string;
+}
+
+export interface KPI {
+  id: string;
+  title: string;
+  description: string;
+  category: 'sales' | 'marketing' | 'customer' | 'operations' | 'financial' | 'digital';
+  type: 'organizational' | 'employee';
+  assignedTo?: string; // employee ID
+  targetValue: number;
+  currentValue: number;
+  unit: string;
+  startDate: string;
+  endDate: string;
+  status: 'active' | 'completed' | 'cancelled';
+  createdAt: string;
+}
+
 export interface ContentProject {
   id: string;
   title: string;
@@ -419,6 +458,10 @@ interface AppContextType {
   setRoles: (r: Role[]) => void;
   systemUsers: SystemUser[];
   setSystemUsers: (u: SystemUser[]) => void;
+  okrs: OKR[];
+  setOkrs: (o: OKR[]) => void;
+  kpis: KPI[];
+  setKpis: (k: KPI[]) => void;
 }
 
 export interface AboutContent {
@@ -913,6 +956,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ];
   });
 
+  const [okrs, setOkrs] = useState<OKR[]>(() => {
+    const saved = localStorage.getItem('hamyar_okrs');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [kpis, setKpis] = useState<KPI[]>(() => {
+    const saved = localStorage.getItem('hamyar_kpis');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   useEffect(() => {
     localStorage.setItem('hamyar_dark', String(darkMode));
     if (darkMode) document.documentElement.classList.add('dark');
@@ -946,6 +999,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_permissions', JSON.stringify(permissions)); }, [permissions]);
   useEffect(() => { localStorage.setItem('hamyar_roles', JSON.stringify(roles)); }, [roles]);
   useEffect(() => { localStorage.setItem('hamyar_system_users', JSON.stringify(systemUsers)); }, [systemUsers]);
+  useEffect(() => { localStorage.setItem('hamyar_okrs', JSON.stringify(okrs)); }, [okrs]);
+  useEffect(() => { localStorage.setItem('hamyar_kpis', JSON.stringify(kpis)); }, [kpis]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
 
@@ -1041,7 +1096,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       brandBook, setBrandBook,
       permissions, setPermissions,
       roles, setRoles,
-      systemUsers, setSystemUsers
+      systemUsers, setSystemUsers,
+      okrs, setOkrs,
+      kpis, setKpis
     }}>
       {children}
     </AppContext.Provider>
