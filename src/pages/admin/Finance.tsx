@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp, Expense } from '../../store';
 import { Plus, X, DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Download, PieChart, BarChart3 } from 'lucide-react';
+import { exportToExcel } from '../../utils/export';
 
 export default function AdminFinance() {
   const { darkMode, expenses, setExpenses, orders } = useApp();
@@ -64,16 +65,15 @@ export default function AdminFinance() {
   };
 
   const exportReport = () => {
-    const csv = ['تاریخ,دسته,عنوان,مبلغ,توضیحات'];
-    filteredExpenses.forEach(e => {
-      csv.push(`${e.date},${e.category},${e.title},${e.amount},${e.description || ''}`);
-    });
-    const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `finance-report-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const headers = ['تاریخ', 'دسته', 'عنوان', 'مبلغ (تومان)', 'توضیحات'];
+    const rows = filteredExpenses.map(e => [
+      e.date,
+      e.category,
+      e.title,
+      e.amount.toLocaleString('fa-IR'),
+      e.description || ''
+    ]);
+    exportToExcel('finance-report', headers, rows, 'گزارش مالی');
   };
 
   const maxExpense = Math.max(...expensesByCategory.map(([, v]) => v), 1);

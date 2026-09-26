@@ -211,6 +211,36 @@ export interface FaqItem {
   category: string;
 }
 
+export interface InvoiceItem {
+  name: string;
+  quantity: number;
+  unit: string;
+  price: number;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  type: 'service' | 'product' | 'webdesign' | 'combined' | 'media';
+  date: string;
+  dueDate?: string;
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  customerNationalId?: string;
+  items: InvoiceItem[];
+  subtotal: number;
+  discount: number;
+  discountType: 'percent' | 'fixed';
+  discountAmount: number;
+  tax: number;
+  taxAmount: number;
+  total: number;
+  note?: string;
+  status: 'draft' | 'issued' | 'paid' | 'cancelled';
+  createdAt: string;
+}
+
 export interface ContentProject {
   id: string;
   title: string;
@@ -368,6 +398,8 @@ interface AppContextType {
   setAuditLogs: (a: AuditLog[]) => void;
   faqs: FaqItem[];
   setFaqs: (f: FaqItem[]) => void;
+  invoices: Invoice[];
+  setInvoices: (i: Invoice[]) => void;
   contentProjects: ContentProject[];
   setContentProjects: (p: ContentProject[]) => void;
   contentComments: ContentComment[];
@@ -716,6 +748,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       { id: 'f6', question: 'آیا امکان پرداخت اقساطی وجود دارد؟', answer: 'برای خریدهای بالای ۲ میلیون تومان امکان پرداخت اقساطی با چک صیادی وجود دارد. برای اطلاعات بیشتر با ما تماس بگیرید.', category: 'فروشگاه' },
     ];
   });
+  const [invoices, setInvoices] = useState<Invoice[]>(() => {
+    const saved = localStorage.getItem('hamyar_invoices');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [contentProjects, setContentProjects] = useState<ContentProject[]>(() => {
     const saved = localStorage.getItem('hamyar_content_projects');
     return saved ? JSON.parse(saved) : [];
@@ -880,6 +916,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_sms', JSON.stringify(smsLogs)); }, [smsLogs]);
   useEffect(() => { localStorage.setItem('hamyar_audit', JSON.stringify(auditLogs)); }, [auditLogs]);
   useEffect(() => { localStorage.setItem('hamyar_faqs', JSON.stringify(faqs)); }, [faqs]);
+  useEffect(() => { localStorage.setItem('hamyar_invoices', JSON.stringify(invoices)); }, [invoices]);
   useEffect(() => { localStorage.setItem('hamyar_content_projects', JSON.stringify(contentProjects)); }, [contentProjects]);
   useEffect(() => { localStorage.setItem('hamyar_content_comments', JSON.stringify(contentComments)); }, [contentComments]);
   useEffect(() => { localStorage.setItem('hamyar_content_assets', JSON.stringify(contentAssets)); }, [contentAssets]);
@@ -975,6 +1012,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       smsLogs, setSmsLogs,
       auditLogs, setAuditLogs,
       faqs, setFaqs,
+      invoices, setInvoices,
       contentProjects, setContentProjects,
       contentComments, setContentComments,
       contentAssets, setContentAssets,

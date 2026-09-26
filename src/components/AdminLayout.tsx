@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
-import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText } from 'lucide-react';
 
 export default function AdminLayout() {
   const { darkMode, toggleDarkMode, logout } = useApp();
@@ -21,6 +21,7 @@ export default function AdminLayout() {
     { path: '/admin/services', icon: Wrench, label: 'خدمات' },
     { path: '/admin/projects', icon: FolderOpen, label: 'پروژه‌ها' },
     { path: '/admin/finance', icon: DollarSign, label: 'حسابداری' },
+    { path: '/admin/invoices', icon: FileText, label: 'فاکتورها' },
     { path: '/admin/employees', icon: UserCog, label: 'کارمندان' },
     { path: '/admin/suppliers', icon: Truck, label: 'تأمین‌کنندگان' },
     { path: '/admin/campaigns', icon: Percent, label: 'کمپین تخفیف' },

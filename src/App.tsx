@@ -35,6 +35,7 @@ import AdminInvites from './pages/admin/Invites';
 import AdminContentTeam from './pages/admin/ContentTeam';
 import AdminRBAC from './pages/admin/RBAC';
 import AdminTraining from './pages/admin/Training';
+import AdminInvoices from './pages/admin/Invoices';
 import { AdminEmployees, AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup, AdminFaqManager } from './pages/admin/Management';
 
 function AppRoutes() {
@@ -86,6 +87,7 @@ function AppRoutes() {
         <Route path="content-team" element={<AdminContentTeam />} />
         <Route path="rbac" element={<AdminRBAC />} />
         <Route path="training" element={<AdminTraining />} />
+        <Route path="invoices" element={<AdminInvoices />} />
       </Route>
     </Routes>
   );

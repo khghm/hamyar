@@ -5,6 +5,7 @@ import {
   BarChart3, PieChart, Download, Calendar, Filter, Eye, ArrowUp, ArrowDown,
   AlertTriangle, CheckCircle, Clock
 } from 'lucide-react';
+import { exportToExcel } from '../../utils/export';
 
 export default function AdminAnalytics() {
   const { 
@@ -117,36 +118,38 @@ export default function AdminAnalytics() {
   }, [orders, products, users, expenses, dateRange]);
 
   // خروجی گزارش
-  const exportReport = (format: 'json' | 'csv') => {
-    if (format === 'json') {
-      const data = {
-        generatedAt: new Date().toISOString(),
-        dateRange,
-        stats,
-        products: products.map(p => ({ name: p.name, stock: p.stock, price: p.price })),
-        orders: orders.map(o => ({ code: o.trackingCode, customer: o.customerName, total: o.total, status: o.status })),
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `analytics-report-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
+  const exportReport = (format: 'excel' | 'products' | 'orders') => {
+    if (format === 'excel') {
+      const headers = ['شاخص', 'مقدار'];
+      const rows = [
+        ['درآمد کل', stats.totalRevenue.toLocaleString('fa-IR') + ' تومان'],
+        ['هزینه‌ها', stats.totalExpenses.toLocaleString('fa-IR') + ' تومان'],
+        ['سود خالص', stats.profit.toLocaleString('fa-IR') + ' تومان'],
+        ['تعداد سفارش', stats.totalOrders.toString()],
+        ['میانگین سفارش', Math.round(stats.avgOrderValue).toLocaleString('fa-IR') + ' تومان'],
+        ['تعداد مشتریان', stats.totalCustomers.toString()],
+      ];
+      exportToExcel('analytics-report', headers, rows, 'گزارش تحلیل و آمار');
+    } else if (format === 'products') {
+      const headers = ['نام محصول', 'موجودی', 'قیمت (تومان)', 'وضعیت'];
+      const rows = products.map(p => [
+        p.name,
+        p.stock.toString(),
+        p.price.toLocaleString('fa-IR'),
+        p.stock === 0 ? 'ناموجود' : p.stock <= (p.alertThreshold || 10) ? 'کم' : 'موجود'
+      ]);
+      exportToExcel('products-report', headers, rows, 'گزارش محصولات');
     } else {
-      const csv = ['بخش,مقدار'];
-      csv.push(`درآمد کل,${stats.totalRevenue}`);
-      csv.push(`هزینه‌ها,${stats.totalExpenses}`);
-      csv.push(`سود خالص,${stats.profit}`);
-      csv.push(`تعداد سفارش,${stats.totalOrders}`);
-      csv.push(`میانگین سفارش,${Math.round(stats.avgOrderValue)}`);
-      csv.push(`تعداد مشتریان,${stats.totalCustomers}`);
-      
-      const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `analytics-report-${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
+      const headers = ['کد رهگیری', 'مشتری', 'نوع', 'مبلغ (تومان)', 'وضعیت', 'تاریخ'];
+      const rows = orders.map(o => [
+        o.trackingCode,
+        o.customerName,
+        o.type,
+        o.total.toLocaleString('fa-IR'),
+        o.status,
+        new Date(o.createdAt).toLocaleDateString('fa-IR')
+      ]);
+      exportToExcel('orders-report', headers, rows, 'گزارش سفارش‌ها');
     }
   };
 
@@ -162,11 +165,14 @@ export default function AdminAnalytics() {
           تحلیل و گزارش پیشرفته
         </h1>
         <div className="flex gap-2">
-          <button onClick={() => exportReport('json')} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 flex items-center gap-2">
-            <Download size={16} /> خروجی JSON
+          <button onClick={() => exportReport('excel')} className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700 flex items-center gap-2">
+            <Download size={16} /> خروجی اکسل
           </button>
-          <button onClick={() => exportReport('csv')} className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700 flex items-center gap-2">
-            <Download size={16} /> خروجی CSV
+          <button onClick={() => exportReport('products')} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 flex items-center gap-2">
+            <Download size={16} /> گزارش محصولات
+          </button>
+          <button onClick={() => exportReport('orders')} className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm hover:bg-purple-700 flex items-center gap-2">
+            <Download size={16} /> گزارش سفارش‌ها
           </button>
         </div>
       </div>
