@@ -1,12 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../store';
-import { BookOpen, Video, FileText, ExternalLink, Search, GraduationCap, Briefcase, Globe, CreditCard, Shield, Newspaper, ChevronDown, ChevronUp, Lightbulb, AlertCircle, CheckCircle, Clock, DollarSign } from 'lucide-react';
+import { BookOpen, Video, FileText, ExternalLink, Search, GraduationCap, Briefcase, Globe, CreditCard, Shield, Newspaper, ChevronDown, ChevronUp, Lightbulb, AlertCircle, CheckCircle, Clock, DollarSign, Plus, Edit, Trash2, X } from 'lucide-react';
+
+interface Site {
+  name: string;
+  url: string;
+  description: string;
+}
+
+interface ResourceCategory {
+  category: string;
+  icon: any;
+  color: string;
+  sites: Site[];
+}
 
 export default function AdminTraining() {
   const { darkMode } = useApp();
   const [activeTab, setActiveTab] = useState('panel');
   const [search, setSearch] = useState('');
   const [expandedTutorial, setExpandedTutorial] = useState<string | null>(null);
+  const [customResources, setCustomResources] = useState<ResourceCategory[]>(() => {
+    const saved = localStorage.getItem('hamyar_training_resources');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return [];
+  });
+  const [showSiteForm, setShowSiteForm] = useState(false);
+  const [editingSite, setEditingSite] = useState<{ categoryIndex: number; siteIndex: number } | null>(null);
+  const [siteForm, setSiteForm] = useState<Site>({ name: '', url: '', description: '' });
+  const [selectedCategory, setSelectedCategory] = useState<number>(0);
+
+  // ذخیره تغییرات در localStorage
+  useEffect(() => {
+    localStorage.setItem('hamyar_training_resources', JSON.stringify(customResources));
+  }, [customResources]);
 
   const tabs = [
     { id: 'panel', label: 'آموزش پنل مدیریت', icon: Shield },
@@ -1101,14 +1130,93 @@ export default function AdminTraining() {
     },
   ];
 
-  const filteredResources = resources.map(cat => ({
+  // ترکیب resources پیش‌فرض و customResources
+  const allResources = [...resources, ...customResources];
+  
+  const filteredResources = allResources.map(cat => ({
     ...cat,
     sites: cat.sites.filter(s => 
       s.name.includes(search) || s.description.includes(search)
     )
   })).filter(cat => cat.sites.length > 0);
 
-  const totalSites = resources.reduce((sum, cat) => sum + cat.sites.length, 0);
+  const totalSites = allResources.reduce((sum, cat) => sum + cat.sites.length, 0);
+
+  // توابع مدیریت سایت‌ها
+  const handleAddSite = () => {
+    if (!siteForm.name || !siteForm.url) {
+      alert('لطفاً نام و آدرس سایت را وارد کنید');
+      return;
+    }
+    
+    if (editingSite) {
+      // ویرایش سایت موجود
+      const updated = [...customResources];
+      if (editingSite.categoryIndex >= resources.length) {
+        const customIndex = editingSite.categoryIndex - resources.length;
+        updated[customIndex].sites[editingSite.siteIndex] = siteForm;
+      }
+      setCustomResources(updated);
+    } else {
+      // افزودن سایت جدید
+      const updated = [...customResources];
+      if (selectedCategory >= resources.length) {
+        const customIndex = selectedCategory - resources.length;
+        updated[customIndex].sites.push(siteForm);
+      } else {
+        // ایجاد دسته جدید در customResources
+        const defaultCategory = resources[selectedCategory];
+        const existingCustom = updated.find(c => c.category === defaultCategory.category);
+        if (existingCustom) {
+          existingCustom.sites.push(siteForm);
+        } else {
+          updated.push({
+            ...defaultCategory,
+            sites: [siteForm]
+          });
+        }
+      }
+      setCustomResources(updated);
+    }
+    
+    setShowSiteForm(false);
+    setEditingSite(null);
+    setSiteForm({ name: '', url: '', description: '' });
+  };
+
+  const handleEditSite = (categoryIndex: number, siteIndex: number) => {
+    const allCat = allResources[categoryIndex];
+    const site = allCat.sites[siteIndex];
+    setSiteForm(site);
+    setEditingSite({ categoryIndex, siteIndex });
+    setSelectedCategory(categoryIndex);
+    setShowSiteForm(true);
+  };
+
+  const handleDeleteSite = (categoryIndex: number, siteIndex: number) => {
+    if (!confirm('آیا از حذف این سایت اطمینان دارید؟')) return;
+    
+    const updated = [...customResources];
+    if (categoryIndex >= resources.length) {
+      const customIndex = categoryIndex - resources.length;
+      updated[customIndex].sites.splice(siteIndex, 1);
+      if (updated[customIndex].sites.length === 0) {
+        updated.splice(customIndex, 1);
+      }
+    } else {
+      // حذف از دسته پیش‌فرض
+      const defaultCategory = resources[categoryIndex];
+      const existingCustom = updated.find(c => c.category === defaultCategory.category);
+      if (existingCustom) {
+        existingCustom.sites.splice(siteIndex, 1);
+        if (existingCustom.sites.length === 0) {
+          const idx = updated.indexOf(existingCustom);
+          updated.splice(idx, 1);
+        }
+      }
+    }
+    setCustomResources(updated);
+  };
 
   return (
     <div className="fade-in space-y-6">
@@ -1226,15 +1334,28 @@ export default function AdminTraining() {
       {/* Resources */}
       {activeTab === 'resources' && (
         <div className="space-y-4">
-          <div className="relative">
-            <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="جستجو در سایت‌ها..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className={`w-full pr-10 pl-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-400' : 'bg-white border-gray-200 placeholder-gray-400'}`}
-            />
+          <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1">
+              <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="جستجو در سایت‌ها..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className={`w-full pr-10 pl-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-400' : 'bg-white border-gray-200 placeholder-gray-400'}`}
+              />
+            </div>
+            <button
+              onClick={() => {
+                setSiteForm({ name: '', url: '', description: '' });
+                setEditingSite(null);
+                setShowSiteForm(true);
+              }}
+              className="px-4 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Plus size={18} />
+              افزودن سایت
+            </button>
           </div>
 
           {filteredResources.map((category, i) => {
@@ -1263,23 +1384,48 @@ export default function AdminTraining() {
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {category.sites.map((site, j) => (
-                    <a
-                      key={j}
-                      href={site.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`p-3 rounded-lg border transition-all hover:shadow-md flex items-center justify-between group ${
-                        darkMode ? 'bg-slate-700/50 border-slate-600 hover:border-blue-500' : 'bg-gray-50 border-gray-200 hover:border-blue-300'
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm group-hover:text-blue-600 truncate">{site.name}</p>
-                        <p className={`text-xs mt-1 truncate ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{site.description}</p>
+                  {category.sites.map((site, j) => {
+                    // پیدا کردن index واقعی در allResources
+                    const originalCategoryIndex = allResources.findIndex(c => c.category === category.category);
+                    
+                    return (
+                      <div
+                        key={j}
+                        className={`p-3 rounded-lg border transition-all hover:shadow-md group ${
+                          darkMode ? 'bg-slate-700/50 border-slate-600 hover:border-blue-500' : 'bg-gray-50 border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        <a
+                          href={site.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between mb-2"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm group-hover:text-blue-600 truncate">{site.name}</p>
+                            <p className={`text-xs mt-1 truncate ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{site.description}</p>
+                          </div>
+                          <ExternalLink size={16} className="text-slate-400 group-hover:text-blue-600 flex-shrink-0 mr-2" />
+                        </a>
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-slate-600">
+                          <button
+                            onClick={() => handleEditSite(originalCategoryIndex, j)}
+                            className="flex-1 text-blue-600 text-xs py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-center gap-1"
+                          >
+                            <Edit size={12} />
+                            ویرایش
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSite(originalCategoryIndex, j)}
+                            className="flex-1 text-red-500 text-xs py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center gap-1"
+                          >
+                            <Trash2 size={12} />
+                            حذف
+                          </button>
+                        </div>
                       </div>
-                      <ExternalLink size={16} className="text-slate-400 group-hover:text-blue-600 flex-shrink-0 mr-2" />
-                    </a>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -1289,6 +1435,78 @@ export default function AdminTraining() {
             <div className="text-center py-12">
               <Globe size={48} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
               <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>سایتی یافت نشد</p>
+            </div>
+          )}
+
+          {/* فرم افزودن/ویرایش سایت */}
+          {showSiteForm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowSiteForm(false)}>
+              <div className={`w-full max-w-md p-6 rounded-2xl ${darkMode ? 'bg-slate-800' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold">{editingSite ? 'ویرایش سایت' : 'افزودن سایت جدید'}</h3>
+                  <button onClick={() => { setShowSiteForm(false); setEditingSite(null); }}><X size={20} /></button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium block mb-1">دسته‌بندی</label>
+                    <select 
+                      value={selectedCategory} 
+                      onChange={e => setSelectedCategory(Number(e.target.value))}
+                      disabled={!!editingSite}
+                      className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'} ${editingSite ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {allResources.map((cat, idx) => (
+                        <option key={idx} value={idx}>{cat.category}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">نام سایت *</label>
+                    <input 
+                      type="text" 
+                      value={siteForm.name} 
+                      onChange={e => setSiteForm({...siteForm, name: e.target.value})}
+                      placeholder="مثال: سامانه ثنا"
+                      className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">آدرس URL *</label>
+                    <input 
+                      type="url" 
+                      value={siteForm.url} 
+                      onChange={e => setSiteForm({...siteForm, url: e.target.value})}
+                      placeholder="https://example.com"
+                      dir="ltr"
+                      className={`w-full px-3 py-2 rounded-lg border text-left ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1">توضیحات</label>
+                    <textarea 
+                      value={siteForm.description} 
+                      onChange={e => setSiteForm({...siteForm, description: e.target.value})}
+                      placeholder="توضیح کوتاه درباره سایت"
+                      rows={3}
+                      className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`} 
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button 
+                      onClick={handleAddSite}
+                      className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+                    >
+                      {editingSite ? 'بروزرسانی' : 'افزودن'}
+                    </button>
+                    <button 
+                      onClick={() => { setShowSiteForm(false); setEditingSite(null); }}
+                      className={`px-6 py-2.5 rounded-lg border ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}
+                    >
+                      انصراف
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
