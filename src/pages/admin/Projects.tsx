@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp, Project } from '../../store';
 import { Plus, X, Edit, Trash2, Kanban, List, Calendar, DollarSign, User, Clock, AlertCircle } from 'lucide-react';
-import JalaliDateInput from '../../components/JalaliDateInput';
+import JalaliDatePicker from '../../components/JalaliDatePicker';
 
 export default function AdminProjects() {
   const { darkMode, projects, setProjects } = useApp();
@@ -372,7 +372,7 @@ export default function AdminProjects() {
                   {stages.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
-              <JalaliDateInput value={form.deadline || ''} onChange={date => setForm({...form, deadline: date})}
+              <JalaliDatePicker value={form.deadline || ''} onChange={date => setForm({...form, deadline: date})}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
               <div className="grid grid-cols-2 gap-3">
                 <input type="number" placeholder="هزینه کل" value={form.totalCost || ''} onChange={e => setForm({...form, totalCost: Number(e.target.value)})}

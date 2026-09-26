@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp, Employee, Campaign, SmsLog, AuditLog } from '../../store';
 import { Plus, X, Edit, Trash2, Send, Download, Shield, Upload } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
-import JalaliDateInput from '../../components/JalaliDateInput';
+import JalaliDatePicker from '../../components/JalaliDatePicker';
 
 // Employees Page
 export function AdminEmployees() {
@@ -122,8 +122,8 @@ export function AdminCampaigns() {
               <input type="number" placeholder="حداقل خرید" value={form.minPurchase || ''} onChange={e => setForm({...form, minPurchase: Number(e.target.value)})} className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
               <input type="number" placeholder="حداکثر استفاده" value={form.maxUses || ''} onChange={e => setForm({...form, maxUses: Number(e.target.value)})} className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
               <div className="grid grid-cols-2 gap-3">
-                <JalaliDateInput value={form.startDate || ''} onChange={date => setForm({...form, startDate: date})} className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
-                <JalaliDateInput value={form.endDate || ''} onChange={date => setForm({...form, endDate: date})} className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                <JalaliDatePicker value={form.startDate || ''} onChange={date => setForm({...form, startDate: date})} className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                <JalaliDatePicker value={form.endDate || ''} onChange={date => setForm({...form, endDate: date})} className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
               </div>
               <label className="flex items-center gap-2"><input type="checkbox" checked={form.active} onChange={e => setForm({...form, active: e.target.checked})} /><span className="text-sm">فعال</span></label>
               <button onClick={save} className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">ذخیره</button>
@@ -324,10 +324,10 @@ export function AdminAuditLog() {
             <option value="all">همه ماژول‌ها</option>
             {uniqueModules.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <JalaliDateInput value={dateRange.from} onChange={date => setDateRange({...dateRange, from: date})}
+          <JalaliDatePicker value={dateRange.from} onChange={date => setDateRange({...dateRange, from: date})}
             placeholder="از تاریخ"
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`} />
-          <JalaliDateInput value={dateRange.to} onChange={date => setDateRange({...dateRange, to: date})}
+          <JalaliDatePicker value={dateRange.to} onChange={date => setDateRange({...dateRange, to: date})}
             placeholder="تا تاریخ"
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`} />
         </div>
