@@ -235,18 +235,25 @@ export function AdminReviews() {
 export function AdminAuditLog() {
   const { darkMode, auditLogs, setAuditLogs } = useApp();
   const [filter, setFilter] = useState('all');
+  const [moduleFilter, setModuleFilter] = useState('all');
+  const [userFilter, setUserFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
 
   const filteredLogs = auditLogs.filter(log => {
     if (filter !== 'all' && log.action !== filter) return false;
-    if (search && !log.user.includes(search) && !log.details.includes(search)) return false;
+    if (moduleFilter !== 'all' && log.module !== moduleFilter) return false;
+    if (userFilter !== 'all' && log.user !== userFilter) return false;
+    if (search && !log.user.includes(search) && !log.details.includes(search) && !log.action.includes(search)) return false;
     if (dateRange.from && new Date(log.date) < new Date(dateRange.from)) return false;
     if (dateRange.to && new Date(log.date) > new Date(dateRange.to)) return false;
     return true;
   });
 
   const uniqueActions = Array.from(new Set(auditLogs.map(l => l.action)));
+  const uniqueModules = Array.from(new Set(auditLogs.map(l => l.module).filter(Boolean)));
+  const uniqueUsers = Array.from(new Set(auditLogs.map(l => l.user)));
+  
   const stats = {
     total: auditLogs.length,
     today: auditLogs.filter(l => new Date(l.date).toDateString() === new Date().toDateString()).length,
@@ -255,12 +262,18 @@ export function AdminAuditLog() {
       weekAgo.setDate(weekAgo.getDate() - 7);
       return new Date(l.date) > weekAgo;
     }).length,
+    thisMonth: auditLogs.filter(l => {
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      return new Date(l.date) > monthAgo;
+    }).length,
   };
 
   const exportLogs = () => {
-    const headers = ['کاربر', 'عملیات', 'جزئیات', 'تاریخ', 'IP'];
+    const headers = ['کاربر', 'ماژول', 'عملیات', 'جزئیات', 'تاریخ', 'IP'];
     const rows = filteredLogs.map(log => [
       log.user,
+      log.module || '-',
       log.action,
       log.details,
       new Date(log.date).toLocaleString('fa-IR'),
@@ -273,11 +286,11 @@ export function AdminAuditLog() {
     <div className="fade-in space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2"><Shield size={24} /> لاگ فعالیت‌ها</h1>
-        <button onClick={exportLogs} className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">خروجی CSV</button>
+        <button onClick={exportLogs} className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700">خروجی اکسل</button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="text-2xl font-bold">{stats.total}</div>
           <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>کل فعالیت‌ها</div>
@@ -290,23 +303,47 @@ export function AdminAuditLog() {
           <div className="text-2xl font-bold text-purple-600">{stats.thisWeek}</div>
           <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>هفته اخیر</div>
         </div>
+        <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="text-2xl font-bold text-green-600">{stats.thisMonth}</div>
+          <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>ماه اخیر</div>
+        </div>
       </div>
 
       {/* Filters */}
       <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <input type="text" placeholder="جستجو..." value={search} onChange={e => setSearch(e.target.value)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+          <input type="text" placeholder="جستجو در همه فیلدها..." value={search} onChange={e => setSearch(e.target.value)}
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`} />
           <select value={filter} onChange={e => setFilter(e.target.value)}
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
             <option value="all">همه عملیات</option>
             {uniqueActions.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
+          <select value={moduleFilter} onChange={e => setModuleFilter(e.target.value)}
+            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+            <option value="all">همه ماژول‌ها</option>
+            {uniqueModules.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
           <JalaliDateInput value={dateRange.from} onChange={date => setDateRange({...dateRange, from: date})}
+            placeholder="از تاریخ"
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`} />
           <JalaliDateInput value={dateRange.to} onChange={date => setDateRange({...dateRange, to: date})}
+            placeholder="تا تاریخ"
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`} />
         </div>
+        {(filter !== 'all' || moduleFilter !== 'all' || search || dateRange.from || dateRange.to) && (
+          <div className="mt-3 flex items-center justify-between">
+            <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              {filteredLogs.length} نتیجه یافت شد
+            </span>
+            <button 
+              onClick={() => { setFilter('all'); setModuleFilter('all'); setUserFilter('all'); setSearch(''); setDateRange({ from: '', to: '' }); }}
+              className="text-sm text-red-600 hover:underline"
+            >
+              پاک کردن فیلترها
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Logs Table */}
@@ -316,6 +353,7 @@ export function AdminAuditLog() {
             <thead className={darkMode ? 'bg-slate-700' : 'bg-gray-50'}>
               <tr>
                 <th className="text-right p-3">کاربر</th>
+                <th className="text-right p-3">ماژول</th>
                 <th className="text-right p-3">عملیات</th>
                 <th className="text-right p-3">جزئیات</th>
                 <th className="text-right p-3">تاریخ و ساعت</th>
@@ -326,6 +364,15 @@ export function AdminAuditLog() {
               {filteredLogs.slice().reverse().map(log => (
                 <tr key={log.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'} hover:${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
                   <td className="p-3 font-medium">{log.user}</td>
+                  <td className="p-3">
+                    {log.module ? (
+                      <span className={`px-2 py-1 rounded text-xs ${darkMode ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>
+                        {log.module}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
+                  </td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded text-xs ${darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
                       {log.action}

@@ -27,7 +27,6 @@ export default function AdminLayout() {
     { path: '/admin/campaigns', icon: Percent, label: 'کمپین تخفیف' },
     { path: '/admin/sms', icon: MessageSquare, label: 'پیامک انبوه' },
     { path: '/admin/reviews', icon: Star, label: 'نظرات' },
-    { path: '/admin/faq', icon: HelpCircle, label: 'سوالات متداول' },
     { path: '/admin/content-team', icon: Video, label: 'تیم تولید محتوا' },
     { path: '/admin/rbac', icon: Shield, label: 'کنترل دسترسی (RBAC)' },
     { path: '/admin/training', icon: BookOpen, label: 'آموزش ادمین' },

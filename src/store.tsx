@@ -202,6 +202,7 @@ export interface AuditLog {
   details: string;
   date: string;
   ip?: string;
+  module?: string;
 }
 
 export interface FaqItem {
@@ -734,7 +735,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
     const saved = localStorage.getItem('hamyar_audit');
     return saved ? JSON.parse(saved) : [
-      { id: 'a1', user: 'admin', action: 'ورود به سیستم', details: 'ورود موفق', date: new Date().toISOString(), ip: '192.168.1.1' },
+      { id: 'a1', user: 'admin', action: 'ورود به سیستم', details: 'ورود موفق', date: new Date().toISOString(), ip: '192.168.1.1', module: 'سیستم' },
+      { id: 'a2', user: 'admin', action: 'ایجاد', details: 'ایجاد محصول جدید: فلش مموری 64GB', date: new Date(Date.now() - 3600000).toISOString(), ip: '192.168.1.1', module: 'محصولات' },
+      { id: 'a3', user: 'admin', action: 'ویرایش', details: 'ویرایش قیمت محصول: هارد اکسترنال 1TB', date: new Date(Date.now() - 7200000).toISOString(), ip: '192.168.1.1', module: 'محصولات' },
+      { id: 'a4', user: 'admin', action: 'ایجاد', details: 'ثبت سفارش جدید: HMY-ABC123', date: new Date(Date.now() - 10800000).toISOString(), ip: '192.168.1.1', module: 'سفارشات' },
+      { id: 'a5', user: 'admin', action: 'تغییر وضعیت', details: 'تغییر وضعیت سفارش HMY-ABC123 به در حال انجام', date: new Date(Date.now() - 14400000).toISOString(), ip: '192.168.1.1', module: 'سفارشات' },
+      { id: 'a6', user: 'admin', action: 'ایجاد', details: 'ثبت مشتری جدید: علی محمدی', date: new Date(Date.now() - 18000000).toISOString(), ip: '192.168.1.1', module: 'مشتریان' },
+      { id: 'a7', user: 'admin', action: 'ایجاد', details: 'افزودن عنوان جدید: Oppenheimer', date: new Date(Date.now() - 21600000).toISOString(), ip: '192.168.1.1', module: 'مدیا' },
+      { id: 'a8', user: 'admin', action: 'ایجاد', details: 'ثبت هزینه جدید: اجاره ماهانه', date: new Date(Date.now() - 25200000).toISOString(), ip: '192.168.1.1', module: 'مالی' },
+      { id: 'a9', user: 'admin', action: 'ایجاد', details: 'صدور فاکتور: INV-240001', date: new Date(Date.now() - 28800000).toISOString(), ip: '192.168.1.1', module: 'فاکتورها' },
+      { id: 'a10', user: 'admin', action: 'تایید', details: 'تایید نظر مشتری: مریم احمدی', date: new Date(Date.now() - 32400000).toISOString(), ip: '192.168.1.1', module: 'نظرات' },
+      { id: 'a11', user: 'admin', action: 'ارسال', details: 'ارسال پیامک انبوه به 50 مشتری', date: new Date(Date.now() - 36000000).toISOString(), ip: '192.168.1.1', module: 'پیامک' },
+      { id: 'a12', user: 'admin', action: 'ایجاد', details: 'ایجاد پروژه جدید: طراحی سایت شرکتی', date: new Date(Date.now() - 39600000).toISOString(), ip: '192.168.1.1', module: 'پروژه‌ها' },
+      { id: 'a13', user: 'admin', action: 'ایجاد', details: 'ایجاد کمپین تخفیف: SCHOOL1403', date: new Date(Date.now() - 43200000).toISOString(), ip: '192.168.1.1', module: 'کمپین‌ها' },
+      { id: 'a14', user: 'admin', action: 'ایجاد', details: 'ثبت کارمند جدید: محمد رضایی', date: new Date(Date.now() - 46800000).toISOString(), ip: '192.168.1.1', module: 'کارمندان' },
+      { id: 'a15', user: 'admin', action: 'ایجاد', details: 'ثبت تأمین‌کننده جدید: شرکت سامسونگ', date: new Date(Date.now() - 50400000).toISOString(), ip: '192.168.1.1', module: 'تأمین‌کنندگان' },
+      { id: 'a16', user: 'admin', action: 'ایجاد', details: 'ایجاد پروژه محتوایی: ویدئو معرفی محصول', date: new Date(Date.now() - 54000000).toISOString(), ip: '192.168.1.1', module: 'تیم محتوا' },
+      { id: 'a17', user: 'admin', action: 'ایجاد', details: 'ایجاد نقش جدید: مدیر فروش', date: new Date(Date.now() - 57600000).toISOString(), ip: '192.168.1.1', module: 'RBAC' },
+      { id: 'a18', user: 'admin', action: 'ویرایش', details: 'ویرایش تنظیمات سایت', date: new Date(Date.now() - 61200000).toISOString(), ip: '192.168.1.1', module: 'تنظیمات' },
+      { id: 'a19', user: 'admin', action: 'بکاپ', details: 'ایجاد بکاپ کامل سیستم', date: new Date(Date.now() - 64800000).toISOString(), ip: '192.168.1.1', module: 'سیستم' },
+      { id: 'a20', user: 'admin', action: 'حذف', details: 'حذف محصول: کابل USB قدیمی', date: new Date(Date.now() - 68400000).toISOString(), ip: '192.168.1.1', module: 'محصولات' },
     ];
   });
   const [faqs, setFaqs] = useState<FaqItem[]>(() => {

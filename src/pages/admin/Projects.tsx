@@ -8,12 +8,15 @@ export default function AdminProjects() {
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [activeStageFilter, setActiveStageFilter] = useState<string>('all');
   const [form, setForm] = useState<Partial<Project>>({ 
     title: '', clientName: '', type: 'فروشگاهی', stage: 'مشاوره', 
     deadline: '', totalCost: 0, paidAmount: 0, progress: 0, description: '' 
   });
 
   const stages = ['مشاوره', 'قرارداد', 'پیش‌پرداخت', 'طراحی', 'تایید', 'راه‌اندازی', 'تحویل', 'تسویه'];
+  
+  const filteredStages = activeStageFilter === 'all' ? stages : [activeStageFilter];
 
   const stageColors: Record<string, string> = {
     'مشاوره': 'from-blue-500 to-blue-600',
@@ -143,114 +146,149 @@ export default function AdminProjects() {
         </div>
       </div>
 
+      {/* Stage Filter Tabs */}
+      {viewMode === 'kanban' && (
+        <div className={`p-2 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex gap-2 overflow-x-auto">
+            <button
+              onClick={() => setActiveStageFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                activeStageFilter === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
+              }`}
+            >
+              همه مراحل
+            </button>
+            {stages.map(stage => (
+              <button
+                key={stage}
+                onClick={() => setActiveStageFilter(stage)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  activeStageFilter === stage
+                    ? `bg-gradient-to-l ${stageColors[stage]} text-white`
+                    : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
+                }`}
+              >
+                {stage} ({projects.filter(p => p.stage === stage).length})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Kanban View */}
       {viewMode === 'kanban' && (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max">
-            {stages.map(stage => {
-              const stageProjects = projects.filter(p => p.stage === stage);
-              return (
-                <div
-                  key={stage}
-                  onDragOver={handleDragOver}
-                  onDrop={e => handleDrop(e, stage)}
-                  className={`w-80 flex-shrink-0 rounded-xl border-2 border-dashed transition-all ${
-                    darkMode ? 'border-slate-700 bg-slate-800/50' : 'border-gray-300 bg-gray-50'
-                  }`}
-                >
-                  {/* Stage Header */}
-                  <div className={`p-3 rounded-t-xl bg-gradient-to-l ${stageColors[stage]} text-white`}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-sm">{stage}</h3>
-                      <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
-                        {stageProjects.length}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Projects List */}
-                  <div className="p-3 space-y-3 min-h-[200px]">
-                    {stageProjects.map(project => (
-                      <div
-                        key={project.id}
-                        draggable
-                        onDragStart={e => handleDragStart(e, project.id)}
-                        className={`p-4 rounded-lg border cursor-move transition-all hover:shadow-lg ${
-                          darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'
-                        } ${isOverdue(project.deadline) ? 'ring-2 ring-red-500' : ''}`}
-                      >
-                        {/* Header */}
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-bold text-sm flex-1">{project.title}</h4>
-                          <div className="flex gap-1">
-                            <button onClick={() => openEdit(project)} className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-1 rounded">
-                              <Edit size={14} />
-                            </button>
-                            <button onClick={() => setProjects(projects.filter(x => x.id !== project.id))} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Client */}
-                        <div className="flex items-center gap-2 mb-2">
-                          <User size={12} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
-                          <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{project.clientName}</span>
-                        </div>
-
-                        {/* Type Badge */}
-                        <div className="mb-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-600'}`}>
-                            {project.type}
-                          </span>
-                        </div>
-
-                        {/* Progress */}
-                        <div className="mb-3">
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>پیشرفت</span>
-                            <span className="font-bold">{project.progress}%</span>
-                          </div>
-                          <div className={`h-2 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
-                            <div 
-                              className={`h-full rounded-full transition-all ${getProgressColor(project.progress)}`}
-                              style={{ width: `${project.progress}%` }}
-                            ></div>
-                          </div>
-                        </div>
-
-                        {/* Financial Info */}
-                        <div className={`p-2 rounded-lg mb-2 ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>هزینه کل:</span>
-                            <span className="font-bold">{project.totalCost.toLocaleString('fa-IR')} ت</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>پرداخت شده:</span>
-                            <span className="font-bold text-green-600">{project.paidAmount.toLocaleString('fa-IR')} ت</span>
-                          </div>
-                        </div>
-
-                        {/* Deadline */}
-                        {project.deadline && (
-                          <div className={`flex items-center gap-1 text-xs ${isOverdue(project.deadline) ? 'text-red-500' : darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                            {isOverdue(project.deadline) ? <AlertCircle size={12} /> : <Calendar size={12} />}
-                            <span>{isOverdue(project.deadline) ? 'عقب‌افتاده: ' : 'تحویل: '}{project.deadline}</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {stageProjects.length === 0 && (
-                      <div className={`text-center py-8 text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                        پروژه‌ای وجود ندارد
-                      </div>
-                    )}
+        <div className={`grid gap-4 ${
+          filteredStages.length === 1 ? 'grid-cols-1' :
+          filteredStages.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+          filteredStages.length === 3 ? 'grid-cols-1 md:grid-cols-3' :
+          filteredStages.length === 4 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4' :
+          'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+        }`}>
+          {filteredStages.map(stage => {
+            const stageProjects = projects.filter(p => p.stage === stage);
+            return (
+              <div
+                key={stage}
+                onDragOver={handleDragOver}
+                onDrop={e => handleDrop(e, stage)}
+                className={`rounded-xl border-2 border-dashed transition-all ${
+                  darkMode ? 'border-slate-700 bg-slate-800/50' : 'border-gray-300 bg-gray-50'
+                }`}
+              >
+                {/* Stage Header */}
+                <div className={`p-3 rounded-t-xl bg-gradient-to-l ${stageColors[stage]} text-white`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-sm">{stage}</h3>
+                    <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+                      {stageProjects.length}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Projects List */}
+                <div className="p-3 space-y-3 min-h-[200px] max-h-[500px] overflow-y-auto">
+                  {stageProjects.map(project => (
+                    <div
+                      key={project.id}
+                      draggable
+                      onDragStart={e => handleDragStart(e, project.id)}
+                      className={`p-3 rounded-lg border cursor-move transition-all hover:shadow-lg ${
+                        darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'
+                      } ${isOverdue(project.deadline) ? 'ring-2 ring-red-500' : ''}`}
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-bold text-sm flex-1">{project.title}</h4>
+                        <div className="flex gap-1">
+                          <button onClick={() => openEdit(project)} className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-1 rounded">
+                            <Edit size={14} />
+                          </button>
+                          <button onClick={() => setProjects(projects.filter(x => x.id !== project.id))} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Client */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <User size={12} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
+                        <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{project.clientName}</span>
+                      </div>
+
+                      {/* Type Badge */}
+                      <div className="mb-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-600'}`}>
+                          {project.type}
+                        </span>
+                      </div>
+
+                      {/* Progress */}
+                      <div className="mb-2">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>پیشرفت</span>
+                          <span className="font-bold">{project.progress}%</span>
+                        </div>
+                        <div className={`h-1.5 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
+                          <div 
+                            className={`h-full rounded-full transition-all ${getProgressColor(project.progress)}`}
+                            style={{ width: `${project.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Financial Info */}
+                      <div className={`p-2 rounded-lg mb-2 ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>هزینه:</span>
+                          <span className="font-bold">{project.totalCost.toLocaleString('fa-IR')} ت</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>پرداخت:</span>
+                          <span className="font-bold text-green-600">{project.paidAmount.toLocaleString('fa-IR')} ت</span>
+                        </div>
+                      </div>
+
+                      {/* Deadline */}
+                      {project.deadline && (
+                        <div className={`flex items-center gap-1 text-xs ${isOverdue(project.deadline) ? 'text-red-500' : darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {isOverdue(project.deadline) ? <AlertCircle size={12} /> : <Calendar size={12} />}
+                          <span>{isOverdue(project.deadline) ? 'عقب‌افتاده: ' : 'تحویل: '}{project.deadline}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {stageProjects.length === 0 && (
+                    <div className={`text-center py-8 text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      پروژه‌ای وجود ندارد
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
