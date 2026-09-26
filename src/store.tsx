@@ -30,6 +30,9 @@ export interface Product {
   description: string;
   barcode?: string;
   warranty?: string;
+  alertThreshold?: number;
+  lastRestocked?: string;
+  supplier?: string;
 }
 
 export interface MediaItem {
