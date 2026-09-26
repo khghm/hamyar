@@ -6,6 +6,7 @@ import {
   CheckCircle, Clock, XCircle, Eye
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatJalali, getJalaliDayName } from '../../utils/jalali';
 
 export default function AdminDashboard() {
   const { 

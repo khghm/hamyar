@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp, Invoice, InvoiceItem } from '../../store';
 import { Plus, X, Edit, Trash2, Eye, Printer, FileText, Download, Search, Filter } from 'lucide-react';
 import { printInvoice, exportToExcel } from '../../utils/export';
+import JalaliDateInput from '../../components/JalaliDateInput';
 
 export default function AdminInvoices() {
   const { darkMode, invoices, setInvoices, orders, products, services } = useApp();
@@ -322,7 +323,7 @@ export default function AdminInvoices() {
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1">تاریخ صدور</label>
-                  <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})}
+                  <JalaliDateInput value={form.date || ''} onChange={date => setForm({...form, date})}
                     className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
                 </div>
                 <div>
@@ -344,7 +345,8 @@ export default function AdminInvoices() {
                     className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`} />
                   <input type="text" placeholder="کد ملی / شناسه ملی" value={form.customerNationalId} onChange={e => setForm({...form, customerNationalId: e.target.value})}
                     className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`} />
-                  <input type="date" placeholder="مهلت پرداخت" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})}
+                  <JalaliDateInput value={form.dueDate || ''} onChange={date => setForm({...form, dueDate: date})}
+                    placeholder="مهلت پرداخت"
                     className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`} />
                   <input type="text" placeholder="آدرس" value={form.customerAddress} onChange={e => setForm({...form, customerAddress: e.target.value})}
                     className={`md:col-span-2 px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`} />
