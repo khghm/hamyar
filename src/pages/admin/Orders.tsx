@@ -257,6 +257,22 @@ export default function AdminOrders() {
                         {/* Actions */}
                         <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
                           <button 
+                            onClick={() => {
+                              setNewOrder({
+                                customerName: order.customerName,
+                                type: order.type as any,
+                                channel: order.channel,
+                                priority: order.priority as any,
+                                total: order.total,
+                                description: order.description || ''
+                              });
+                              setShowForm(true);
+                            }}
+                            className="flex-1 text-blue-600 text-xs py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          >
+                            ویرایش
+                          </button>
+                          <button 
                             onClick={() => setOrders(orders.filter(x => x.id !== order.id))} 
                             className="flex-1 text-red-500 text-xs py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                           >

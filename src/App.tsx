@@ -36,7 +36,7 @@ import AdminContentTeam from './pages/admin/ContentTeam';
 import AdminRBAC from './pages/admin/RBAC';
 import AdminTraining from './pages/admin/Training';
 import AdminInvoices from './pages/admin/Invoices';
-import { AdminEmployees, AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup, AdminFaqManager } from './pages/admin/Management';
+import { AdminEmployees, AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup } from './pages/admin/Management';
 
 function AppRoutes() {
   const { currentUser } = useApp();
@@ -83,7 +83,6 @@ function AppRoutes() {
         <Route path="reviews" element={<AdminReviews />} />
         <Route path="audit" element={<AdminAuditLog />} />
         <Route path="backup" element={<AdminBackup />} />
-        <Route path="faq" element={<AdminFaqManager />} />
         <Route path="content-team" element={<AdminContentTeam />} />
         <Route path="rbac" element={<AdminRBAC />} />
         <Route path="training" element={<AdminTraining />} />

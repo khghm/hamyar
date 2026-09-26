@@ -3,7 +3,7 @@ import { useApp, ContentProject, ContentComment, ContentTemplate, ContentIdea } 
 import { 
   Plus, X, Edit, Trash2, Film, Camera, FileText, Share2, Megaphone, Calendar, Users, Clock, 
   AlertCircle, MessageSquare, Upload, CheckSquare, DollarSign, Tag, History, BarChart3, 
-  Lightbulb, Bell, Download, BookOpen, Eye, ThumbsUp, ArrowRight, Filter
+  Lightbulb, Bell, Download, BookOpen, Eye, ThumbsUp, ArrowRight, Filter, Kanban, List
 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
 import JalaliDateInput from '../../components/JalaliDateInput';
@@ -21,7 +21,8 @@ export default function AdminContentTeam() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
+  const [activeStageFilter, setActiveStageFilter] = useState<string>('all');
   
   const [form, setForm] = useState<Partial<ContentProject>>({
     title: '', type: 'video', scenario: '', equipment: [], contentPlan: '',
@@ -309,12 +310,208 @@ export default function AdminContentTeam() {
               {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
             <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700">
-              <button onClick={() => setViewMode('list')} className={`px-3 py-2 text-sm ${viewMode === 'list' ? 'bg-blue-600 text-white' : darkMode ? 'bg-slate-800' : 'bg-white'}`}>لیست</button>
-              <button onClick={() => setViewMode('calendar')} className={`px-3 py-2 text-sm ${viewMode === 'calendar' ? 'bg-blue-600 text-white' : darkMode ? 'bg-slate-800' : 'bg-white'}`}>تقویم</button>
+              <button onClick={() => setViewMode('kanban')} className={`px-3 py-2 text-sm flex items-center gap-1 ${viewMode === 'kanban' ? 'bg-blue-600 text-white' : darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                <Kanban size={14} /> کانبان
+              </button>
+              <button onClick={() => setViewMode('list')} className={`px-3 py-2 text-sm flex items-center gap-1 ${viewMode === 'list' ? 'bg-blue-600 text-white' : darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                <List size={14} /> لیست
+              </button>
             </div>
           </div>
 
-          {viewMode === 'list' ? (
+          {/* Kanban View */}
+          {viewMode === 'kanban' && (
+            <div className="space-y-4">
+              {/* Stage Filter Tabs */}
+              <div className={`p-2 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <div className="flex gap-2 overflow-x-auto">
+                  <button
+                    onClick={() => setActiveStageFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                      activeStageFilter === 'all'
+                        ? 'bg-blue-600 text-white'
+                        : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    همه مراحل
+                  </button>
+                  {Object.entries(statusLabels).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => setActiveStageFilter(key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                        activeStageFilter === key
+                          ? statusColors[key]
+                          : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {label} ({contentProjects.filter(p => p.status === key).length})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Kanban Board */}
+              <div className={`grid gap-4 ${
+                activeStageFilter === 'all' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5' :
+                'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+              }`}>
+                {(activeStageFilter === 'all' ? Object.keys(statusLabels) : [activeStageFilter]).map(status => {
+                  const statusProjects = filtered.filter(p => p.status === status);
+                  return (
+                    <div
+                      key={status}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => {
+                        e.preventDefault();
+                        const projectId = e.dataTransfer.getData('projectId');
+                        const project = contentProjects.find(p => p.id === projectId);
+                        if (project && project.status !== status) {
+                          setContentProjects(contentProjects.map(p => p.id === projectId ? { ...p, status: status as any } : p));
+                        }
+                      }}
+                      className={`rounded-xl border-2 border-dashed transition-all ${
+                        darkMode ? 'border-slate-700 bg-slate-800/50' : 'border-gray-300 bg-gray-50'
+                      }`}
+                    >
+                      {/* Status Header */}
+                      <div className={`p-3 rounded-t-xl ${statusColors[status]}`}>
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold text-sm">{statusLabels[status]}</h3>
+                          <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+                            {statusProjects.length}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Projects List */}
+                      <div className="p-3 space-y-3 min-h-[200px] max-h-[500px] overflow-y-auto">
+                        {statusProjects.map(project => {
+                          const TypeIcon = typeIcons[project.type];
+                          return (
+                            <div
+                              key={project.id}
+                              draggable
+                              onDragStart={e => e.dataTransfer.setData('projectId', project.id)}
+                              className={`p-3 rounded-lg border cursor-move transition-all hover:shadow-lg ${
+                                darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'
+                              }`}
+                            >
+                              {/* Header */}
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <TypeIcon size={16} className="text-blue-600" />
+                                  <h4 className="font-bold text-sm flex-1">{project.title}</h4>
+                                </div>
+                                <div className="flex gap-1">
+                                  <button onClick={() => setSelectedProject(project.id)} className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-1 rounded">
+                                    <Eye size={14} />
+                                  </button>
+                                  <button onClick={() => openEdit(project)} className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 p-1 rounded">
+                                    <Edit size={14} />
+                                  </button>
+                                  <button onClick={() => setContentProjects(contentProjects.filter(x => x.id !== project.id))} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded">
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Type Badge */}
+                              <div className="mb-2">
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-600'}`}>
+                                  {typeLabels[project.type]}
+                                </span>
+                              </div>
+
+                              {/* Priority */}
+                              <div className="mb-2">
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[project.priority]}`}>
+                                  {priorityLabels[project.priority]}
+                                </span>
+                              </div>
+
+                              {/* Assigned To */}
+                              {project.assignedTo.length > 0 && (
+                                <div className="mb-2">
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <Users size={12} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
+                                    <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
+                                      {project.assignedTo.map(id => employees.find(e => e.id === id)?.name).filter(Boolean).join('، ')}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Budget */}
+                              {project.budget > 0 && (
+                                <div className={`p-2 rounded-lg mb-2 ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>بودجه:</span>
+                                    <span className="font-bold">{project.budget.toLocaleString('fa-IR')} ت</span>
+                                  </div>
+                                  {project.actualCost > 0 && (
+                                    <div className="flex justify-between text-xs">
+                                      <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>هزینه:</span>
+                                      <span className="font-bold text-orange-600">{project.actualCost.toLocaleString('fa-IR')} ت</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Deadline */}
+                              {project.deadline && (
+                                <div className={`flex items-center gap-1 text-xs ${
+                                  new Date(project.deadline) < new Date() && project.status !== 'completed' && project.status !== 'published'
+                                    ? 'text-red-500' 
+                                    : darkMode ? 'text-slate-400' : 'text-slate-500'
+                                }`}>
+                                  {new Date(project.deadline) < new Date() && project.status !== 'completed' && project.status !== 'published' ? (
+                                    <AlertCircle size={12} />
+                                  ) : (
+                                    <Calendar size={12} />
+                                  )}
+                                  <span>تحویل: {project.deadline}</span>
+                                </div>
+                              )}
+
+                              {/* Quality Score */}
+                              {project.qualityScore > 0 && (
+                                <div className="mt-2">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>کیفیت</span>
+                                    <span className="font-bold">{project.qualityScore}%</span>
+                                  </div>
+                                  <div className={`h-1.5 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
+                                    <div 
+                                      className={`h-full rounded-full transition-all ${
+                                        project.qualityScore >= 80 ? 'bg-green-500' :
+                                        project.qualityScore >= 50 ? 'bg-blue-500' :
+                                        project.qualityScore >= 25 ? 'bg-yellow-500' : 'bg-red-500'
+                                      }`}
+                                      style={{ width: `${project.qualityScore}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {statusProjects.length === 0 && (
+                          <div className={`text-center py-8 text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                            پروژه‌ای وجود ندارد
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* List View */}
+          {viewMode === 'list' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filtered.map(project => {
                 const TypeIcon = typeIcons[project.type];
@@ -371,26 +568,6 @@ export default function AdminContentTeam() {
                   </div>
                 );
               })}
-            </div>
-          ) : (
-            <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-              <h3 className="font-bold mb-4">تقویم ۳۰ روزه</h3>
-              <div className="grid grid-cols-7 gap-2">
-                {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(d => (
-                  <div key={d} className="text-center text-xs font-bold p-2">{d}</div>
-                ))}
-                {calendarDays.map((day, i) => (
-                  <div key={i} className={`p-2 rounded-lg min-h-[80px] ${day.isToday ? 'ring-2 ring-blue-500' : ''} ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
-                    <div className={`text-xs font-bold mb-1 ${day.isToday ? 'text-blue-600' : ''}`}>{day.day}</div>
-                    {day.projects.slice(0, 2).map(p => (
-                      <div key={p.id} className={`text-[10px] px-1 py-0.5 rounded mb-1 truncate ${statusColors[p.status]}`}>
-                        {p.title}
-                      </div>
-                    ))}
-                    {day.projects.length > 2 && <div className="text-[10px] text-slate-400">+{day.projects.length - 2} بیشتر</div>}
-                  </div>
-                ))}
-              </div>
             </div>
           )}
         </div>
