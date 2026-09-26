@@ -36,7 +36,9 @@ import AdminContentTeam from './pages/admin/ContentTeam';
 import AdminRBAC from './pages/admin/RBAC';
 import AdminTraining from './pages/admin/Training';
 import AdminInvoices from './pages/admin/Invoices';
-import { AdminEmployees, AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup } from './pages/admin/Management';
+import AdminOKRKPI from './pages/admin/OKRKPI';
+import { AdminEmployees } from './pages/admin/Employees';
+import { AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup } from './pages/admin/Management';
 
 function AppRoutes() {
   const { currentUser } = useApp();
@@ -78,6 +80,7 @@ function AppRoutes() {
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="suppliers" element={<AdminSuppliers />} />
         <Route path="employees" element={<AdminEmployees />} />
+        <Route path="okr-kpi" element={<AdminOKRKPI />} />
         <Route path="campaigns" element={<AdminCampaigns />} />
         <Route path="sms" element={<AdminSmsPanel />} />
         <Route path="reviews" element={<AdminReviews />} />
