@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp, Note } from '../../store';
 import { Plus, Search, Edit, Trash2, X, CheckCircle, Clock, AlertCircle, Tag, Calendar, User, Phone, FileText } from 'lucide-react';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
+import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminNotes() {
   const { darkMode, notes, setNotes } = useApp();
@@ -181,7 +182,7 @@ export default function AdminNotes() {
                   {note.dueDate && (
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar size={14} className="text-slate-400" />
-                      <span className={darkMode ? 'text-slate-300' : 'text-slate-600'}>{note.dueDate}</span>
+                      <span className={darkMode ? 'text-slate-300' : 'text-slate-600'}>{toJalaliString(note.dueDate)}</span>
                     </div>
                   )}
                 </div>

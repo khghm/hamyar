@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
+import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminContentTeam() {
   const { 
@@ -470,7 +471,7 @@ export default function AdminContentTeam() {
                                   ) : (
                                     <Calendar size={12} />
                                   )}
-                                  <span>تحویل: {project.deadline}</span>
+                                  <span>تحویل: {toJalaliString(project.deadline)}</span>
                                 </div>
                               )}
 
@@ -561,8 +562,8 @@ export default function AdminContentTeam() {
                     )}
 
                     <div className="flex items-center gap-4 text-xs">
-                      {project.startDate && <div className="flex items-center gap-1"><Calendar size={12} /><span>شروع: {project.startDate}</span></div>}
-                      {project.deadline && <div className="flex items-center gap-1"><Clock size={12} className="text-red-500" /><span className="text-red-500">تحویل: {project.deadline}</span></div>}
+                      {project.startDate && <div className="flex items-center gap-1"><Calendar size={12} /><span>شروع: {toJalaliString(project.startDate)}</span></div>}
+                      {project.deadline && <div className="flex items-center gap-1"><Clock size={12} className="text-red-500" /><span className="text-red-500">تحویل: {toJalaliString(project.deadline)}</span></div>}
                       {project.budget > 0 && <div className="flex items-center gap-1"><DollarSign size={12} /><span>بودجه: {project.budget.toLocaleString('fa-IR')}</span></div>}
                     </div>
                   </div>

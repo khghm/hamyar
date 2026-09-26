@@ -3,6 +3,7 @@ import { useApp, Invoice, InvoiceItem } from '../../store';
 import { Plus, X, Edit, Trash2, Eye, Printer, FileText, Download, Search, Filter } from 'lucide-react';
 import { printInvoice, exportToExcel } from '../../utils/export';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
+import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminInvoices() {
   const { darkMode, invoices, setInvoices, orders, products, services } = useApp();
@@ -274,7 +275,7 @@ export default function AdminInvoices() {
               {filtered.map(inv => (
                 <tr key={inv.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
                   <td className="p-3 font-mono text-xs">{inv.invoiceNumber}</td>
-                  <td className="p-3">{inv.date}</td>
+                  <td className="p-3">{toJalaliString(inv.date)}</td>
                   <td className="p-3 font-medium">{inv.customerName}</td>
                   <td className="p-3">
                     <span className={`px-2 py-0.5 rounded text-xs ${darkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>

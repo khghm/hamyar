@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp, Order } from '../../store';
 import { Plus, Search, Filter, Kanban, List, User, Clock, AlertCircle, DollarSign, Tag, X } from 'lucide-react';
+import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminOrders() {
   const { darkMode, orders, setOrders, users } = useApp();
@@ -250,7 +251,7 @@ export default function AdminOrders() {
                         <div className="flex items-center gap-1 text-xs">
                           <Clock size={12} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
                           <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
-                            {new Date(order.createdAt).toLocaleDateString('fa-IR')}
+                            {toJalaliString(order.createdAt)}
                           </span>
                         </div>
 
@@ -332,7 +333,7 @@ export default function AdminOrders() {
                       </select>
                     </td>
                     <td className="p-3 font-bold">{o.total.toLocaleString('fa-IR')}</td>
-                    <td className="p-3 text-xs">{new Date(o.createdAt).toLocaleDateString('fa-IR')}</td>
+                    <td className="p-3 text-xs">{toJalaliString(o.createdAt)}</td>
                     <td className="p-3">
                       <button onClick={() => setOrders(orders.filter(x => x.id !== o.id))} className="text-red-500 text-xs hover:underline">حذف</button>
                     </td>

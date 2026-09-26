@@ -148,6 +148,19 @@ export function toJalaliString(dateStr: string): string {
   return formatJalali(date);
 }
 
+// تبدیل تاریخ میلادی به فرمت کامل شمسی
+export function formatJalaliFull(dateStr: string): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+  
+  const { jy, jm, jd } = gregorianToJalali(date);
+  const monthName = getJalaliMonthName(jm);
+  const dayName = getJalaliDayName(date);
+  
+  return `${dayName} ${jd} ${monthName} ${jy}`;
+}
+
 // تبدیل رشته شمسی به تاریخ میلادی برای ذخیره
 export function fromJalaliString(jalaliStr: string): string {
   const date = parseJalali(jalaliStr);

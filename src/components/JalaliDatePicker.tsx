@@ -180,28 +180,53 @@ export default function JalaliDatePicker({ value, onChange, label, className = '
           <div className={`rounded-xl shadow-2xl border p-4 ${
             darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
           }`}>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <button
-                type="button"
-                onClick={prevMonth}
-                className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              type="button"
+              onClick={prevMonth}
+              className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
+            >
+              <ChevronRight size={20} />
+            </button>
+            <div className="flex items-center gap-2">
+              {/* Month Selector */}
+              <select
+                value={currentJm}
+                onChange={(e) => setCurrentJm(Number(e.target.value))}
+                className={`px-2 py-1 rounded-lg text-sm font-bold border ${
+                  darkMode 
+                    ? 'bg-slate-700 border-slate-600 text-white' 
+                    : 'bg-white border-gray-300 text-slate-900'
+                }`}
               >
-                <ChevronRight size={20} />
-              </button>
-              <div className="text-center">
-                <div className="font-bold text-lg">{getJalaliMonthName(currentJm)}</div>
-                <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{currentJy}</div>
-              </div>
-              <button
-                type="button"
-                onClick={nextMonth}
-                className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                  <option key={month} value={month}>{getJalaliMonthName(month)}</option>
+                ))}
+              </select>
+              {/* Year Selector */}
+              <select
+                value={currentJy}
+                onChange={(e) => setCurrentJy(Number(e.target.value))}
+                className={`px-2 py-1 rounded-lg text-sm font-bold border ${
+                  darkMode 
+                    ? 'bg-slate-700 border-slate-600 text-white' 
+                    : 'bg-white border-gray-300 text-slate-900'
+                }`}
               >
-                <ChevronLeft size={20} />
-              </button>
+                {Array.from({ length: 50 }, (_, i) => 1380 + i).map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
             </div>
-
+            <button
+              type="button"
+              onClick={nextMonth}
+              className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
+            >
+              <ChevronLeft size={20} />
+            </button>
+          </div>
             {/* Days of Week */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map(day => (
