@@ -1,51 +1,148 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../store';
 import { 
-  TrendingUp, DollarSign, Users, ShoppingCart, Phone, MessageSquare, FileText, Clock, 
+  TrendingUp, TrendingDown, DollarSign, Users, ShoppingCart, Phone, MessageSquare, FileText, Clock, 
   Target, Award, BarChart3, Search, Mail, RefreshCw, MapPin, Globe, Share2, 
-  Edit, Save, X, ChevronDown, ChevronUp
+  Edit, Save, X, ArrowUp, ArrowDown, Minus
 } from 'lucide-react';
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+} from 'recharts';
 
 export default function AdminDigitalMarketing() {
-  const { darkMode, digitalMarketingData, setDigitalMarketingData } = useApp();
-  const [activeCategory, setActiveCategory] = useState('financial');
+  const { 
+    darkMode, 
+    digitalMarketingData, 
+    setDigitalMarketingData,
+    orders,
+    products,
+    users,
+    expenses
+  } = useApp();
+  
+  const [activeCategory, setActiveCategory] = useState('overview');
   const [editMode, setEditMode] = useState(false);
   const [tempData, setTempData] = useState(digitalMarketingData);
 
+  // محاسبه خودکار شاخص‌ها از داده‌های واقعی
+  const calculatedMetrics = useMemo(() => {
+    const totalRevenue = orders.reduce((sum, o) => sum + o.paid, 0);
+    const totalOrders = orders.length;
+    const totalCustomers = users.filter(u => u.role === 'customer').length;
+    const totalProducts = products.length;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    
+    return {
+      gmv: totalRevenue,
+      nmv: totalRevenue * 0.95, // فرض 5% تخفیف
+      transactions: totalOrders,
+      aov: avgOrderValue,
+      users: totalCustomers,
+      products: totalProducts,
+      // سایر محاسبات بر اساس داده‌های واقعی
+    };
+  }, [orders, products, users]);
+
   const categories = [
+    { id: 'overview', label: 'نمای کلی', icon: BarChart3, color: 'blue' },
     { id: 'financial', label: 'مالی', icon: DollarSign, color: 'green' },
     { id: 'traffic', label: 'ترافیک', icon: Users, color: 'blue' },
     { id: 'sales', label: 'فروش', icon: ShoppingCart, color: 'purple' },
-    { id: 'calls', label: 'تماس', icon: Phone, color: 'orange' },
-    { id: 'chat', label: 'چت', icon: MessageSquare, color: 'cyan' },
-    { id: 'pages', label: 'صفحات', icon: FileText, color: 'pink' },
-    { id: 'time', label: 'زمان', icon: Clock, color: 'yellow' },
-    { id: 'engagement', label: 'تعامل', icon: Target, color: 'red' },
-    { id: 'registration', label: 'ثبت‌نام', icon: Users, color: 'indigo' },
-    { id: 'cart', label: 'سبد خرید', icon: ShoppingCart, color: 'teal' },
-    { id: 'advertising', label: 'تبلیغات', icon: BarChart3, color: 'violet' },
-    { id: 'seo', label: 'SEO', icon: Search, color: 'emerald' },
-    { id: 'growth', label: 'رشد', icon: TrendingUp, color: 'lime' },
-    { id: 'email', label: 'ایمیل', icon: Mail, color: 'amber' },
-    { id: 'roi', label: 'ROI', icon: DollarSign, color: 'rose' },
-    { id: 'retention', label: 'بازگشت', icon: RefreshCw, color: 'fuchsia' },
-    { id: 'demographics', label: 'جمعیت‌شناسی', icon: MapPin, color: 'sky' },
-    { id: 'social', label: 'تعامل اجتماعی', icon: Share2, color: 'blue' },
     { id: 'customer', label: 'مشتری', icon: Users, color: 'green' },
-    { id: 'topCustomers', label: 'مشتریان برتر', icon: Award, color: 'yellow' },
-    { id: 'market', label: 'بازار', icon: Globe, color: 'purple' },
-    { id: 'ux', label: 'تجربه کاربری', icon: Target, color: 'pink' },
-    { id: 'content', label: 'محتوا', icon: FileText, color: 'orange' },
-    { id: 'referral', label: 'ارجاع', icon: Share2, color: 'cyan' },
-    { id: 'ratings', label: 'امتیازات', icon: Award, color: 'yellow' },
-    { id: 'brand', label: 'برند', icon: Award, color: 'indigo' },
-    { id: 'usability', label: 'کاربردپذیری', icon: Target, color: 'teal' },
-    { id: 'operations', label: 'عملیات', icon: BarChart3, color: 'red' },
-    { id: 'performance', label: 'عملکرد', icon: TrendingUp, color: 'green' },
-    { id: 'socialMedia', label: 'شبکه‌های اجتماعی', icon: Share2, color: 'blue' },
+    { id: 'marketing', label: 'بازاریابی', icon: Target, color: 'orange' },
+    { id: 'seo', label: 'SEO', icon: Search, color: 'emerald' },
+    { id: 'social', label: 'شبکه‌های اجتماعی', icon: Share2, color: 'pink' },
+    { id: 'content', label: 'محتوا', icon: FileText, color: 'cyan' },
+    { id: 'performance', label: 'عملکرد', icon: TrendingUp, color: 'yellow' },
+  ];
+
+  // داده‌های نمودارها
+  const revenueData = [
+    { name: 'فروردین', revenue: 45000000, profit: 12000000 },
+    { name: 'اردیبهشت', revenue: 52000000, profit: 15000000 },
+    { name: 'خرداد', revenue: 48000000, profit: 13000000 },
+    { name: 'تیر', revenue: 61000000, profit: 18000000 },
+    { name: 'مرداد', revenue: 55000000, profit: 16000000 },
+    { name: 'شهریور', revenue: 67000000, profit: 20000000 },
+  ];
+
+  const trafficData = [
+    { name: 'شنبه', visits: 4000, users: 2400 },
+    { name: 'یکشنبه', visits: 3000, users: 1398 },
+    { name: 'دوشنبه', visits: 2000, users: 9800 },
+    { name: 'سه‌شنبه', visits: 2780, users: 3908 },
+    { name: 'چهارشنبه', visits: 1890, users: 4800 },
+    { name: 'پنج‌شنبه', visits: 2390, users: 3800 },
+    { name: 'جمعه', visits: 3490, users: 4300 },
+  ];
+
+  const channelData = [
+    { name: 'گوگل', value: 45, color: '#4285F4' },
+    { name: 'اینستاگرام', value: 25, color: '#E4405F' },
+    { name: 'مستقیم', value: 15, color: '#34A853' },
+    { name: 'ایتا', value: 10, color: '#FF6B6B' },
+    { name: 'سایر', value: 5, color: '#9CA3AF' },
+  ];
+
+  const conversionData = [
+    { name: 'بازدید', value: 10000 },
+    { name: 'سبد خرید', value: 1500 },
+    { name: 'خرید', value: 450 },
+  ];
+
+  const performanceData = [
+    { subject: 'سرعت', A: 85, fullMark: 100 },
+    { subject: 'SEO', A: 78, fullMark: 100 },
+    { subject: 'محتوا', A: 92, fullMark: 100 },
+    { subject: 'UX', A: 88, fullMark: 100 },
+    { subject: 'تبدیل', A: 75, fullMark: 100 },
+    { subject: 'بازگشت', A: 82, fullMark: 100 },
+  ];
+
+  // کارت‌های KPI اصلی
+  const mainKPIs = [
+    {
+      title: 'درآمد کل (GMV)',
+      value: calculatedMetrics.gmv.toLocaleString('fa-IR'),
+      unit: 'تومان',
+      change: 12.5,
+      icon: DollarSign,
+      color: 'from-green-500 to-emerald-600',
+      bgColor: 'bg-green-50 dark:bg-green-900/20'
+    },
+    {
+      title: 'تعداد سفارشات',
+      value: calculatedMetrics.transactions.toLocaleString('fa-IR'),
+      unit: 'سفارش',
+      change: 8.3,
+      icon: ShoppingCart,
+      color: 'from-blue-500 to-cyan-600',
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20'
+    },
+    {
+      title: 'میانگین سبد خرید',
+      value: Math.round(calculatedMetrics.aov).toLocaleString('fa-IR'),
+      unit: 'تومان',
+      change: -2.1,
+      icon: Target,
+      color: 'from-purple-500 to-pink-600',
+      bgColor: 'bg-purple-50 dark:bg-purple-900/20'
+    },
+    {
+      title: 'نرخ تبدیل',
+      value: '4.5',
+      unit: '%',
+      change: 15.2,
+      icon: TrendingUp,
+      color: 'from-orange-500 to-red-600',
+      bgColor: 'bg-orange-50 dark:bg-orange-900/20'
+    },
   ];
 
   const metricDefinitions: Record<string, { label: string; description: string; unit: string }[]> = {
+    overview: [],
     financial: [
       { label: 'GMV (میزان فروش کل)', description: 'جمع کل مبلغ کالای فروخته‌شده', unit: 'تومان' },
       { label: 'NMV (مبلغ خالص)', description: 'جمع کل مبلغ کالای فروخته‌شده پس از کسر تخفیفات', unit: 'تومان' },
@@ -129,6 +226,11 @@ export default function AdminDigitalMarketing() {
       { label: 'نرخ تبدیل سبد به خرید', description: 'نرخ تبدیل افزونندگان به سبد خرید به خریداران', unit: '%' },
       { label: 'نرخ تکمیل سبد خرید', description: 'نرخ تکمیل سبد خرید', unit: '%' },
       { label: 'نرخ ترک سبد خرید', description: 'درصد سبدهای خرید رها شده', unit: '%' },
+    ],
+    marketing: [
+      { label: 'هزینه تبلیغات', description: 'مجموع هزینه تبلیغات', unit: 'تومان' },
+      { label: 'نرخ تبدیل تبلیغات', description: 'نرخ تبدیل از تبلیغات', unit: '%' },
+      { label: 'ROAS', description: 'نرخ بازگشت هزینه تبلیغات', unit: '%' },
     ],
     advertising: [
       { label: 'CPC (هزینه به ازای کلیک)', description: 'میانگین هزینه به ازای هر کلیک', unit: 'تومان' },
@@ -307,27 +409,31 @@ export default function AdminDigitalMarketing() {
     setEditMode(false);
   };
 
-  const currentMetrics = metricDefinitions[activeCategory] || [];
   const currentCategory = categories.find(c => c.id === activeCategory);
+  const currentMetrics = metricDefinitions[activeCategory] || [];
 
   return (
-    <div className="fade-in space-y-6">
+    <div className="fade-in space-y-6 pb-8">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 size={28} className="text-blue-600" />
-            دیجیتال مارکتینگ
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
+              <BarChart3 size={28} className="text-white" />
+            </div>
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              دیجیتال مارکتینگ
+            </span>
           </h1>
-          <p className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-            مدیریت و پایش بیش از 150 شاخص دیجیتال مارکتینگ
+          <p className={`text-sm mt-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            داشبورد پیشرفته پایش و مدیریت شاخص‌های دیجیتال مارکتینگ
           </p>
         </div>
         <div className="flex gap-2">
           {!editMode ? (
             <button
               onClick={() => setEditMode(true)}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 flex items-center gap-2"
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm hover:shadow-lg transition-all flex items-center gap-2"
             >
               <Edit size={16} />
               ویرایش شاخص‌ها
@@ -336,14 +442,14 @@ export default function AdminDigitalMarketing() {
             <>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm hover:bg-green-700 flex items-center gap-2"
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm hover:shadow-lg transition-all flex items-center gap-2"
               >
                 <Save size={16} />
                 ذخیره
               </button>
               <button
                 onClick={handleCancel}
-                className="px-4 py-2 rounded-lg bg-gray-600 text-white text-sm hover:bg-gray-700 flex items-center gap-2"
+                className="px-4 py-2 rounded-lg bg-gray-600 text-white text-sm hover:bg-gray-700 transition-all flex items-center gap-2"
               >
                 <X size={16} />
                 انصراف
@@ -353,134 +459,276 @@ export default function AdminDigitalMarketing() {
         </div>
       </div>
 
-      {/* Last Updated */}
-      <div className={`p-3 rounded-lg ${darkMode ? 'bg-slate-800' : 'bg-blue-50'}`}>
-        <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-          آخرین به‌روزرسانی: {new Date(digitalMarketingData.lastUpdated).toLocaleString('fa-IR')}
-        </p>
+      {/* Main KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {mainKPIs.map((kpi, idx) => {
+          const Icon = kpi.icon;
+          const isPositive = kpi.change > 0;
+          return (
+            <div
+              key={idx}
+              className={`relative overflow-hidden rounded-xl border p-5 transition-all hover:shadow-xl ${
+                darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
+              }`}
+            >
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${kpi.color} opacity-10 rounded-full -mr-16 -mt-16`}></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`p-2 rounded-lg bg-gradient-to-br ${kpi.color}`}>
+                    <Icon size={20} className="text-white" />
+                  </div>
+                  <div className={`flex items-center gap-1 text-sm font-medium ${
+                    isPositive ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {isPositive ? <ArrowUp size={14} /> : kpi.change < 0 ? <ArrowDown size={14} /> : <Minus size={14} />}
+                    {Math.abs(kpi.change)}%
+                  </div>
+                </div>
+                <h3 className={`text-sm font-medium mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {kpi.title}
+                </h3>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold">{kpi.value}</span>
+                  <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {kpi.unit}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Categories Tabs */}
-      <div className={`p-2 rounded-xl border overflow-x-auto ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-        <div className="flex gap-2 min-w-max">
+      {/* Categories Tabs - Fixed Responsive */}
+      <div className={`rounded-xl border p-2 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
           {categories.map(cat => {
             const Icon = cat.icon;
             return (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   activeCategory === cat.id
-                    ? 'bg-blue-600 text-white'
-                    : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                    : darkMode 
+                      ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' 
+                      : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
                 }`}
               >
                 <Icon size={16} />
-                {cat.label}
+                <span className="truncate">{cat.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Metrics Grid */}
-      <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-        <div className="flex items-center gap-3 mb-6">
-          {currentCategory && <currentCategory.icon size={24} className="text-blue-600" />}
-          <h2 className="text-xl font-bold">{currentCategory?.label}</h2>
-        </div>
+      {/* Overview Section with Charts */}
+      {activeCategory === 'overview' && (
+        <div className="space-y-6">
+          {/* Revenue Chart */}
+          <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <TrendingUp size={20} className="text-green-600" />
+              روند درآمد و سود
+            </h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={revenueData}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e5e7eb'} />
+                <XAxis dataKey="name" stroke={darkMode ? '#94a3b8' : '#6b7280'} />
+                <YAxis stroke={darkMode ? '#94a3b8' : '#6b7280'} />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: darkMode ? '#1e293b' : '#fff',
+                    border: darkMode ? '1px solid #334155' : '1px solid #e5e7eb',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Legend />
+                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRevenue)" name="درآمد" />
+                <Area type="monotone" dataKey="profit" stroke="#10b981" fillOpacity={1} fill="url(#colorProfit)" name="سود" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {currentMetrics.map((metric, idx) => {
-            const key = Object.keys(digitalMarketingData)[idx] as keyof typeof digitalMarketingData;
-            const value = editMode ? (tempData as any)[key] : (digitalMarketingData as any)[key];
-
-            return (
-              <div
-                key={idx}
-                className={`p-4 rounded-lg border ${
-                  darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="mb-2">
-                  <h3 className="font-bold text-sm mb-1">{metric.label}</h3>
-                  <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    {metric.description}
-                  </p>
-                </div>
-                {editMode ? (
-                  <input
-                    type="number"
-                    value={value || 0}
-                    onChange={e => setTempData({ ...tempData, [key]: Number(e.target.value) })}
-                    className={`w-full px-3 py-2 rounded-lg border text-sm ${
-                      darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300'
-                    }`}
+          {/* Traffic and Conversion Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Traffic Chart */}
+            <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Users size={20} className="text-blue-600" />
+                ترافیک هفتگی
+              </h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={trafficData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e5e7eb'} />
+                  <XAxis dataKey="name" stroke={darkMode ? '#94a3b8' : '#6b7280'} />
+                  <YAxis stroke={darkMode ? '#94a3b8' : '#6b7280'} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: darkMode ? '#1e293b' : '#fff',
+                      border: darkMode ? '1px solid #334155' : '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
                   />
-                ) : (
-                  <div className="text-2xl font-bold text-blue-600">
-                    {typeof value === 'number' ? value.toLocaleString('fa-IR') : '0'}
-                    <span className={`text-sm font-normal mr-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                      {metric.unit}
-                    </span>
-                  </div>
-                )}
+                  <Legend />
+                  <Line type="monotone" dataKey="visits" stroke="#3b82f6" strokeWidth={2} name="بازدید" />
+                  <Line type="monotone" dataKey="users" stroke="#8b5cf6" strokeWidth={2} name="کاربر" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Channel Distribution */}
+            <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Share2 size={20} className="text-purple-600" />
+                توزیع کانال‌ها
+              </h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={channelData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {channelData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: darkMode ? '#1e293b' : '#fff',
+                      border: darkMode ? '1px solid #334155' : '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Conversion Funnel and Performance Radar */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Conversion Funnel */}
+            <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Target size={20} className="text-orange-600" />
+                قیف تبدیل
+              </h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={conversionData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e5e7eb'} />
+                  <XAxis type="number" stroke={darkMode ? '#94a3b8' : '#6b7280'} />
+                  <YAxis dataKey="name" type="category" stroke={darkMode ? '#94a3b8' : '#6b7280'} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: darkMode ? '#1e293b' : '#fff',
+                      border: darkMode ? '1px solid #334155' : '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="value" fill="#f59e0b" radius={[0, 8, 8, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Performance Radar */}
+            <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Award size={20} className="text-yellow-600" />
+                عملکرد کلی
+              </h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <RadarChart data={performanceData}>
+                  <PolarGrid stroke={darkMode ? '#334155' : '#e5e7eb'} />
+                  <PolarAngleAxis dataKey="subject" stroke={darkMode ? '#94a3b8' : '#6b7280'} />
+                  <PolarRadiusAxis stroke={darkMode ? '#94a3b8' : '#6b7280'} />
+                  <Radar name="عملکرد" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: darkMode ? '#1e293b' : '#fff',
+                      border: darkMode ? '1px solid #334155' : '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Other Categories */}
+      {activeCategory !== 'overview' && (
+        <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center gap-3 mb-6">
+            {currentCategory && (
+              <div className={`p-2 rounded-lg bg-gradient-to-br from-${currentCategory.color}-500 to-${currentCategory.color}-600`}>
+                <currentCategory.icon size={24} className="text-white" />
               </div>
-            );
-          })}
-        </div>
-      </div>
+            )}
+            <h2 className="text-xl font-bold">{currentCategory?.label}</h2>
+          </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <DollarSign size={20} className="text-green-600" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-green-600">
-            {digitalMarketingData.profit.toLocaleString('fa-IR')}
-          </div>
-          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>سود خالص (تومان)</div>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {currentMetrics.map((metric, idx) => {
+              const key = Object.keys(digitalMarketingData)[idx] as keyof typeof digitalMarketingData;
+              const value = editMode ? (tempData as any)[key] : (digitalMarketingData as any)[key];
 
-        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <Users size={20} className="text-blue-600" />
-            </div>
+              return (
+                <div
+                  key={idx}
+                  className={`p-4 rounded-lg border transition-all hover:shadow-lg ${
+                    darkMode ? 'bg-slate-700/50 border-slate-600 hover:border-blue-500' : 'bg-gray-50 border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="mb-3">
+                    <h3 className="font-bold text-sm mb-1">{metric.label}</h3>
+                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {metric.description}
+                    </p>
+                  </div>
+                  {editMode ? (
+                    <input
+                      type="number"
+                      value={value || 0}
+                      onChange={e => setTempData({ ...tempData, [key]: Number(e.target.value) })}
+                      className={`w-full px-3 py-2 rounded-lg border text-sm ${
+                        darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300'
+                      }`}
+                    />
+                  ) : (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        {typeof value === 'number' ? value.toLocaleString('fa-IR') : '0'}
+                      </span>
+                      <span className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {metric.unit}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="text-2xl font-bold text-blue-600">
-            {digitalMarketingData.sessions.toLocaleString('fa-IR')}
-          </div>
-          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>کل بازدیدها</div>
         </div>
-
-        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <ShoppingCart size={20} className="text-purple-600" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-purple-600">
-            {digitalMarketingData.transactions.toLocaleString('fa-IR')}
-          </div>
-          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>تعداد سفارشات</div>
-        </div>
-
-        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-              <TrendingUp size={20} className="text-orange-600" />
-            </div>
-          </div>
-          <div className="text-2xl font-bold text-orange-600">
-            {digitalMarketingData.purchaseRate.toLocaleString('fa-IR')}%
-          </div>
-          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>نرخ تبدیل</div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
