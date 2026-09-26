@@ -6,6 +6,7 @@ import {
   AlertTriangle, CheckCircle, Clock
 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
+import { formatJalali } from '../../utils/jalali';
 
 export default function AdminAnalytics() {
   const { 

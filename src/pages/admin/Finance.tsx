@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp, Expense } from '../../store';
 import { Plus, X, DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Download, PieChart, BarChart3 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
+import JalaliDateInput from '../../components/JalaliDateInput';
 
 export default function AdminFinance() {
   const { darkMode, expenses, setExpenses, orders } = useApp();
@@ -9,6 +10,7 @@ export default function AdminFinance() {
   const [filter, setFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [form, setForm] = useState<Partial<Expense>>({ title: '', category: 'متفرقه', amount: 0, date: new Date().toISOString().split('T')[0], description: '' });
+  const defaultDate = new Date().toISOString().split('T')[0];
 
   const categories = ['اجاره', 'اینترنت', 'برق', 'حقوق', 'خرید کالا', 'دامنه/هاست', 'تعمیرات', 'مالیات', 'بیمه', 'تبلیغات', 'متفرقه'];
 
@@ -181,9 +183,9 @@ export default function AdminFinance() {
             <option value="all">همه دسته‌ها</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input type="date" value={dateRange.from} onChange={e => setDateRange({...dateRange, from: e.target.value})}
+          <JalaliDateInput value={dateRange.from} onChange={date => setDateRange({...dateRange, from: date})}
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
-          <input type="date" value={dateRange.to} onChange={e => setDateRange({...dateRange, to: e.target.value})}
+          <JalaliDateInput value={dateRange.to} onChange={date => setDateRange({...dateRange, to: date})}
             className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
         </div>
       </div>
@@ -271,7 +273,7 @@ export default function AdminFinance() {
               </select>
               <input type="number" placeholder="مبلغ (تومان)" value={form.amount || ''} onChange={e => setForm({...form, amount: Number(e.target.value)})}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
-              <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})}
+              <JalaliDateInput value={form.date || defaultDate} onChange={date => setForm({...form, date})}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
               <textarea placeholder="توضیحات" value={form.description} onChange={e => setForm({...form, description: e.target.value})}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} rows={2} />
