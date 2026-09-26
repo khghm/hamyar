@@ -3,7 +3,8 @@ import { useApp, ContentProject, ContentComment, ContentTemplate, ContentIdea } 
 import { 
   Plus, X, Edit, Trash2, Film, Camera, FileText, Share2, Megaphone, Calendar, Users, Clock, 
   AlertCircle, MessageSquare, Upload, CheckSquare, DollarSign, Tag, History, BarChart3, 
-  Lightbulb, Bell, Download, BookOpen, Eye, ThumbsUp, ArrowRight, Filter, Kanban, List
+  Lightbulb, Bell, Download, BookOpen, Eye, ThumbsUp, ArrowRight, Filter, Kanban, List,
+  Target, TrendingUp, Award
 } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
@@ -13,7 +14,8 @@ export default function AdminContentTeam() {
   const { 
     darkMode, contentProjects, setContentProjects, contentComments, setContentComments,
     contentAssets, setContentAssets, contentTemplates, setContentTemplates,
-    contentIdeas, setContentIdeas, brandBook, setBrandBook, employees, products, campaigns, currentUser
+    contentIdeas, setContentIdeas, brandBook, setBrandBook, employees, products, campaigns, currentUser,
+    okrs, kpis
   } = useApp();
   
   const [activeTab, setActiveTab] = useState('projects');
@@ -762,27 +764,182 @@ export default function AdminContentTeam() {
 
       {/* Performance Tab */}
       {activeTab === 'performance' && (
-        <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-          <h3 className="font-bold text-lg mb-4">عملکرد تیم</h3>
-          <div className="space-y-3">
-            {employees.map(emp => {
-              const assigned = contentProjects.filter(p => p.assignedTo.includes(emp.id));
-              const completed = assigned.filter(p => p.status === 'completed' || p.status === 'published');
-              const inProgress = assigned.filter(p => p.status === 'in-progress');
-              return (
-                <div key={emp.id} className={`p-4 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-bold">{emp.name}</span>
-                    <span className={`text-xs px-2 py-1 rounded ${darkMode ? 'bg-slate-600' : 'bg-gray-200'}`}>{emp.role}</span>
+        <div className="space-y-6">
+          <div className={`p-6 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+              <Award size={24} className="text-purple-600" />
+              عملکرد تیم تولید محتوا
+            </h3>
+            <div className="space-y-4">
+              {employees.map(emp => {
+                const assigned = contentProjects.filter(p => p.assignedTo.includes(emp.id));
+                const completed = assigned.filter(p => p.status === 'completed' || p.status === 'published');
+                const inProgress = assigned.filter(p => p.status === 'in-progress');
+                
+                // OKR و KPI این کارمند
+                const empOKRs = okrs.filter(o => o.assignedTo === emp.id);
+                const empKPIs = kpis.filter(k => k.assignedTo === emp.id);
+                
+                // محاسبه میانگین پیشرفت OKR
+                const avgOKRProgress = empOKRs.length > 0 
+                  ? Math.round(empOKRs.reduce((sum, okr) => {
+                      if (okr.keyResults.length === 0) return sum;
+                      const okrProgress = okr.keyResults.reduce((s, kr) => {
+                        const progress = kr.targetValue > 0 ? (kr.currentValue / kr.targetValue) * 100 : 0;
+                        return s + Math.min(progress, 100);
+                      }, 0) / okr.keyResults.length;
+                      return sum + okrProgress;
+                    }, 0) / empOKRs.length)
+                  : 0;
+                
+                // محاسبه میانگین پیشرفت KPI
+                const avgKPIProgress = empKPIs.length > 0
+                  ? Math.round(empKPIs.reduce((sum, kpi) => {
+                      const progress = kpi.targetValue > 0 ? (kpi.currentValue / kpi.targetValue) * 100 : 0;
+                      return sum + Math.min(progress, 100);
+                    }, 0) / empKPIs.length)
+                  : 0;
+                
+                const getProgressColor = (progress: number) => {
+                  if (progress >= 80) return 'bg-green-500';
+                  if (progress >= 50) return 'bg-blue-500';
+                  if (progress >= 25) return 'bg-yellow-500';
+                  return 'bg-red-500';
+                };
+                
+                return (
+                  <div key={emp.id} className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                          {emp.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg">{emp.name}</h4>
+                          <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{emp.role}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${emp.active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
+                          {emp.active ? 'فعال' : 'غیرفعال'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* آمار پروژه‌ها */}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className={`p-3 rounded-lg text-center ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                        <div className="text-2xl font-bold text-blue-600">{assigned.length}</div>
+                        <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>کل پروژه‌ها</div>
+                      </div>
+                      <div className={`p-3 rounded-lg text-center ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                        <div className="text-2xl font-bold text-yellow-600">{inProgress.length}</div>
+                        <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>در حال انجام</div>
+                      </div>
+                      <div className={`p-3 rounded-lg text-center ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                        <div className="text-2xl font-bold text-green-600">{completed.length}</div>
+                        <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>تکمیل شده</div>
+                      </div>
+                    </div>
+
+                    {/* OKR */}
+                    {empOKRs.length > 0 && (
+                      <div className={`p-4 rounded-lg mb-3 ${darkMode ? 'bg-purple-900/20 border border-purple-800' : 'bg-purple-50 border border-purple-200'}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="font-bold text-sm flex items-center gap-2">
+                            <Target size={16} className="text-purple-600" />
+                            OKR ها ({empOKRs.length})
+                          </h5>
+                          <span className="text-sm font-bold text-purple-600">{avgOKRProgress}%</span>
+                        </div>
+                        <div className={`h-2 rounded-full mb-3 ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
+                          <div className={`h-full rounded-full ${getProgressColor(avgOKRProgress)} transition-all`} style={{ width: `${avgOKRProgress}%` }}></div>
+                        </div>
+                        <div className="space-y-2">
+                          {empOKRs.slice(0, 3).map(okr => {
+                            const okrProgress = okr.keyResults.length > 0
+                              ? Math.round(okr.keyResults.reduce((s, kr) => {
+                                  const progress = kr.targetValue > 0 ? (kr.currentValue / kr.targetValue) * 100 : 0;
+                                  return s + Math.min(progress, 100);
+                                }, 0) / okr.keyResults.length)
+                              : 0;
+                            return (
+                              <div key={okr.id} className={`p-2 rounded ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-xs font-medium">{okr.title}</span>
+                                  <span className="text-xs font-bold">{okrProgress}%</span>
+                                </div>
+                                <div className={`h-1.5 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
+                                  <div className={`h-full rounded-full ${getProgressColor(okrProgress)} transition-all`} style={{ width: `${okrProgress}%` }}></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {empOKRs.length > 3 && (
+                            <p className={`text-xs text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                              و {empOKRs.length - 3} OKR دیگر...
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* KPI */}
+                    {empKPIs.length > 0 && (
+                      <div className={`p-4 rounded-lg ${darkMode ? 'bg-orange-900/20 border border-orange-800' : 'bg-orange-50 border border-orange-200'}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="font-bold text-sm flex items-center gap-2">
+                            <TrendingUp size={16} className="text-orange-600" />
+                            KPI ها ({empKPIs.length})
+                          </h5>
+                          <span className="text-sm font-bold text-orange-600">{avgKPIProgress}%</span>
+                        </div>
+                        <div className={`h-2 rounded-full mb-3 ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
+                          <div className={`h-full rounded-full ${getProgressColor(avgKPIProgress)} transition-all`} style={{ width: `${avgKPIProgress}%` }}></div>
+                        </div>
+                        <div className="space-y-2">
+                          {empKPIs.slice(0, 3).map(kpi => {
+                            const kpiProgress = kpi.targetValue > 0 ? Math.min(Math.round((kpi.currentValue / kpi.targetValue) * 100), 100) : 0;
+                            return (
+                              <div key={kpi.id} className={`p-2 rounded ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-xs font-medium">{kpi.title}</span>
+                                  <span className="text-xs font-bold">{kpiProgress}%</span>
+                                </div>
+                                <div className={`h-1.5 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
+                                  <div className={`h-full rounded-full ${getProgressColor(kpiProgress)} transition-all`} style={{ width: `${kpiProgress}%` }}></div>
+                                </div>
+                                <div className="flex justify-between text-xs mt-1">
+                                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>{kpi.currentValue} / {kpi.targetValue} {kpi.unit}</span>
+                                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>{kpi.category}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {empKPIs.length > 3 && (
+                            <p className={`text-xs text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                              و {empKPIs.length - 3} KPI دیگر...
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* پیام در صورت عدم وجود OKR/KPI */}
+                    {empOKRs.length === 0 && empKPIs.length === 0 && (
+                      <div className={`p-4 rounded-lg text-center ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                        <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                          OKR یا KPI برای این کارمند تعریف نشده است
+                        </p>
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                          از بخش "کارمندان" یا "OKR و KPI" می‌توانید تعریف کنید
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                    <div><div className="font-bold text-blue-600">{assigned.length}</div><div className="text-xs text-slate-400">کل پروژه‌ها</div></div>
-                    <div><div className="font-bold text-yellow-600">{inProgress.length}</div><div className="text-xs text-slate-400">در حال انجام</div></div>
-                    <div><div className="font-bold text-green-600">{completed.length}</div><div className="text-xs text-slate-400">تکمیل شده</div></div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
