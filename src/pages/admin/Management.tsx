@@ -207,27 +207,79 @@ export function AdminReviews() {
   const { darkMode, reviews, setReviews } = useApp();
   return (
     <div className="fade-in space-y-4">
-      <h1 className="text-2xl font-bold">مدیریت نظرات</h1>
-      <div className={`rounded-xl border overflow-hidden ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-        <table className="w-full text-sm">
-          <thead className={darkMode ? 'bg-slate-700' : 'bg-gray-50'}><tr><th className="text-right p-3">مشتری</th><th className="text-right p-3">امتیاز</th><th className="text-right p-3">نظر</th><th className="text-right p-3">تاریخ</th><th className="text-right p-3">وضعیت</th><th className="text-right p-3">عملیات</th></tr></thead>
-          <tbody>
-            {reviews.map(r => (
-              <tr key={r.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
-                <td className="p-3">{r.customerName}</td>
-                <td className="p-3">{'⭐'.repeat(r.rating)}</td>
-                <td className="p-3 text-xs">{r.comment.substring(0, 50)}</td>
-                <td className="p-3 text-xs">{toJalaliString(r.date)}</td>
-                <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs ${r.approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{r.approved ? 'تایید شده' : 'در انتظار'}</span></td>
-                <td className="p-3 flex gap-2">
-                  <button onClick={() => setReviews(reviews.map(x => x.id === r.id ? { ...x, approved: !x.approved } : x))} className="text-blue-600 text-xs">{r.approved ? 'رد' : 'تایید'}</button>
-                  <button onClick={() => setReviews(reviews.filter(x => x.id !== r.id))} className="text-red-500 text-xs">حذف</button>
-                </td>
+      <h1 className="text-xl sm:text-2xl font-bold">مدیریت نظرات</h1>
+      
+      {/* Desktop Table */}
+      <div className={`hidden md:block rounded-xl border overflow-hidden ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className={darkMode ? 'bg-slate-700' : 'bg-gray-50'}>
+              <tr>
+                <th className="text-right p-3">مشتری</th>
+                <th className="text-right p-3">امتیاز</th>
+                <th className="text-right p-3">نظر</th>
+                <th className="text-right p-3">تاریخ</th>
+                <th className="text-right p-3">وضعیت</th>
+                <th className="text-right p-3">عملیات</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reviews.map(r => (
+                <tr key={r.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
+                  <td className="p-3">{r.customerName}</td>
+                  <td className="p-3">{'⭐'.repeat(r.rating)}</td>
+                  <td className="p-3 text-xs">{r.comment.substring(0, 50)}</td>
+                  <td className="p-3 text-xs">{toJalaliString(r.date)}</td>
+                  <td className="p-3"><span className={`px-2 py-0.5 rounded text-xs ${r.approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{r.approved ? 'تایید شده' : 'در انتظار'}</span></td>
+                  <td className="p-3 flex gap-2">
+                    <button onClick={() => setReviews(reviews.map(x => x.id === r.id ? { ...x, approved: !x.approved } : x))} className="text-blue-600 text-xs">{r.approved ? 'رد' : 'تایید'}</button>
+                    <button onClick={() => setReviews(reviews.filter(x => x.id !== r.id))} className="text-red-500 text-xs">حذف</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-3">
+        {reviews.map(r => (
+          <div key={r.id} className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <p className="font-bold text-sm">{r.customerName}</p>
+                <p className="text-xs text-yellow-500">{'⭐'.repeat(r.rating)}</p>
+              </div>
+              <span className={`px-2 py-1 rounded text-xs ${r.approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                {r.approved ? 'تایید شده' : 'در انتظار'}
+              </span>
+            </div>
+            <p className={`text-sm mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{r.comment}</p>
+            <p className={`text-xs mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{toJalaliString(r.date)}</p>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setReviews(reviews.map(x => x.id === r.id ? { ...x, approved: !x.approved } : x))} 
+                className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700"
+              >
+                {r.approved ? 'رد' : 'تایید'}
+              </button>
+              <button 
+                onClick={() => setReviews(reviews.filter(x => x.id !== r.id))} 
+                className="flex-1 py-2 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700"
+              >
+                حذف
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {reviews.length === 0 && (
+        <div className={`text-center py-12 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          نظری ثبت نشده است
+        </div>
+      )}
     </div>
   );
 }
