@@ -28,6 +28,7 @@ export default function AdminLayout() {
     { path: '/admin/reviews', icon: Star, label: 'نظرات' },
     { path: '/admin/faq', icon: HelpCircle, label: 'سوالات متداول' },
     { path: '/admin/content-team', icon: Video, label: 'تیم تولید محتوا' },
+    { path: '/admin/rbac', icon: Shield, label: 'کنترل دسترسی (RBAC)' },
     { path: '/admin/audit', icon: Shield, label: 'لاگ فعالیت' },
     { path: '/admin/backup', icon: Download, label: 'پشتیبان‌گیری' },
     { path: '/admin/settings', icon: Settings, label: 'تنظیمات' },

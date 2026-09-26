@@ -291,6 +291,35 @@ export interface BrandBook {
   guidelines: string;
 }
 
+export interface Permission {
+  id: string;
+  name: string;
+  description: string;
+  module: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface SystemUser {
+  id: string;
+  username: string;
+  password: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  roleId: string;
+  active: boolean;
+  lastLogin?: string;
+  createdAt: string;
+}
+
 interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -348,6 +377,12 @@ interface AppContextType {
   setContentIdeas: (i: ContentIdea[]) => void;
   brandBook: BrandBook;
   setBrandBook: (b: BrandBook) => void;
+  permissions: Permission[];
+  setPermissions: (p: Permission[]) => void;
+  roles: Role[];
+  setRoles: (r: Role[]) => void;
+  systemUsers: SystemUser[];
+  setSystemUsers: (u: SystemUser[]) => void;
 }
 
 export interface AboutContent {
@@ -715,6 +750,110 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   });
 
+  const [permissions, setPermissions] = useState<Permission[]>(() => {
+    const saved = localStorage.getItem('hamyar_permissions');
+    return saved ? JSON.parse(saved) : [
+      { id: 'perm1', name: 'مشاهده سفارشات', description: 'مشاهده لیست سفارشات', module: 'سفارشات' },
+      { id: 'perm2', name: 'مدیریت سفارشات', description: 'ایجاد، ویرایش و حذف سفارشات', module: 'سفارشات' },
+      { id: 'perm3', name: 'مشاهده مشتریان', description: 'مشاهده لیست مشتریان', module: 'مشتریان' },
+      { id: 'perm4', name: 'مدیریت مشتریان', description: 'ایجاد، ویرایش و حذف مشتریان', module: 'مشتریان' },
+      { id: 'perm5', name: 'مشاهده محصولات', description: 'مشاهده لیست محصولات', module: 'محصولات' },
+      { id: 'perm6', name: 'مدیریت محصولات', description: 'ایجاد، ویرایش و حذف محصولات', module: 'محصولات' },
+      { id: 'perm7', name: 'مشاهده مدیا', description: 'مشاهده لیست فیلم و سریال', module: 'مدیا' },
+      { id: 'perm8', name: 'مدیریت مدیا', description: 'ایجاد، ویرایش و حذف مدیا', module: 'مدیا' },
+      { id: 'perm9', name: 'مشاهده خدمات', description: 'مشاهده لیست خدمات', module: 'خدمات' },
+      { id: 'perm10', name: 'مدیریت خدمات', description: 'ایجاد، ویرایش و حذف خدمات', module: 'خدمات' },
+      { id: 'perm11', name: 'مشاهده پروژه‌ها', description: 'مشاهده لیست پروژه‌ها', module: 'پروژه‌ها' },
+      { id: 'perm12', name: 'مدیریت پروژه‌ها', description: 'ایجاد، ویرایش و حذف پروژه‌ها', module: 'پروژه‌ها' },
+      { id: 'perm13', name: 'مشاهده مالی', description: 'مشاهده گزارشات مالی', module: 'مالی' },
+      { id: 'perm14', name: 'مدیریت مالی', description: 'ثبت درآمد و هزینه', module: 'مالی' },
+      { id: 'perm15', name: 'مشاهده کارمندان', description: 'مشاهده لیست کارمندان', module: 'کارمندان' },
+      { id: 'perm16', name: 'مدیریت کارمندان', description: 'ایجاد، ویرایش و حذف کارمندان', module: 'کارمندان' },
+      { id: 'perm17', name: 'مشاهده تامین‌کنندگان', description: 'مشاهده لیست تامین‌کنندگان', module: 'تامین‌کنندگان' },
+      { id: 'perm18', name: 'مدیریت تامین‌کنندگان', description: 'ایجاد، ویرایش و حذف تامین‌کنندگان', module: 'تامین‌کنندگان' },
+      { id: 'perm19', name: 'مشاهده کمپین‌ها', description: 'مشاهده لیست کمپین‌ها', module: 'کمپین‌ها' },
+      { id: 'perm20', name: 'مدیریت کمپین‌ها', description: 'ایجاد، ویرایش و حذف کمپین‌ها', module: 'کمپین‌ها' },
+      { id: 'perm21', name: 'مشاهده پیامک', description: 'مشاهده پنل پیامک', module: 'پیامک' },
+      { id: 'perm22', name: 'ارسال پیامک', description: 'ارسال پیامک انبوه', module: 'پیامک' },
+      { id: 'perm23', name: 'مشاهده نظرات', description: 'مشاهده نظرات کاربران', module: 'نظرات' },
+      { id: 'perm24', name: 'مدیریت نظرات', description: 'تایید و حذف نظرات', module: 'نظرات' },
+      { id: 'perm25', name: 'مشاهده FAQ', description: 'مشاهده سوالات متداول', module: 'FAQ' },
+      { id: 'perm26', name: 'مدیریت FAQ', description: 'ایجاد، ویرایش و حذف FAQ', module: 'FAQ' },
+      { id: 'perm27', name: 'مشاهده تیم محتوا', description: 'مشاهده پروژه‌های تولید محتوا', module: 'تیم محتوا' },
+      { id: 'perm28', name: 'مدیریت تیم محتوا', description: 'ایجاد، ویرایش و حذف پروژه‌های محتوا', module: 'تیم محتوا' },
+      { id: 'perm29', name: 'مشاهده دعوت‌ها', description: 'مشاهده کدهای دعوت', module: 'دعوت‌ها' },
+      { id: 'perm30', name: 'مشاهده تنظیمات', description: 'مشاهده تنظیمات سایت', module: 'تنظیمات' },
+      { id: 'perm31', name: 'مدیریت تنظیمات', description: 'ویرایش تنظیمات سایت', module: 'تنظیمات' },
+      { id: 'perm32', name: 'مشاهده لاگ فعالیت', description: 'مشاهده لاگ فعالیت‌ها', module: 'لاگ' },
+      { id: 'perm33', name: 'پشتیبان‌گیری', description: 'ایجاد و بازیابی بکاپ', module: 'بکاپ' },
+      { id: 'perm34', name: 'مشاهده تحلیل', description: 'مشاهده داشبورد تحلیلی', module: 'تحلیل' },
+      { id: 'perm35', name: 'مدیریت نقش‌ها', description: 'ایجاد و ویرایش نقش‌ها و دسترسی‌ها', module: 'RBAC' },
+    ];
+  });
+
+  const [roles, setRoles] = useState<Role[]>(() => {
+    const saved = localStorage.getItem('hamyar_roles');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 'role1',
+        name: 'مدیر کل',
+        description: 'دسترسی کامل به تمام بخش‌ها',
+        permissions: permissions.map(p => p.id),
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'role2',
+        name: 'مدیر فروش',
+        description: 'دسترسی به سفارشات، محصولات، مشتریان و گزارشات فروش',
+        permissions: ['perm1', 'perm2', 'perm3', 'perm4', 'perm5', 'perm6', 'perm13', 'perm34'],
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'role3',
+        name: 'اپراتور خدمات',
+        description: 'دسترسی به سفارشات و خدمات کافی‌نت',
+        permissions: ['perm1', 'perm2', 'perm9', 'perm10'],
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'role4',
+        name: 'مدیر محتوا',
+        description: 'دسترسی به مدیا، تیم محتوا و نظرات',
+        permissions: ['perm7', 'perm8', 'perm23', 'perm24', 'perm27', 'perm28'],
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'role5',
+        name: 'حسابدار',
+        description: 'دسترسی به بخش مالی و گزارشات',
+        permissions: ['perm13', 'perm14', 'perm34'],
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      },
+    ];
+  });
+
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>(() => {
+    const saved = localStorage.getItem('hamyar_system_users');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 'sysuser1',
+        username: 'admin',
+        password: 'admin123',
+        name: 'مدیر سیستم',
+        email: 'admin@hamyar.ir',
+        phone: '09913911880',
+        roleId: 'role1',
+        active: true,
+        createdAt: new Date().toISOString()
+      }
+    ];
+  });
+
   useEffect(() => {
     localStorage.setItem('hamyar_dark', String(darkMode));
     if (darkMode) document.documentElement.classList.add('dark');
@@ -744,6 +883,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_content_templates', JSON.stringify(contentTemplates)); }, [contentTemplates]);
   useEffect(() => { localStorage.setItem('hamyar_content_ideas', JSON.stringify(contentIdeas)); }, [contentIdeas]);
   useEffect(() => { localStorage.setItem('hamyar_brand_book', JSON.stringify(brandBook)); }, [brandBook]);
+  useEffect(() => { localStorage.setItem('hamyar_permissions', JSON.stringify(permissions)); }, [permissions]);
+  useEffect(() => { localStorage.setItem('hamyar_roles', JSON.stringify(roles)); }, [roles]);
+  useEffect(() => { localStorage.setItem('hamyar_system_users', JSON.stringify(systemUsers)); }, [systemUsers]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
 
@@ -835,7 +977,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       contentAssets, setContentAssets,
       contentTemplates, setContentTemplates,
       contentIdeas, setContentIdeas,
-      brandBook, setBrandBook
+      brandBook, setBrandBook,
+      permissions, setPermissions,
+      roles, setRoles,
+      systemUsers, setSystemUsers
     }}>
       {children}
     </AppContext.Provider>
