@@ -305,7 +305,7 @@ export default function Store() {
 
       {/* Cart Summary */}
       {cart.length > 0 && (
-        <div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 p-4 rounded-xl shadow-2xl border z-40 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className={`fixed bottom-4 start-4 end-4 md:start-auto md:end-4 md:w-96 p-4 rounded-xl shadow-2xl border z-40 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between mb-3">
             <span className="font-bold text-sm">سبد خرید ({cart.reduce((s, c) => s + c.quantity, 0)} کالا)</span>
             <button onClick={clearCart} className="text-red-500 text-xs hover:underline">پاک کردن همه</button>
