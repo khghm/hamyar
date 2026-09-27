@@ -4,7 +4,7 @@ import { useApp } from '../store';
 import { ShoppingCart, Trash2, Plus, Minus, CreditCard, Wallet, ArrowLeft, Tag, CheckCircle } from 'lucide-react';
 
 export default function Cart() {
-  const { darkMode, currentUser, products, campaigns, orders, setOrders, clearCart, updateCartQuantity, removeFromCart } = useApp();
+  const { darkMode, currentUser, products, campaigns, orders, setOrders, clearCart, updateCartQuantity, removeFromCart, deductWallet } = useApp();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
@@ -84,6 +84,15 @@ export default function Cart() {
         image: product?.image || ''
       };
     });
+
+    // اگر پرداخت از کیف پول است، مبلغ را کسر کن
+    if (paymentMethod === 'wallet') {
+      const success = deductWallet(finalTotal);
+      if (!success) {
+        alert('موجودی کیف پول شما کافی نیست');
+        return;
+      }
+    }
 
     const newOrder = {
       id: 'o' + Date.now(),

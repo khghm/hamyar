@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../store';
-import { Search, Users, Star, Eye, Film, ShoppingCart, Wrench, Package, Calendar, DollarSign, Heart, X, UserCheck } from 'lucide-react';
+import { Search, Users, Star, Eye, Film, ShoppingCart, Wrench, Package, Calendar, DollarSign, Heart, X, UserCheck, Wallet } from 'lucide-react';
 import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminCustomers() {
@@ -211,9 +211,17 @@ export default function AdminCustomers() {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold ${levelColors[detail.level]}`}>
-                  {detail.name.charAt(0)}
-                </div>
+                {detail.avatar ? (
+                  <img 
+                    src={detail.avatar} 
+                    alt={detail.name}
+                    className={`w-16 h-16 rounded-full object-cover border-4 ${darkMode ? 'border-slate-700' : 'border-gray-200'}`}
+                  />
+                ) : (
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold ${levelColors[detail.level]}`}>
+                    {detail.name.charAt(0)}
+                  </div>
+                )}
                 <div>
                   <h3 className="text-xl font-bold">{detail.name}</h3>
                   <p className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{detail.phone}</p>
@@ -233,7 +241,7 @@ export default function AdminCustomers() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
               <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <Star size={16} className="text-yellow-500" />
@@ -255,6 +263,15 @@ export default function AdminCustomers() {
                 </div>
                 <div className="text-2xl font-bold text-green-600">
                   {getCustomerStats(detail.id).totalSpent.toLocaleString('fa-IR')} ت
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Wallet size={16} className="text-emerald-500" />
+                  <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>کیف پول</span>
+                </div>
+                <div className="text-2xl font-bold text-emerald-600">
+                  {(detail.walletBalance || 0).toLocaleString('fa-IR')} ت
                 </div>
               </div>
               <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>

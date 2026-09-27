@@ -3,14 +3,16 @@ import { useApp } from '../store';
 import { 
   Heart, Star, Gift, Users, Copy, Film, Award, ChevronLeft, ShoppingCart, 
   Package, Eye, Clock, CheckCircle, TrendingUp, DollarSign, Calendar,
-  User, Phone, Mail
+  User, Phone, Mail, Upload, Wallet
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toJalaliString } from '../utils/jalali';
 
 export default function Profile() {
-  const { darkMode, currentUser, mediaItems, orders, products, addToFavorites, selectMedia } = useApp();
-  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'loyalty'>('overview');
+  const { darkMode, currentUser, mediaItems, orders, products, addToFavorites, selectMedia, updateAvatar, chargeWallet } = useApp();
+  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'loyalty' | 'wallet'>('overview');
+  const [showChargeModal, setShowChargeModal] = useState(false);
+  const [chargeAmount, setChargeAmount] = useState(0);
 
   if (!currentUser) return null;
 
@@ -44,8 +46,36 @@ export default function Profile() {
       {/* Profile Header */}
       <div className={`p-6 rounded-2xl border mb-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className={`w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold ${levelColors[currentUser.level]}`}>
-            {currentUser.name.charAt(0)}
+          <div className="relative">
+            {currentUser.avatar ? (
+              <img 
+                src={currentUser.avatar} 
+                alt={currentUser.name}
+                className={`w-24 h-24 rounded-full object-cover border-4 ${darkMode ? 'border-slate-700' : 'border-gray-200'}`}
+              />
+            ) : (
+              <div className={`w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold ${levelColors[currentUser.level]}`}>
+                {currentUser.name.charAt(0)}
+              </div>
+            )}
+            <label className="absolute bottom-0 right-0 p-2 rounded-full bg-blue-600 text-white cursor-pointer hover:bg-blue-700 transition-all">
+              <Upload size={16} />
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      updateAvatar(ev.target?.result as string);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="hidden" 
+              />
+            </label>
           </div>
           <div className="text-center md:text-right flex-1">
             <h1 className="text-2xl font-bold mb-1">{currentUser.name}</h1>
@@ -92,9 +122,10 @@ export default function Profile() {
 
       {/* Tabs */}
       <div className={`p-2 rounded-xl border mb-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
           {[
             { id: 'overview', label: 'نمای کلی', icon: User },
+            { id: 'wallet', label: 'کیف پول', icon: Wallet },
             { id: 'media', label: 'فیلم‌ها', icon: Film },
             { id: 'products', label: 'سبد خرید', icon: Package },
             { id: 'orders', label: 'سفارشات', icon: ShoppingCart },
@@ -120,6 +151,54 @@ export default function Profile() {
       </div>
 
       {/* Tab Content */}
+      {activeTab === 'wallet' && (
+        <div className="space-y-6">
+          {/* Wallet Balance */}
+          <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gradient-to-br from-green-900/20 to-emerald-900/20 border-green-800' : 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'}`}>
+            <div className="flex items-center gap-3 mb-4">
+              <Wallet size={24} className="text-green-600" />
+              <h3 className="font-bold text-lg">کیف پول شما</h3>
+            </div>
+            <div className="text-center mb-6">
+              <div className="text-4xl font-bold text-green-600 mb-2">
+                {(currentUser.walletBalance || 0).toLocaleString('fa-IR')}
+              </div>
+              <div className={`text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>موجودی کیف پول (تومان)</div>
+            </div>
+            <button
+              onClick={() => setShowChargeModal(true)}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            >
+              <Upload size={20} />
+              شارژ کیف پول
+            </button>
+          </div>
+
+          {/* Wallet Info */}
+          <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <h3 className="font-bold text-lg mb-4">راهنمای استفاده از کیف پول</h3>
+            <ul className={`space-y-3 text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+              <li className="flex items-start gap-2">
+                <CheckCircle size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
+                <span>برای شارژ کیف پول، روی دکمه "شارژ کیف پول" کلیک کنید و مبلغ مورد نظر را وارد نمایید.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
+                <span>هنگام خرید از فروشگاه، می‌توانید به جای پرداخت آنلاین، از موجودی کیف پول خود استفاده کنید.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
+                <span>موجودی کیف پول شما به صورت امن ذخیره می‌شود و در هر زمان قابل استفاده است.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
+                <span>برای شارژ کیف پول، پس از ثبت درخواست، با شما تماس گرفته خواهد شد.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Invite Code */}
@@ -422,6 +501,66 @@ export default function Profile() {
                   className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all"
                   style={{ width: `${Math.min((currentUser.loyaltyPoints / 1000) * 100, 100)}%` }}
                 ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Charge Wallet Modal */}
+      {showChargeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowChargeModal(false)}>
+          <div className={`w-full max-w-md p-6 rounded-2xl ${darkMode ? 'bg-slate-800' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Wallet size={24} className="text-green-600" />
+                شارژ کیف پول
+              </h3>
+              <button onClick={() => setShowChargeModal(false)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700">
+                <ChevronLeft size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium block mb-2">مبلغ شارژ (تومان)</label>
+                <input
+                  type="number"
+                  value={chargeAmount || ''}
+                  onChange={e => setChargeAmount(Number(e.target.value))}
+                  placeholder="مبلغ مورد نظر را وارد کنید"
+                  className={`w-full px-4 py-3 rounded-lg border text-lg ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`}
+                />
+              </div>
+
+              <div className={`p-4 rounded-lg ${darkMode ? 'bg-green-900/20 border border-green-800' : 'bg-green-50 border border-green-200'}`}>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  <strong>توجه:</strong> پس از ثبت درخواست شارژ، با شما تماس گرفته خواهد شد و پس از تأیید پرداخت، مبلغ به کیف پول شما اضافه می‌شود.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (chargeAmount > 0) {
+                      chargeWallet(chargeAmount);
+                      alert(`درخواست شارژ ${chargeAmount.toLocaleString('fa-IR')} تومان ثبت شد. پس از تأیید، به کیف پول شما اضافه خواهد شد.`);
+                      setShowChargeModal(false);
+                      setChargeAmount(0);
+                    } else {
+                      alert('لطفاً مبلغ معتبر وارد کنید');
+                    }
+                  }}
+                  className="flex-1 py-3 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 transition-all"
+                >
+                  ثبت درخواست شارژ
+                </button>
+                <button
+                  onClick={() => { setShowChargeModal(false); setChargeAmount(0); }}
+                  className={`px-6 py-3 rounded-lg border ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}
+                >
+                  انصراف
+                </button>
               </div>
             </div>
           </div>

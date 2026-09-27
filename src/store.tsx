@@ -22,6 +22,8 @@ export interface User {
   selectedMedia: string[];
   personaIds?: string[]; // IDs of personas assigned to this customer
   cart?: CartItem[]; // Shopping cart items
+  avatar?: string; // User avatar image URL
+  walletBalance?: number; // Wallet balance in Tomans
   createdAt: string;
 }
 
@@ -769,6 +771,9 @@ interface AppContextType {
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  updateAvatar: (avatarUrl: string) => void;
+  chargeWallet: (amount: number) => void;
+  deductWallet: (amount: number) => boolean;
   aboutContent: AboutContent;
   setAboutContent: (a: AboutContent) => void;
   notes: Note[];
@@ -1722,13 +1727,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUsers(users.map(u => u.id === updated.id ? updated : u));
   };
 
+  const updateAvatar = (avatarUrl: string) => {
+    if (!currentUser) return;
+    const updated = { ...currentUser, avatar: avatarUrl };
+    setCurrentUser(updated);
+    setUsers(users.map(u => u.id === updated.id ? updated : u));
+  };
+
+  const chargeWallet = (amount: number) => {
+    if (!currentUser) return;
+    const currentBalance = currentUser.walletBalance || 0;
+    const updated = { ...currentUser, walletBalance: currentBalance + amount };
+    setCurrentUser(updated);
+    setUsers(users.map(u => u.id === updated.id ? updated : u));
+  };
+
+  const deductWallet = (amount: number): boolean => {
+    if (!currentUser) return false;
+    const currentBalance = currentUser.walletBalance || 0;
+    if (currentBalance < amount) return false;
+    const updated = { ...currentUser, walletBalance: currentBalance - amount };
+    setCurrentUser(updated);
+    setUsers(users.map(u => u.id === updated.id ? updated : u));
+    return true;
+  };
+
   return (
     <AppContext.Provider value={{
       darkMode, toggleDarkMode, currentUser, login, adminLogin, logout,
       products, setProducts, mediaItems, setMediaItems, services, setServices,
       orders, setOrders, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
-      addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, aboutContent, setAboutContent,
+      addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, updateAvatar, chargeWallet, deductWallet, aboutContent, setAboutContent,
       notes, setNotes,
       reviews, setReviews,
       suppliers, setSuppliers,
