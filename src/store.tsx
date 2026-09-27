@@ -14,6 +14,10 @@ export interface User {
   role: 'admin' | 'customer';
   name: string;
   phone: string;
+  // Admin-only fields: link to the staff account created in the RBAC section
+  currentAdminId?: string;
+  roleId?: string;
+  permissions?: string[];
   inviteCode?: string;
   invitedBy?: string;
   invitedCount?: number;
@@ -846,6 +850,13 @@ interface AppContextType {
   setRoles: (r: Role[]) => void;
   systemUsers: SystemUser[];
   setSystemUsers: (u: SystemUser[]) => void;
+  // The SystemUser record that the current admin session was created from
+  currentAdminId?: string;
+  // Permissions of the logged-in admin (all permissions when undefined / super admin)
+  userPermissions?: string[];
+  hasPermission: (permId: string) => boolean;
+  // Creates a staff account in the RBAC section and keeps it usable for login
+  createStaffUser: (data: { username: string; password: string; name: string; roleId: string; email?: string; phone?: string }) => { ok: boolean; error?: string };
   okrs: OKR[];
   setOkrs: (o: OKR[]) => void;
   kpis: KPI[];
@@ -1158,6 +1169,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('hamyar_users');
     return saved ? JSON.parse(saved) : [];
   });
+  // Staff accounts created in the RBAC section are stored as admin users here so
+  // they share the same customer/admin data model (orders, logs, profile, ...).
+  const staffAdmins: User[] = users.filter(u => u.role === 'admin');
   const [aboutContent, setAboutContent] = useState<AboutContent>(() => {
     const saved = localStorage.getItem('hamyar_about');
     return saved ? JSON.parse(saved) : defaultAbout;
@@ -1673,6 +1687,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { ordersRef.current = orders; }, [orders]);
   const invoicesRef = useRef(invoices);
   useEffect(() => { invoicesRef.current = invoices; }, [invoices]);
+  // Refs for the admin login flow – they always hold the latest state so a staff
+  // account created moments ago can log in immediately (no stale closure).
+  const systemUsersRef = useRef(systemUsers);
+  useEffect(() => { systemUsersRef.current = systemUsers; }, [systemUsers]);
+  const rolesRef = useRef(roles);
+  useEffect(() => { rolesRef.current = roles; }, [roles]);
+  const permissionsRef = useRef(permissions);
+  useEffect(() => { permissionsRef.current = permissions; }, [permissions]);
+  const usersRef = useRef(users);
+  useEffect(() => { usersRef.current = users; }, [users]);
 
   // Sum of quantities locked (deducted) by delivered orders, per product.
   const totalDeductedQuantities = (allOrders: Order[]): Record<string, number> => {
@@ -1853,9 +1877,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentUser(user);
   };
 
+  // Permissions granted to the logged-in admin through its RBAC role.
+  // `undefined` means "full access" (super admin / legacy sessions).
+  const [userPermissions, setUserPermissions] = useState<string[] | undefined>(() => {
+    try {
+      const saved = localStorage.getItem('hamyar_user');
+      if (!saved) return undefined;
+      const u: User = JSON.parse(saved);
+      if (u.role !== 'admin' || !u.currentAdminId) return undefined;
+      const su = (JSON.parse(localStorage.getItem('hamyar_system_users') || '[]') as SystemUser[])
+        .find(s => s.id === u.currentAdminId);
+      if (!su) return undefined;
+      const sr = JSON.parse(localStorage.getItem('hamyar_roles') || '[]') as Role[];
+      return sr.find(r => r.id === su.roleId)?.permissions;
+    } catch {
+      return undefined;
+    }
+  });
+
+  const hasPermission = (permId: string): boolean => {
+    if (currentUser?.role !== 'admin') return false;
+    // Super admin (and legacy sessions without a linked staff record) can see everything
+    if (!currentUser.currentAdminId) return true;
+    if (userPermissions === undefined) return true;
+    return userPermissions.includes(permId);
+  };
+
+  // Build the session object for a staff account and make sure it also exists in
+  // the users list (so orders, audit logs and the profile page keep working).
+  const establishAdminSession = (su: SystemUser, roleName: string, perms?: string[]) => {
+    const id = 'admin_' + su.id;
+    const existing = usersRef.current.find(u => u.id === id);
+    const sessionUser: User = {
+      id,
+      username: su.username,
+      password: su.password,
+      role: 'admin',
+      name: su.name || su.username,
+      phone: su.phone || '',
+      loyaltyPoints: existing?.loyaltyPoints ?? 0,
+      level: existing?.level ?? 'vip',
+      favorites: existing?.favorites ?? [],
+      selectedMedia: existing?.selectedMedia ?? [],
+      currentAdminId: su.id,
+      roleId: su.roleId,
+      permissions: perms,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+    };
+    setUsers([...usersRef.current.filter(u => u.id !== id), sessionUser]);
+    setCurrentUser(sessionUser);
+    setUserPermissions(perms);
+    // Remember when this account last signed in
+    setSystemUsers(systemUsersRef.current.map(s => s.id === su.id ? { ...s, lastLogin: new Date().toISOString() } : s));
+    setAuditLogs(prev => [{
+      ...logActivity(sessionUser.name, 'ورود', `ورود به پنل مدیریت با نقش «${roleName}»`, 'RBAC'),
+      user: sessionUser.name,
+    }, ...prev]);
+  };
+
   const adminLogin = (username: string, password: string): boolean => {
-    if (username === 'admin' && password === 'admin123') {
-      setCurrentUser({
+    const uname = (username || '').trim();
+    const pass = password || '';
+    if (!uname || !pass) return false;
+
+    // Built-in super admin (kept for backward compatibility)
+    if (uname === 'admin' && pass === 'admin123') {
+      const su = systemUsersRef.current.find(s => s.username === 'admin');
+      if (su && su.active) {
+        establishAdminSession(su, 'مدیر کل', permissionsRef.current.map(p => p.id));
+        return true;
+      }
+      const sessionUser: User = {
         id: 'admin',
         username: 'admin',
         password: 'admin123',
@@ -1866,15 +1958,82 @@ export function AppProvider({ children }: { children: ReactNode }) {
         level: 'vip',
         favorites: [],
         selectedMedia: [],
-        createdAt: new Date().toISOString()
-      });
+        createdAt: new Date().toISOString(),
+      };
+      setCurrentUser(sessionUser);
+      setUserPermissions(undefined);
       return true;
     }
-    return false;
+
+    // Any staff account created in the "کنترل دسترسی (RBAC)" section can log in too
+    const su = systemUsersRef.current.find(s => s.username.trim() === uname);
+    if (!su) return false;
+    if (!su.active) return false;
+    if ((su.password || '') !== pass) return false;
+
+    const role = rolesRef.current.find(r => r.id === su.roleId);
+    establishAdminSession(su, role?.name || 'نامشخص', role?.permissions);
+    return true;
+  };
+
+  // Create a staff account from the RBAC page. The account is registered both as a
+  // SystemUser (for login) and as an admin User record (for the rest of the app),
+  // so it can sign in through the admin login form right away.
+  const createStaffUser = (data: { username: string; password: string; name: string; roleId: string; email?: string; phone?: string }) => {
+    const uname = (data.username || '').trim();
+    if (!uname) return { ok: false, error: 'نام کاربری را وارد کنید' };
+    if (!(data.password || '')) return { ok: false, error: 'رمز عبور را وارد کنید' };
+    if (!data.roleId) return { ok: false, error: 'یک نقش را انتخاب کنید' };
+    if (systemUsersRef.current.some(s => s.username.trim().toLowerCase() === uname.toLowerCase())) {
+      return { ok: false, error: 'این نام کاربری قبلاً ثبت شده است' };
+    }
+
+    const now = new Date().toISOString();
+    const su: SystemUser = {
+      id: 'sysuser' + Date.now(),
+      username: uname,
+      password: data.password,
+      name: (data.name || '').trim() || uname,
+      email: data.email,
+      phone: data.phone,
+      roleId: data.roleId,
+      active: true,
+      createdAt: now,
+    };
+    const nextSystemUsers = [...systemUsersRef.current, su];
+    setSystemUsers(nextSystemUsers);
+    systemUsersRef.current = nextSystemUsers;
+
+    // Mirror the account into the users list as an admin user
+    const uid = 'admin_' + su.id;
+    const role = rolesRef.current.find(r => r.id === su.roleId);
+    const adminUser: User = {
+      id: uid,
+      username: su.username,
+      password: su.password,
+      role: 'admin',
+      name: su.name,
+      phone: su.phone || '',
+      loyaltyPoints: 0,
+      level: 'vip',
+      favorites: [],
+      selectedMedia: [],
+      currentAdminId: su.id,
+      roleId: su.roleId,
+      permissions: role?.permissions,
+      createdAt: now,
+    };
+    const nextUsers = [...usersRef.current.filter(u => u.id !== uid), adminUser];
+    setUsers(nextUsers);
+    usersRef.current = nextUsers;
+
+    pushAuditLog('ایجاد', `کاربر سیستم «${su.username}» با نقش «${role?.name || 'نامشخص'}» ایجاد شد`, 'RBAC');
+    return { ok: true };
   };
 
   const logout = () => {
     setCurrentUser(null);
+    setUserPermissions(undefined);
     // Remove the cart on logout so no leftover/duplicate cart remains
     setCartItems([]);
   };
@@ -1976,6 +2135,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       permissions, setPermissions,
       roles, setRoles,
       systemUsers, setSystemUsers,
+      currentAdminId: currentUser?.currentAdminId,
+      userPermissions, hasPermission, createStaffUser,
       okrs, setOkrs,
       kpis, setKpis,
       digitalMarketingData, setDigitalMarketingData,
