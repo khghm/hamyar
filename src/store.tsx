@@ -101,6 +101,227 @@ export interface Service {
   docs?: ServiceDocField[];
 }
 
+// ---------------------------------------------------------------------------
+// Orderable items of the «طراحی سایت» and «تولید محتوا» pages. Each card on
+// those public pages links to /project-services/:id and goes through the same
+// 3-step wizard (details → documents → payment) as the internet-cafe services.
+// The catalogue is shared between the public pages, the details wizard and the
+// admin panel (orders / invoices / projects), so everything stays in sync.
+// ---------------------------------------------------------------------------
+export interface ProjectService {
+  id: string;
+  title: string;
+  group: 'webdesign' | 'content';
+  icon: string; // lucide icon name used by the public cards
+  desc: string;
+  features: string[];
+  basePrice: number; // starting price in Toman (پیش‌فاکتور)
+  unit: string;
+  fields: ServiceFormField[];
+  docs: ServiceDocField[];
+}
+
+const PROJECT_CONTACT_FIELDS: ServiceFormField[] = [
+  { key: 'fullName', label: 'نام و نام خانوادگی / نام برند', type: 'text', required: true, placeholder: 'مثلاً علی رضایی' },
+  { key: 'phone', label: 'شماره موبایل', type: 'tel', required: true, placeholder: '09xxxxxxxxx' },
+  { key: 'email', label: 'ایمیل کاری (اختیاری)', type: 'email', required: false },
+];
+
+export const PROJECT_SERVICES: ProjectService[] = [
+  // ------------------------- طراحی سایت، اپلیکیشن و ربات -------------------------
+  {
+    id: 'ps-wd-shop', group: 'webdesign', icon: 'ShoppingCart', title: 'سایت فروشگاهی',
+    desc: 'طراحی فروشگاه آنلاین با سبد خرید، پرداخت آنلاین و پنل مدیریت',
+    features: ['مدیریت محصولات', 'سبد خرید', 'درگاه پرداخت', 'پنل مدیریت'],
+    basePrice: 25000000, unit: 'پروژه',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'industry', label: 'حوزه فعالیت کسب‌وکار', type: 'text', required: true, placeholder: 'مثلاً پوشاک، لوازم دیجیتال' },
+      { key: 'productCount', label: 'تعداد تقریبی محصولات', type: 'number', required: true, placeholder: '100' },
+      { key: 'domainName', label: 'دامنه (در صورت وجود)', type: 'text', required: false, placeholder: 'example.ir' },
+      { key: 'payments', label: 'درگاه‌های پرداخت مورد نیاز', type: 'select', required: true, options: ['زرین‌پال', 'آی‌دی‌پی', 'سامان', 'چند درگاه'] },
+      { key: 'features', label: 'امکانات مورد نیاز', type: 'textarea', required: true, placeholder: 'مثلاً باشگاه مشتریان، چندفروشندگی، اپلیکیشن...' },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+      { key: 'budget', label: 'بودجه تقریبی (تومان)', type: 'number', required: false },
+    ],
+    docs: [
+      { key: 'brief', label: 'بریف / فایل نیازمندی‌ها', required: true, hint: 'pdf, docx، حداکثر ۵ مگابایت' },
+      { key: 'brandAssets', label: 'لوگو و تصاویر برند', required: false, hint: 'zip یا تصاویر png/jpg' },
+      { key: 'samples', label: 'نمونه سایت مورد علاقه', required: false, hint: 'می‌توانید چند اسکرین‌شات بارگذاری کنید' },
+    ],
+  },
+  {
+    id: 'ps-wd-corp', group: 'webdesign', icon: 'Globe', title: 'سایت شرکتی',
+    desc: 'طراحی وب‌سایت حرفه‌ای برای شرکت‌ها و سازمان‌ها',
+    features: ['معرفی خدمات', 'نمونه‌کارها', 'فرم تماس', 'بلاگ'],
+    basePrice: 15000000, unit: 'پروژه',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'industry', label: 'حوزه فعالیت شرکت', type: 'text', required: true },
+      { key: 'pagesCount', label: 'تعداد صفحات تقریبی', type: 'number', required: true, placeholder: '8' },
+      { key: 'domainName', label: 'دامنه (در صورت وجود)', type: 'text', required: false },
+      { key: 'features', label: 'امکانات مورد نیاز', type: 'textarea', required: true, placeholder: 'بلاگ، فرم استخدام، چندزبانه...' },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+      { key: 'budget', label: 'بودجه تقریبی (تومان)', type: 'number', required: false },
+    ],
+    docs: [
+      { key: 'brief', label: 'بریف / فایل نیازمندی‌ها', required: true },
+      { key: 'brandAssets', label: 'لوگو و تصاویر برند', required: false },
+    ],
+  },
+  {
+    id: 'ps-wd-personal', group: 'webdesign', icon: 'User', title: 'سایت شخصی',
+    desc: 'طراحی پورتفولیو و سایت شخصی برای افراد',
+    features: ['رزومه آنلاین', 'نمونه‌کارها', 'فرم ارتباط', 'شبکه‌های اجتماعی'],
+    basePrice: 7000000, unit: 'پروژه',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'profession', label: 'حوزه کاری شما', type: 'text', required: true, placeholder: 'مثلاً عکاسی، معماری' },
+      { key: 'siteType', label: 'نوع سایت', type: 'select', required: true, options: ['پورتفولیو', 'وبلاگ شخصی', 'رزومه آنلاین', 'فروش خدمات'] },
+      { key: 'domainName', label: 'دامنه (در صورت وجود)', type: 'text', required: false },
+      { key: 'features', label: 'امکانات مورد نیاز', type: 'textarea', required: true },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+    ],
+    docs: [
+      { key: 'bio', label: 'متن بیو / رزومه', required: false },
+      { key: 'works', label: 'نمونه‌کارها و تصاویر', required: false },
+      { key: 'brandAssets', label: 'لوگو شخصی', required: false },
+    ],
+  },
+  {
+    id: 'ps-wd-app', group: 'webdesign', icon: 'Smartphone', title: 'ساخت اپلیکیشن موبایل',
+    desc: 'طراحی و توسعه اپلیکیشن اندروید و iOS برای کسب‌وکار شما',
+    features: ['اپلیکیشن فروشگاهی', 'اپلیکیشن سازمانی', 'رابط کاربری اختصاصی', 'انتشار در کافه‌بازار و مایکت'],
+    basePrice: 60000000, unit: 'پروژه',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'appType', label: 'نوع اپلیکیشن', type: 'select', required: true, options: ['فروشگاهی', 'سازمانی', 'خدماتی', 'آموزشی', 'دیگر'] },
+      { key: 'platforms', label: 'پلتفرم هدف', type: 'select', required: true, options: ['اندروید', 'iOS', 'اندروید و iOS'] },
+      { key: 'backendNeeded', label: 'نیاز به پنل مدیریت / بک‌اند', type: 'select', required: true, options: ['بله', 'خیر'] },
+      { key: 'features', label: 'امکانات مورد نیاز', type: 'textarea', required: true, placeholder: 'ورود با شماره، نوتیفیکیشن، درگاه پرداخت...' },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+      { key: 'budget', label: 'بودجه تقریبی (تومان)', type: 'number', required: false },
+    ],
+    docs: [
+      { key: 'brief', label: 'بریف / وایرفریم اپلیکیشن', required: true },
+      { key: 'brandAssets', label: 'لوگو و هویت بصری', required: false },
+      { key: 'samples', label: 'نمونه اپلیکیشن مورد نظر', required: false },
+    ],
+  },
+  {
+    id: 'ps-wd-tgbot', group: 'webdesign', icon: 'Bot', title: 'ربات تلگرام',
+    desc: 'ساخت ربات‌های تلگرامی فروشگاهی، پشتیبانی، مدیریت گروه و اطلاع‌رسانی',
+    features: ['فروش خودکار در تلگرام', 'مدیریت گروه و کانال', 'اتصال به درگاه پرداخت', 'پشتیبانی هوشمند'],
+    basePrice: 8000000, unit: 'پروژه',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'botType', label: 'نوع ربات', type: 'select', required: true, options: ['فروشگاهی', 'پشتیبانی', 'مدیریت گروه/کانال', 'اطلاع‌رسانی', 'دیگر'] },
+      { key: 'paymentNeeded', label: 'نیاز به درگاه پرداخت', type: 'select', required: true, options: ['بله', 'خیر'] },
+      { key: 'channelLink', label: 'لینک کانال/گروه (اختیاری)', type: 'text', required: false },
+      { key: 'features', label: 'امکانات مورد نیاز', type: 'textarea', required: true, placeholder: 'ثبت‌نام خودکار، فاکتور، پنل مدیریتی...' },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+    ],
+    docs: [
+      { key: 'brief', label: 'بریف / سناریوی ربات', required: true },
+      { key: 'flows', label: 'فلوچارت یا نمونه صوتی/متنی منوها', required: false },
+    ],
+  },
+  {
+    id: 'ps-wd-otherbot', group: 'webdesign', icon: 'MessageSquare', title: 'ربات غیرتلگرامی',
+    desc: 'ساخت چت‌بات و ربات برای واتساپ، اینستاگرام، وب‌سایت و سایر پیام‌رسان‌ها',
+    features: ['چت‌بات سایت', 'ربات واتساپ و اینستاگرام', 'پاسخ‌گویی خودکار', 'اتصال به CRM و پنل سفارش'],
+    basePrice: 10000000, unit: 'پروژه',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'platform', label: 'پلتفرم هدف', type: 'select', required: true, options: ['واتساپ', 'اینستاگرام', 'چت‌بات وب‌سایت', 'ایتا/بله', 'دیگر'] },
+      { key: 'crmConnect', label: 'اتصال به CRM یا پنل سفارش', type: 'select', required: true, options: ['بله', 'خیر'] },
+      { key: 'features', label: 'امکانات مورد نیاز', type: 'textarea', required: true },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+    ],
+    docs: [
+      { key: 'brief', label: 'بریف / سناریوی ربات', required: true },
+      { key: 'accessInfo', label: 'دسترسی‌های لازم (API/توکن)', required: false, hint: 'در صورت وجود حساب تجاری' },
+    ],
+  },
+  // ------------------------- تولید محتوا -------------------------
+  {
+    id: 'ps-ct-text', group: 'content', icon: 'PenTool', title: 'تولید محتوای متنی',
+    desc: 'نوشتن مقاله، متن تبلیغاتی و محتوای سئو شده برای سایت و شبکه‌های اجتماعی',
+    features: ['مقالات سئو شده', 'کپی‌رایتینگ تبلیغاتی', 'تولید محتوای بلاگ'],
+    basePrice: 1500000, unit: 'بسته ۵ مقاله',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'contentType', label: 'نوع محتوا', type: 'select', required: true, options: ['مقاله وبلاگ', 'متن تبلیغاتی', 'توضیح محصول', 'سناریو ویدیو', 'دیگر'] },
+      { key: 'topic', label: 'موضوع / حوزه فعالیت', type: 'text', required: true, placeholder: 'مثلاً تجهیزات پزشکی' },
+      { key: 'articlesCount', label: 'تعداد مقاله / متن', type: 'number', required: true, placeholder: '5' },
+      { key: 'keywords', label: 'کلمات کلیدی مدنظر (اختیاری)', type: 'textarea', required: false },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+    ],
+    docs: [
+      { key: 'brief', label: 'بریف محتوایی / لیست موضوعات', required: true },
+      { key: 'brandAssets', label: 'راهنمای لحن و هویت برند', required: false },
+    ],
+  },
+  {
+    id: 'ps-ct-social', group: 'content', icon: 'Instagram', title: 'مدیریت شبکه‌های اجتماعی',
+    desc: 'مدیریت و ادمین اینستاگرام، تلگرام و لینکدین با تقویم محتوایی منظم',
+    features: ['تقویم محتوایی', 'پست و استوری روزانه', 'گزارش عملکرد ماهانه'],
+    basePrice: 5000000, unit: 'ماه',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'package', label: 'پکیج ماهانه', type: 'select', required: true, options: ['برنزی (۱۲ پست + ۳۰ استوری)', 'نقره‌ای (۲۰ پست + ۶۰ استوری + گرافیک)', 'طلایی (۳۰ پست + استوری روزانه + ریلز + سئو)'] },
+      { key: 'platform', label: 'پلتفرم(ها)', type: 'select', required: true, options: ['اینستاگرام', 'تلگرام', 'لینکدین', 'همه مورد‌ها'] },
+      { key: 'accountLink', label: 'آیدی / لینک پیج', type: 'text', required: true, placeholder: '@yourbrand' },
+      { key: 'duration', label: 'مدت همکاری (ماه)', type: 'number', required: true, placeholder: '3' },
+      { key: 'details', label: 'توضیحات سفارش', type: 'textarea', required: false },
+    ],
+    docs: [
+      { key: 'loginInfo', label: 'اطلاعات ورود یا دسترسی ادمین', required: false, hint: 'فقط از طریق دایرکت امن ارسال شود' },
+      { key: 'brandAssets', label: 'لوگو و فایل‌های گرافیکی', required: false },
+    ],
+  },
+  {
+    id: 'ps-ct-video', group: 'content', icon: 'Video', title: 'تولید محتوای تصویری و ویدیویی',
+    desc: 'طراحی پوستر، بنر، موشن‌گرافیک و ساخت ریلز و تیزرهای کوتاه',
+    features: ['طراحی گرافیک', 'موشن‌گرافیک', 'ریلز و تیزر ویدیویی'],
+    basePrice: 3000000, unit: 'بسته ۵ طرح',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'visualType', label: 'نوع خروجی', type: 'select', required: true, options: ['پوستر/بنر', 'موشن‌گرافیک', 'ریلز اینستاگرام', 'تیزر تبلیغاتی'] },
+      { key: 'itemsCount', label: 'تعداد اقلام', type: 'number', required: true, placeholder: '5' },
+      { key: 'sizeFormat', label: 'قطع / فرمت خروجی', type: 'text', required: false, placeholder: 'مثلاً ۱۰۸۰×۱۹۲۰ عمودی' },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+    ],
+    docs: [
+      { key: 'brief', label: 'بریف / ایده‌ها', required: true },
+      { key: 'brandAssets', label: 'لوگو و تصاویر خام', required: false },
+      { key: 'samples', label: 'نمونه کار مورد پسند', required: false },
+    ],
+  },
+  {
+    id: 'ps-ct-seo', group: 'content', icon: 'Search', title: 'سئو و بهینه‌سازی',
+    desc: 'بهبود رتبه سایت در گوگل از طریق سئوی داخلی، لینک‌سازی و تحقیق کلمات کلیدی',
+    features: ['تحقیق کلمات کلیدی', 'سئوی داخلی و تکنیکال', 'لینک‌سازی استاندارد'],
+    basePrice: 8000000, unit: 'پروژه',
+    fields: [...PROJECT_CONTACT_FIELDS,
+      { key: 'siteUrl', label: 'آدرس سایت', type: 'text', required: true, placeholder: 'https://example.ir' },
+      { key: 'seoType', label: 'نوع خدمات سئو', type: 'select', required: true, options: ['تحقیق کلمات کلیدی', 'سئوی داخلی', 'سئوی تکنیکال', 'لینک‌سازی', 'بسته کامل'] },
+      { key: 'goals', label: 'اهداف و کلمات کلیدی اصلی', type: 'textarea', required: true },
+      { key: 'deadline', label: 'مهلت تحویل مورد نظر', type: 'date', required: false },
+    ],
+    docs: [
+      { key: 'accessInfo', label: 'دسترسی Search Console / Analytics', required: false },
+      { key: 'audit', label: 'گزارش سئوی قبلی (در صورت وجود)', required: false },
+    ],
+  },
+];
+
+export function getProjectService(id?: string): ProjectService | undefined {
+  return PROJECT_SERVICES.find(s => s.id === id);
+}
+
+// Human-readable labels for the wizard field keys (used by the project-card
+// summary and the admin order-details modal).
+export const PROJECT_FIELD_LABELS: Record<string, string> = {
+  fullName: 'مشتری / برند', phone: 'موبایل', email: 'ایمیل', industry: 'حوزه فعالیت',
+  productCount: 'تعداد محصولات', pagesCount: 'تعداد صفحات', appType: 'نوع اپلیکیشن',
+  platforms: 'پلتفرم هدف', botType: 'نوع ربات', platformTarget: 'پلتفرم',
+  contentType: 'نوع محتوا', articlesCount: 'تعداد مقالات', visualType: 'نوع خروجی',
+  itemsCount: 'تعداد اقلام', seoType: 'خدمات سئو', package: 'پکیج', duration: 'مدت همکاری',
+  siteUrl: 'آدرس سایت', domainName: 'دامنه', deadline: 'مهلت تحویل', budget: 'بودجه',
+};
+
 export interface OrderItem {
   productId?: string;
   name?: string;
@@ -136,13 +357,15 @@ export interface Order {
   stockDeducted?: boolean;
   // Marks that a receipt (رسید) invoice has already been issued for this order
   receiptInvoiceId?: string;
-  // ---- Online service-order wizard fields (خدمات کافی‌نت) ----
+  // ---- Online service-order wizard fields (خدمات کافی‌نت + پروژه‌ها) ----
   serviceId?: string; // the Service this order was created from
+  projectServiceId?: string; // the ProjectService (طراحی سایت / تولید محتوا) this order was created from
   formData?: Record<string, string>; // step 1: customer-entered details
   documents?: { key: string; label: string; name: string; size: number; dataUrl: string }[]; // step 2: uploaded docs
   paymentMethod?: 'online' | 'wallet';
   gatewayRef?: string; // bank/gateway reference id for online payments
   documentStatus?: 'pending' | 'approved' | 'rejected'; // admin review of uploads
+  projectId?: string; // admin project created from this order (kept in sync)
 }
 
 // Shared Persian labels for order statuses (used by admin orders + public tracking)
@@ -1088,6 +1311,17 @@ interface AppContextType {
   // every related admin section (orders, invoices/finance, SMS, audit log) in sync.
   createServiceOrder: (input: {
     service: Service;
+    quantity: number;
+    urgent: boolean;
+    formData: Record<string, string>;
+    documents: NonNullable<Order['documents']>;
+    paymentMethod: 'online' | 'wallet';
+    gatewayRef?: string;
+  }) => { ok: boolean; error?: string; order?: Order };
+  // Same wizard for the «طراحی سایت» و «تولید محتوا» catalogue items. In addition
+  // to orders/invoices/SMS/audit it creates a linked project in admin Projects.
+  createProjectOrder: (input: {
+    projectService: ProjectService;
     quantity: number;
     urgent: boolean;
     formData: Record<string, string>;
