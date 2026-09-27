@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { useApp } from '../store';
+import { useApp, ADMIN_PAGE_PERMISSIONS } from '../store';
 import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText, Target, Globe } from 'lucide-react';
 
 export default function AdminLayout() {
-  const { darkMode, toggleDarkMode, logout } = useApp();
+  const { darkMode, toggleDarkMode, logout, canAccessPage, currentUser, roles } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ export default function AdminLayout() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const menuItems = [
+  const allMenuItems = [
     { path: '/admin', icon: LayoutDashboard, label: 'داشبورد' },
     { path: '/admin/analytics', icon: BarChart3, label: 'تحلیل و گزارش' },
     { path: '/admin/digital-marketing', icon: Globe, label: 'دیجیتال مارکتینگ' },
@@ -51,6 +51,19 @@ export default function AdminLayout() {
     { path: '/admin/backup', icon: Download, label: 'پشتیبان‌گیری' },
     { path: '/admin/settings', icon: Settings, label: 'تنظیمات' },
   ];
+
+  // Only show menu items the current admin is allowed to open. The very same
+  // map is used by the route guards in App.tsx, so restrictions defined for a
+  // role in the RBAC section are enforced consistently across the panel.
+  const menuItems = allMenuItems.filter(item =>
+    canAccessPage(ADMIN_PAGE_PERMISSIONS[item.path] || [])
+  );
+
+  const roleName = (() => {
+    if (!currentUser?.currentAdminId) return 'مدیر کل';
+    const r = roles.find(rr => rr.id === currentUser.roleId);
+    return r?.name || 'نامشخص';
+  })();
 
   const handleLogout = () => {
     logout();
@@ -147,12 +160,19 @@ export default function AdminLayout() {
             </button>
             <h1 className="font-bold text-xs sm:text-sm truncate">کافی نت همیار - پنل مدیریت</h1>
           </div>
-          <button 
-            onClick={toggleDarkMode} 
-            className={`p-2 rounded-lg text-xs sm:text-sm ${darkMode ? 'hover:bg-slate-700 text-yellow-400' : 'hover:bg-gray-100'}`}
-          >
-            {darkMode ? '☀️' : '🌙'}
-          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            {currentUser && (
+              <span className={`hidden md:inline-block text-xs px-2.5 py-1 rounded-full truncate max-w-[220px] ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-600'}`}>
+                👤 {currentUser.name} · نقش: {roleName}
+              </span>
+            )}
+            <button 
+              onClick={toggleDarkMode} 
+              className={`p-2 rounded-lg text-xs sm:text-sm ${darkMode ? 'hover:bg-slate-700 text-yellow-400' : 'hover:bg-gray-100'}`}
+            >
+              {darkMode ? '☀️' : '🌙'}
+            </button>
+          </div>
         </header>
 
         {/* Page Content */}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider, useApp } from './store';
+import { AppProvider, useApp, ADMIN_PAGE_PERMISSIONS } from './store';
 import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
 import Home from './pages/Home';
@@ -45,7 +45,13 @@ import { AdminEmployees } from './pages/admin/Employees';
 import { AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup } from './pages/admin/Management';
 
 function AppRoutes() {
-  const { currentUser } = useApp();
+  const { currentUser, canAccessPage } = useApp();
+
+  // Route-level guard: staff accounts can only open the admin pages their RBAC
+  // role allows. Direct URL access to a restricted page sends them back to the
+  // dashboard (which every admin can see) instead of rendering the page.
+  const Guarded = ({ path, children }: { path: string; children: React.ReactNode }) =>
+    canAccessPage(ADMIN_PAGE_PERMISSIONS[path] || []) ? <>{children}</> : <Navigate to="/admin" replace />;
 
   return (
     <Routes>
@@ -70,34 +76,34 @@ function AppRoutes() {
       </Route>
 
       {/* Admin Routes */}
-      <Route path="/admin" element={currentUser?.role === 'admin' ? <AdminLayout /> : <Navigate to="/" />}>
+      <Route path="/admin" element={currentUser?.role === 'admin' ? <AdminLayout /> : <Navigate to="/auth" />}>
         <Route index element={<AdminDashboard />} />
-        <Route path="orders" element={<AdminOrders />} />
-        <Route path="customers" element={<AdminCustomers />} />
-        <Route path="invites" element={<AdminInvites />} />
-        <Route path="products" element={<AdminProducts />} />
-        <Route path="media" element={<AdminMedia />} />
-        <Route path="services" element={<AdminServices />} />
-        <Route path="projects" element={<AdminProjects />} />
-        <Route path="finance" element={<AdminFinance />} />
-        <Route path="settings" element={<AdminSettings />} />
-        <Route path="notes" element={<AdminNotes />} />
-        <Route path="analytics" element={<AdminAnalytics />} />
-        <Route path="digital-marketing" element={<AdminDigitalMarketing />} />
-        <Route path="affiliates" element={<AdminAffiliates />} />
-        <Route path="personas" element={<AdminPersonas />} />
-        <Route path="suppliers" element={<AdminSuppliers />} />
-        <Route path="employees" element={<AdminEmployees />} />
-        <Route path="okr-kpi" element={<AdminOKRKPI />} />
-        <Route path="campaigns" element={<AdminCampaigns />} />
-        <Route path="sms" element={<AdminSmsPanel />} />
-        <Route path="reviews" element={<AdminReviews />} />
-        <Route path="audit" element={<AdminAuditLog />} />
-        <Route path="backup" element={<AdminBackup />} />
-        <Route path="content-team" element={<AdminContentTeam />} />
-        <Route path="rbac" element={<AdminRBAC />} />
-        <Route path="training" element={<AdminTraining />} />
-        <Route path="invoices" element={<AdminInvoices />} />
+        <Route path="orders" element={<Guarded path="/admin/orders"><AdminOrders /></Guarded>} />
+        <Route path="customers" element={<Guarded path="/admin/customers"><AdminCustomers /></Guarded>} />
+        <Route path="invites" element={<Guarded path="/admin/invites"><AdminInvites /></Guarded>} />
+        <Route path="products" element={<Guarded path="/admin/products"><AdminProducts /></Guarded>} />
+        <Route path="media" element={<Guarded path="/admin/media"><AdminMedia /></Guarded>} />
+        <Route path="services" element={<Guarded path="/admin/services"><AdminServices /></Guarded>} />
+        <Route path="projects" element={<Guarded path="/admin/projects"><AdminProjects /></Guarded>} />
+        <Route path="finance" element={<Guarded path="/admin/finance"><AdminFinance /></Guarded>} />
+        <Route path="settings" element={<Guarded path="/admin/settings"><AdminSettings /></Guarded>} />
+        <Route path="notes" element={<Guarded path="/admin/notes"><AdminNotes /></Guarded>} />
+        <Route path="analytics" element={<Guarded path="/admin/analytics"><AdminAnalytics /></Guarded>} />
+        <Route path="digital-marketing" element={<Guarded path="/admin/digital-marketing"><AdminDigitalMarketing /></Guarded>} />
+        <Route path="affiliates" element={<Guarded path="/admin/affiliates"><AdminAffiliates /></Guarded>} />
+        <Route path="personas" element={<Guarded path="/admin/personas"><AdminPersonas /></Guarded>} />
+        <Route path="suppliers" element={<Guarded path="/admin/suppliers"><AdminSuppliers /></Guarded>} />
+        <Route path="employees" element={<Guarded path="/admin/employees"><AdminEmployees /></Guarded>} />
+        <Route path="okr-kpi" element={<Guarded path="/admin/okr-kpi"><AdminOKRKPI /></Guarded>} />
+        <Route path="campaigns" element={<Guarded path="/admin/campaigns"><AdminCampaigns /></Guarded>} />
+        <Route path="sms" element={<Guarded path="/admin/sms"><AdminSmsPanel /></Guarded>} />
+        <Route path="reviews" element={<Guarded path="/admin/reviews"><AdminReviews /></Guarded>} />
+        <Route path="audit" element={<Guarded path="/admin/audit"><AdminAuditLog /></Guarded>} />
+        <Route path="backup" element={<Guarded path="/admin/backup"><AdminBackup /></Guarded>} />
+        <Route path="content-team" element={<Guarded path="/admin/content-team"><AdminContentTeam /></Guarded>} />
+        <Route path="rbac" element={<Guarded path="/admin/rbac"><AdminRBAC /></Guarded>} />
+        <Route path="training" element={<Guarded path="/admin/training"><AdminTraining /></Guarded>} />
+        <Route path="invoices" element={<Guarded path="/admin/invoices"><AdminInvoices /></Guarded>} />
       </Route>
     </Routes>
   );

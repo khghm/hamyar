@@ -3,7 +3,7 @@ import { useApp, Role, SystemUser } from '../../store';
 import { Shield, Users, Key, Plus, X, Edit, Trash2, Check, Lock, Unlock, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminRBAC() {
-  const { darkMode, permissions, roles, setRoles, systemUsers, setSystemUsers } = useApp();
+  const { darkMode, permissions, roles, setRoles, systemUsers, setSystemUsers, createStaffUser, users: usersList, setUsers } = useApp();
   const [activeTab, setActiveTab] = useState<'roles' | 'users' | 'permissions'>('roles');
   const [showRoleForm, setShowRoleForm] = useState(false);
   const [showUserForm, setShowUserForm] = useState(false);
@@ -12,6 +12,7 @@ export default function AdminRBAC() {
   const [roleForm, setRoleForm] = useState<Partial<Role>>({ name: '', description: '', permissions: [], isDefault: false });
   const [userForm, setUserForm] = useState<Partial<SystemUser>>({ username: '', password: '', name: '', email: '', phone: '', roleId: '', active: true });
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const tabs = [
     { id: 'roles', label: 'نقش‌ها', icon: Shield },
@@ -34,7 +35,10 @@ export default function AdminRBAC() {
   };
 
   const saveRole = () => {
+    if (!(roleForm.name || '').trim()) return;
     if (editRoleId) {
+      // Keep the mirrored admin User records in sync with the edited role, so a
+      // logged-in staff account immediately gets the updated restrictions.
       setRoles(roles.map(r => r.id === editRoleId ? { ...r, ...roleForm } as Role : r));
     } else {
       setRoles([...roles, { ...roleForm, id: 'role' + Date.now(), createdAt: new Date().toISOString() } as Role]);
@@ -45,21 +49,47 @@ export default function AdminRBAC() {
   const openNewUser = () => {
     setUserForm({ username: '', password: '', name: '', email: '', phone: '', roleId: roles[0]?.id || '', active: true });
     setEditUserId(null);
+    setFormError('');
     setShowUserForm(true);
   };
 
   const openEditUser = (user: SystemUser) => {
     setUserForm(user);
     setEditUserId(user.id);
+    setFormError('');
     setShowUserForm(true);
   };
 
   const saveUser = () => {
+    const uname = (userForm.username || '').trim();
+    if (!uname) { setFormError('نام کاربری را وارد کنید'); return; }
+    if (!(userForm.password || '').trim()) { setFormError('رمز عبور را وارد کنید'); return; }
+    if (!userForm.roleId) { setFormError('یک نقش را انتخاب کنید'); return; }
     if (editUserId) {
-      setSystemUsers(systemUsers.map(u => u.id === editUserId ? { ...u, ...userForm } as SystemUser : u));
-    } else {
-      setSystemUsers([...systemUsers, { ...userForm, id: 'sysuser' + Date.now(), createdAt: new Date().toISOString() } as SystemUser]);
+      const target = systemUsers.find(u => u.id === editUserId);
+      if (!target) { setShowUserForm(false); return; }
+      if (systemUsers.some(u => u.id !== editUserId && u.username.trim().toLowerCase() === uname.toLowerCase())) {
+        setFormError('این نام کاربری قبلاً ثبت شده است'); return;
+      }
+      const updated: SystemUser = { ...target, ...userForm, username: uname } as SystemUser;
+      setSystemUsers(systemUsers.map(u => u.id === editUserId ? updated : u));
+      // Mirror the change into the admin User record used by the rest of the app
+      setUsers(usersList.map(u => u.id === 'admin_' + updated.id
+        ? { ...u, username: updated.username, password: updated.password, name: updated.name, phone: updated.phone || '', roleId: updated.roleId }
+        : u));
+      setShowUserForm(false);
+      return;
     }
+    // New staff account – created through the store so it can sign in right away
+    const res = createStaffUser({
+      username: uname,
+      password: userForm.password || '',
+      name: userForm.name || '',
+      roleId: userForm.roleId || '',
+      email: userForm.email,
+      phone: userForm.phone,
+    });
+    if (!res.ok) { setFormError(res.error || 'خطا در ایجاد کاربر'); return; }
     setShowUserForm(false);
   };
 
@@ -333,6 +363,11 @@ export default function AdminRBAC() {
               <button onClick={() => setShowUserForm(false)}><X size={20} /></button>
             </div>
             <div className="space-y-3">
+              {formError && (
+                <div className="text-sm text-red-600 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+                  {formError}
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium block mb-1">نام کاربری *</label>
                 <input type="text" value={userForm.username} onChange={e => setUserForm({...userForm, username: e.target.value})}
@@ -342,8 +377,10 @@ export default function AdminRBAC() {
                 <label className="text-sm font-medium block mb-1">رمز عبور *</label>
                 <div className="relative">
                   <input type={showPassword ? 'text' : 'password'} value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})}
-                    className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
-                  <button onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2">
+                    placeholder={editUserId ? 'برای تغییر، رمز جدید را وارد کنید' : 'رمز عبور'}
+                    autoComplete="new-password"
+                    className={`w-full px-3 py-2 rounded-lg border pl-10 ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2">
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
