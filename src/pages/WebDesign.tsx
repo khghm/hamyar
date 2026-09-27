@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../store';
-import { Globe, Code, Palette, Shield, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Globe, Smartphone, Bot, MessageSquare, Palette, Shield, ArrowLeft, ExternalLink } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 
 export default function WebDesign() {
@@ -8,9 +8,12 @@ export default function WebDesign() {
   const banner = useBanner('webdesign');
 
   const services = [
-    { title: 'سایت فروشگاهی', desc: 'طراحی فروشگاه آنلاین با سبد خرید، پرداخت آنلاین و پنل مدیریت', features: ['مدیریت محصولات', 'سبد خرید', 'درگاه پرداخت', 'پنل مدیریت'] },
-    { title: 'سایت شرکتی', desc: 'طراحی وب‌سایت حرفه‌ای برای شرکت‌ها و سازمان‌ها', features: ['معرفی خدمات', 'نمونه‌کارها', 'فرم تماس', 'بلاگ'] },
-    { title: 'سایت شخصی', desc: 'طراحی پورتفولیو و سایت شخصی برای افراد', features: ['رزومه آنلاین', 'نمونه‌کارها', 'فرم ارتباط', 'شبکه‌های اجتماعی'] },
+    { icon: Globe, title: 'سایت فروشگاهی', desc: 'طراحی فروشگاه آنلاین با سبد خرید، پرداخت آنلاین و پنل مدیریت', features: ['مدیریت محصولات', 'سبد خرید', 'درگاه پرداخت', 'پنل مدیریت'] },
+    { icon: Globe, title: 'سایت شرکتی', desc: 'طراحی وب‌سایت حرفه‌ای برای شرکت‌ها و سازمان‌ها', features: ['معرفی خدمات', 'نمونه‌کارها', 'فرم تماس', 'بلاگ'] },
+    { icon: Globe, title: 'سایت شخصی', desc: 'طراحی پورتفولیو و سایت شخصی برای افراد', features: ['رزومه آنلاین', 'نمونه‌کارها', 'فرم ارتباط', 'شبکه‌های اجتماعی'] },
+    { icon: Smartphone, title: 'ساخت اپلیکیشن موبایل', desc: 'طراحی و توسعه اپلیکیشن اندروید و iOS برای کسب‌وکار شما', features: ['اپلیکیشن فروشگاهی', 'اپلیکیشن سازمانی', 'رابط کاربری اختصاصی', 'انتشار در کافه‌بازار و مایکت'] },
+    { icon: Bot, title: 'ربات تلگرام', desc: 'ساخت ربات‌های تلگرامی فروشگاهی، پشتیبانی، مدیریت گروه و اطلاع‌رسانی', features: ['فروش خودکار در تلگرام', 'مدیریت گروه و کانال', 'اتصال به درگاه پرداخت', 'پشتیبانی هوشمند'] },
+    { icon: MessageSquare, title: 'ربات غیرتلگرامی', desc: 'ساخت چت‌بات و ربات برای واتساپ، اینستاگرام، وب‌سایت و سایر پیام‌رسان‌ها', features: ['چت‌بات سایت', 'ربات واتساپ و اینستاگرام', 'پاسخ‌گویی خودکار', 'اتصال به CRM و پنل سفارش'] },
   ];
 
   return (
@@ -46,12 +49,15 @@ export default function WebDesign() {
 
       {/* Services */}
       <section className="py-16 max-w-7xl mx-auto px-4">
-        <h2 className="text-2xl font-bold text-center mb-12">انواع خدمات طراحی سایت</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {services.map((s, i) => (
+        <h2 className="text-2xl font-bold text-center mb-4">انواع خدمات طراحی سایت، اپلیکیشن و ربات</h2>
+        <p className={`text-center mb-12 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>از طراحی وب‌سایت تا ساخت اپلیکیشن موبایل و ربات‌های تلگرامی و غیرتلگرامی</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {services.map((s, i) => {
+            const Icon = s.icon;
+            return (
             <div key={i} className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
               <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
-                <Globe size={24} className="text-purple-600" />
+                <Icon size={24} className="text-purple-600" />
               </div>
               <h3 className="font-bold text-lg mb-2">{s.title}</h3>
               <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.desc}</p>
@@ -64,7 +70,8 @@ export default function WebDesign() {
                 ))}
               </ul>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

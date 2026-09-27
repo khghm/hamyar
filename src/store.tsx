@@ -1125,6 +1125,7 @@ const initialServices: Service[] = [
   { id: 's58', name: 'شکایت کیفری', category: 'حقوقی', basePrice: 150000, unit: 'مورد', description: 'تنظیم و ثبت شکایت کیفری', active: true },
   { id: 's59', name: 'اینترنت ADSL', category: 'مخابرات', basePrice: 35000, unit: 'مورد', description: 'درخواست و راه‌اندازی اینترنت ADSL', active: true },
   { id: 's60', name: 'ساخت ایمیل سازمانی', category: 'مخابرات', basePrice: 60000, unit: 'ایمیل', description: 'ایجاد ایمیل حرفه‌ای با دامنه اختصاصی', active: true },
+  { id: 's61', name: 'ثبت‌نام سرویس اینترنت آسیاتک', category: 'مخابرات', basePrice: 50000, unit: 'مورد', description: 'ثبت‌نام، فعال‌سازی و انتقال سرویس ADSL/VDSL/فیبر نوری آسیاتک', active: true },
 ];
 
 const initialNews: NewsItem[] = [
