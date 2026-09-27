@@ -5,6 +5,7 @@ import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
 import Home from './pages/Home';
 import Services from './pages/Services';
+import ServiceOrder from './pages/ServiceOrder';
 import MediaCatalog from './pages/MediaCatalog';
 import Store from './pages/Store';
 import WebDesign from './pages/WebDesign';
@@ -61,6 +62,7 @@ function AppRoutes() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/services" element={<Services />} />
+        <Route path="/services/:id" element={<ServiceOrder />} />
         <Route path="/media" element={<MediaCatalog />} />
         <Route path="/store" element={<Store />} />
         <Route path="/webdesign" element={<WebDesign />} />
