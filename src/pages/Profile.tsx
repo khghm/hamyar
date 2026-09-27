@@ -18,12 +18,11 @@ export default function Profile() {
   const selectedMedia = mediaItems.filter(m => currentUser.selectedMedia.includes(m.id));
   const userOrders = orders.filter(o => o.customerId === currentUser.id);
   
-  // Get products from cart (localStorage)
-  const cartData = localStorage.getItem('hamyar_cart');
-  const cart = cartData ? JSON.parse(cartData) : [];
+  // Get products from cart (from user data)
+  const cart = currentUser.cart || [];
   const cartProducts = cart.map((item: any) => {
-    const product = products.find(p => p.id === item.id);
-    return product ? { ...product, qty: item.qty } : null;
+    const product = products.find(p => p.id === item.productId);
+    return product ? { ...product, qty: item.quantity } : null;
   }).filter(Boolean);
 
   const levelLabels: Record<string, string> = { normal: 'عادی', silver: 'نقره‌ای', gold: 'طلایی', vip: 'VIP' };

@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // Types
+export interface CartItem {
+  productId: string;
+  quantity: number;
+}
+
 export interface User {
   id: string;
   username: string;
@@ -16,6 +21,7 @@ export interface User {
   favorites: string[];
   selectedMedia: string[];
   personaIds?: string[]; // IDs of personas assigned to this customer
+  cart?: CartItem[]; // Shopping cart items
   createdAt: string;
 }
 
@@ -759,6 +765,10 @@ interface AppContextType {
   setUsers: (u: User[]) => void;
   addToFavorites: (mediaId: string) => void;
   selectMedia: (mediaId: string) => void;
+  addToCart: (productId: string, quantity?: number) => void;
+  removeFromCart: (productId: string) => void;
+  updateCartQuantity: (productId: string, quantity: number) => void;
+  clearCart: () => void;
   aboutContent: AboutContent;
   setAboutContent: (a: AboutContent) => void;
   notes: Note[];
@@ -1653,13 +1663,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUsers(users.map(u => u.id === updated.id ? updated : u));
   };
 
+  const addToCart = (productId: string, quantity: number = 1) => {
+    if (!currentUser) return;
+    const cart = currentUser.cart || [];
+    const existing = cart.find(item => item.productId === productId);
+    const updatedCart = existing
+      ? cart.map(item => item.productId === productId ? { ...item, quantity: item.quantity + quantity } : item)
+      : [...cart, { productId, quantity }];
+    const updated = { ...currentUser, cart: updatedCart };
+    setCurrentUser(updated);
+    setUsers(users.map(u => u.id === updated.id ? updated : u));
+  };
+
+  const removeFromCart = (productId: string) => {
+    if (!currentUser) return;
+    const cart = currentUser.cart || [];
+    const updatedCart = cart.filter(item => item.productId !== productId);
+    const updated = { ...currentUser, cart: updatedCart };
+    setCurrentUser(updated);
+    setUsers(users.map(u => u.id === updated.id ? updated : u));
+  };
+
+  const updateCartQuantity = (productId: string, quantity: number) => {
+    if (!currentUser) return;
+    if (quantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    const cart = currentUser.cart || [];
+    const updatedCart = cart.map(item => item.productId === productId ? { ...item, quantity } : item);
+    const updated = { ...currentUser, cart: updatedCart };
+    setCurrentUser(updated);
+    setUsers(users.map(u => u.id === updated.id ? updated : u));
+  };
+
+  const clearCart = () => {
+    if (!currentUser) return;
+    const updated = { ...currentUser, cart: [] };
+    setCurrentUser(updated);
+    setUsers(users.map(u => u.id === updated.id ? updated : u));
+  };
+
   return (
     <AppContext.Provider value={{
       darkMode, toggleDarkMode, currentUser, login, adminLogin, logout,
       products, setProducts, mediaItems, setMediaItems, services, setServices,
       orders, setOrders, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
-      addToFavorites, selectMedia, aboutContent, setAboutContent,
+      addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, aboutContent, setAboutContent,
       notes, setNotes,
       reviews, setReviews,
       suppliers, setSuppliers,

@@ -5,7 +5,7 @@ import { ArrowRight, ShoppingCart, Star, Package, Shield, Truck, MessageSquare }
 
 export default function ProductDetail() {
   const { id } = useParams();
-  const { darkMode, products, reviews, setReviews, currentUser } = useApp();
+  const { darkMode, products, reviews, setReviews, currentUser, addToCart } = useApp();
   const navigate = useNavigate();
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
@@ -38,6 +38,16 @@ export default function ProductDetail() {
     setNewComment('');
     setNewRating(5);
     alert('نظر شما با موفقیت ثبت شد و پس از تایید مدیریت نمایش داده خواهد شد');
+  };
+
+  const handleAddToCart = () => {
+    if (!currentUser) {
+      alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
+      return;
+    }
+    if (!product) return;
+    addToCart(product.id, 1);
+    alert('محصول به سبد خرید اضافه شد');
   };
 
   if (!product) {
@@ -157,20 +167,7 @@ export default function ProductDetail() {
           {/* Actions */}
           <div className="flex gap-3">
             <button 
-              onClick={() => {
-                const saved = localStorage.getItem('hamyar_cart');
-                const cart = saved ? JSON.parse(saved) : [];
-                const existing = cart.find((c: any) => c.id === product.id);
-                if (existing) {
-                  const updated = cart.map((c: any) => c.id === product.id ? { ...c, qty: c.qty + 1 } : c);
-                  localStorage.setItem('hamyar_cart', JSON.stringify(updated));
-                } else {
-                  cart.push({ id: product.id, qty: 1 });
-                  localStorage.setItem('hamyar_cart', JSON.stringify(cart));
-                }
-                window.dispatchEvent(new Event('cartUpdated'));
-                alert('محصول به سبد خرید اضافه شد');
-              }}
+              onClick={handleAddToCart}
               className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
             >
               <ShoppingCart size={20} />
