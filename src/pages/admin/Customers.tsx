@@ -52,13 +52,12 @@ export default function AdminCustomers() {
   };
 
   // دریافت محصولات از سبد خرید
-  const getCartProducts = () => {
-    const cartData = localStorage.getItem('hamyar_cart');
-    if (!cartData) return [];
-    const cart = JSON.parse(cartData);
-    return cart.map((item: any) => {
-      const product = products.find(p => p.id === item.id);
-      return product ? { ...product, qty: item.qty } : null;
+  const getCartProducts = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user || !user.cart) return [];
+    return user.cart.map((item: any) => {
+      const product = products.find(p => p.id === item.productId);
+      return product ? { ...product, qty: item.quantity } : null;
     }).filter(Boolean);
   };
 
@@ -551,9 +550,9 @@ export default function AdminCustomers() {
                   <Package size={18} className="text-green-600" />
                   محصولات در سبد خرید
                 </h4>
-                {getCartProducts().length > 0 ? (
+                {getCartProducts(detail.id).length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {getCartProducts().map((product: any) => (
+                    {getCartProducts(detail.id).map((product: any) => (
                       <div key={product.id} className={`p-4 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
                         <div className="flex gap-3">
                           {product.image && (
@@ -621,9 +620,35 @@ export default function AdminCustomers() {
                             </div>
                           </div>
                           {order.description && (
-                            <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <p className={`text-sm mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                               {order.description}
                             </p>
+                          )}
+                          {/* نمایش محصولات سفارش */}
+                          {order.items && order.items.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-slate-600">
+                              <p className={`text-xs font-bold mb-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                محصولات سفارش:
+                              </p>
+                              <div className="space-y-2">
+                                {order.items.map((item: any, idx: number) => (
+                                  <div key={idx} className={`flex items-center gap-2 p-2 rounded ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                                    {item.image && (
+                                      <img src={item.image} alt={item.name} className="w-12 h-12 rounded object-cover" />
+                                    )}
+                                    <div className="flex-1">
+                                      <p className="text-xs font-medium">{item.name}</p>
+                                      <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        تعداد: {item.quantity} | قیمت: {item.price.toLocaleString('fa-IR')} ت
+                                      </p>
+                                    </div>
+                                    <p className="text-xs font-bold text-green-600">
+                                      {item.total.toLocaleString('fa-IR')} ت
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
                       ))}

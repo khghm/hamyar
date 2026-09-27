@@ -13,15 +13,17 @@ export default function Store() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000000]);
   const [sortBy, setSortBy] = useState('default');
   const [showMobileFilter, setShowMobileFilter] = useState(false);
-  const [cart, setCart] = useState<{ id: string; qty: number }[]>([]);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [couponError, setCouponError] = useState('');
-  const { campaigns } = useApp();
+  const { campaigns, currentUser, orders, setOrders, addToCart: addToCartStore, removeFromCart: removeFromCartStore, updateCartQuantity, clearCart } = useApp();
 
+  // Load cart from user data
+  const cart = currentUser?.cart || [];
+  
   const cartTotal = cart.reduce((sum, c) => {
-    const p = products.find(pr => pr.id === c.id);
-    return sum + (p ? p.price * c.qty : 0);
+    const p = products.find(pr => pr.id === c.productId);
+    return sum + (p ? p.price * c.quantity : 0);
   }, 0);
 
   const applyCoupon = () => {
@@ -82,26 +84,21 @@ export default function Store() {
   }, [products, categoryFilter, brandFilter, priceRange, search, sortBy]);
 
   const formatPrice = (p: number) => p.toLocaleString('fa-IR');
-  const { currentUser, orders, setOrders } = useApp();
   
   const addToCart = (id: string) => {
-    setCart(prev => {
-      const existing = prev.find(c => c.id === id);
-      if (existing) return prev.map(c => c.id === id ? { ...c, qty: c.qty + 1 } : c);
-      return [...prev, { id, qty: 1 }];
-    });
+    if (!currentUser) {
+      alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
+      return;
+    }
+    addToCartStore(id, 1);
   };
 
   const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(c => c.id !== id));
+    removeFromCartStore(id);
   };
 
   const updateQuantity = (id: string, qty: number) => {
-    if (qty <= 0) {
-      removeFromCart(id);
-    } else {
-      setCart(prev => prev.map(c => c.id === id ? { ...c, qty } : c));
-    }
+    updateCartQuantity(id, qty);
   };
 
   const checkout = () => {
@@ -115,13 +112,13 @@ export default function Store() {
     }
 
     const orderItems = cart.map(c => {
-      const product = products.find(p => p.id === c.id);
+      const product = products.find(p => p.id === c.productId);
       return {
-        productId: c.id,
+        productId: c.productId,
         name: product?.name || '',
         price: product?.price || 0,
-        quantity: c.qty,
-        total: (product?.price || 0) * c.qty
+        quantity: c.quantity,
+        total: (product?.price || 0) * c.quantity
       };
     });
 
@@ -143,7 +140,7 @@ export default function Store() {
     };
 
     setOrders([...orders, newOrder]);
-    setCart([]);
+    clearCart();
     alert(`سفارش شما با کد رهگیری ${newOrder.trackingCode} ثبت شد. برای پرداخت با ما تماس بگیرید.`);
   };
 
@@ -310,37 +307,37 @@ export default function Store() {
       {cart.length > 0 && (
         <div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 p-4 rounded-xl shadow-2xl border z-40 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between mb-3">
-            <span className="font-bold text-sm">سبد خرید ({cart.reduce((s, c) => s + c.qty, 0)} کالا)</span>
-            <button onClick={() => setCart([])} className="text-red-500 text-xs hover:underline">پاک کردن همه</button>
+            <span className="font-bold text-sm">سبد خرید ({cart.reduce((s, c) => s + c.quantity, 0)} کالا)</span>
+            <button onClick={clearCart} className="text-red-500 text-xs hover:underline">پاک کردن همه</button>
           </div>
           
           {/* Cart Items */}
           <div className="max-h-60 overflow-y-auto mb-3 space-y-2">
             {cart.map(item => {
-              const product = products.find(p => p.id === item.id);
+              const product = products.find(p => p.id === item.productId);
               if (!product) return null;
               return (
-                <div key={item.id} className={`flex items-center gap-2 p-2 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                <div key={item.productId} className={`flex items-center gap-2 p-2 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{product.name}</p>
-                    <p className="text-xs text-blue-600">{formatPrice(product.price * item.qty)} تومان</p>
+                    <p className="text-xs text-blue-600">{formatPrice(product.price * item.quantity)} تومان</p>
                   </div>
                   <div className="flex items-center gap-1">
                     <button 
-                      onClick={() => updateQuantity(item.id, item.qty - 1)}
+                      onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                       className={`w-6 h-6 rounded text-xs ${darkMode ? 'bg-slate-600 hover:bg-slate-500' : 'bg-gray-200 hover:bg-gray-300'}`}
                     >
                       -
                     </button>
-                    <span className="text-xs w-6 text-center">{item.qty}</span>
+                    <span className="text-xs w-6 text-center">{item.quantity}</span>
                     <button 
-                      onClick={() => updateQuantity(item.id, item.qty + 1)}
+                      onClick={() => updateQuantity(item.productId, item.quantity + 1)}
                       className={`w-6 h-6 rounded text-xs ${darkMode ? 'bg-slate-600 hover:bg-slate-500' : 'bg-gray-200 hover:bg-gray-300'}`}
                     >
                       +
                     </button>
                     <button 
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.productId)}
                       className="w-6 h-6 rounded text-xs bg-red-500 text-white hover:bg-red-600"
                     >
                       ×
