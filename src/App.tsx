@@ -18,6 +18,7 @@ import MediaDetail from './pages/MediaDetail';
 import NewsDetail from './pages/NewsDetail';
 import TrackOrder from './pages/TrackOrder';
 import FAQ from './pages/FAQ';
+import Cart from './pages/Cart';
 import SupportChat from './components/SupportChat';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminOrders from './pages/admin/Orders';
@@ -65,6 +66,7 @@ function AppRoutes() {
         <Route path="/news/:id" element={<NewsDetail />} />
         <Route path="/track" element={<TrackOrder />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/cart" element={<Cart />} />
       </Route>
 
       {/* Admin Routes */}

@@ -311,6 +311,10 @@ export default function Store() {
             <button onClick={clearCart} className="text-red-500 text-xs hover:underline">پاک کردن همه</button>
           </div>
           
+          <Link to="/cart" className="block w-full py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium text-sm hover:shadow-lg transition-all text-center mb-3">
+            مشاهده سبد خرید و پرداخت
+          </Link>
+          
           {/* Cart Items */}
           <div className="max-h-60 overflow-y-auto mb-3 space-y-2">
             {cart.map(item => {

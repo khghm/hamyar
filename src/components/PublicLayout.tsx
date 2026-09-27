@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useApp } from '../store';
-import { Sun, Moon, Menu, X, User, ChevronDown } from 'lucide-react';
+import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart } from 'lucide-react';
 
 export default function PublicLayout() {
   const { darkMode, toggleDarkMode, currentUser, logout } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
+
+  const cartItemsCount = currentUser?.cart?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
   const navItems = [
     { path: '/', label: 'صفحه اصلی' },
@@ -58,6 +60,18 @@ export default function PublicLayout() {
               <button onClick={toggleDarkMode} className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700 text-yellow-400' : 'hover:bg-gray-100 text-slate-600'}`}>
                 {darkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
+
+              {/* Cart Icon */}
+              {currentUser && (
+                <Link to="/cart" className={`relative p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}>
+                  <ShoppingCart size={20} />
+                  {cartItemsCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {cartItemsCount}
+                    </span>
+                  )}
+                </Link>
+              )}
 
               {currentUser ? (
                 <div className="relative">
