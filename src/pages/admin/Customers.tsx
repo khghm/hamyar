@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
 import { useApp } from '../../store';
-import { Search, Users, Star, Eye, Film, ShoppingCart, Wrench, Package, Calendar, DollarSign, Heart, X } from 'lucide-react';
+import { Search, Users, Star, Eye, Film, ShoppingCart, Wrench, Package, Calendar, DollarSign, Heart, X, UserCheck } from 'lucide-react';
 import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminCustomers() {
   const { 
     darkMode, 
     users, 
+    setUsers,
     mediaItems, 
     products, 
     orders, 
-    services 
+    services,
+    personas 
   } = useApp();
   
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'services'>('overview');
+  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'services' | 'personas'>('overview');
+  const [showPersonaModal, setShowPersonaModal] = useState(false);
 
   const customers = users.filter(u => u.role === 'customer' && (u.name.includes(search) || u.phone.includes(search)));
   const detail = selectedUser ? users.find(u => u.id === selectedUser) : null;
@@ -57,6 +60,19 @@ export default function AdminCustomers() {
       const product = products.find(p => p.id === item.id);
       return product ? { ...product, qty: item.qty } : null;
     }).filter(Boolean);
+  };
+
+  // نسبت دادن پرسونا به مشتری
+  const assignPersona = (userId: string, personaId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    
+    const personaIds = user.personaIds || [];
+    const updatedPersonaIds = personaIds.includes(personaId)
+      ? personaIds.filter(id => id !== personaId)
+      : [...personaIds, personaId];
+    
+    setUsers(users.map(u => u.id === userId ? { ...u, personaIds: updatedPersonaIds } : u));
   };
 
   return (
@@ -121,6 +137,70 @@ export default function AdminCustomers() {
         </div>
         {customers.length === 0 && <p className="text-center py-8 text-sm text-slate-400">مشتری‌ای یافت نشد</p>}
       </div>
+
+      {/* Persona Assignment Modal */}
+      {showPersonaModal && detail && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowPersonaModal(false)}>
+          <div 
+            className={`w-full max-w-2xl p-6 rounded-2xl max-h-[80vh] overflow-y-auto ${darkMode ? 'bg-slate-800' : 'bg-white'}`} 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">اختصاص پرسونا به {detail.name}</h3>
+              <button onClick={() => setShowPersonaModal(false)}><X size={20} /></button>
+            </div>
+            <div className="space-y-3">
+              {personas.map(persona => {
+                const isAssigned = detail.personaIds?.includes(persona.id);
+                return (
+                  <div 
+                    key={persona.id}
+                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                      isAssigned 
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' 
+                        : darkMode ? 'border-slate-600 hover:border-purple-500' : 'border-gray-200 hover:border-purple-300'
+                    }`}
+                    onClick={() => assignPersona(detail.id, persona.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl">{persona.avatar}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold">{persona.name}</h4>
+                          {isAssigned && (
+                            <span className="px-2 py-0.5 rounded text-xs bg-purple-600 text-white">اختصاص یافته</span>
+                          )}
+                        </div>
+                        <p className={`text-xs italic ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{persona.tagline}</p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {persona.services.primaryServices.slice(0, 3).map((service, idx) => (
+                            <span key={idx} className={`text-xs px-2 py-0.5 rounded ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-600'}`}>
+                              {service}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {personas.length === 0 && (
+              <div className="text-center py-8">
+                <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  هنوز پرسونایی تعریف نشده است
+                </p>
+              </div>
+            )}
+            <button 
+              onClick={() => setShowPersonaModal(false)}
+              className="w-full mt-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
+            >
+              بستن
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Customer Detail Modal */}
       {detail && (
@@ -191,6 +271,7 @@ export default function AdminCustomers() {
             <div className="flex gap-2 mb-4 overflow-x-auto">
               {[
                 { id: 'overview', label: 'نمای کلی', icon: Users },
+                { id: 'personas', label: 'پرسوناها', icon: UserCheck },
                 { id: 'media', label: 'فیلم‌ها', icon: Film },
                 { id: 'products', label: 'محصولات', icon: Package },
                 { id: 'orders', label: 'سفارشات', icon: ShoppingCart },
@@ -239,6 +320,37 @@ export default function AdminCustomers() {
                   </div>
                 </div>
 
+                {/* Assigned Personas */}
+                {detail.personaIds && detail.personaIds.length > 0 && (
+                  <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
+                    <h4 className="font-bold mb-3 flex items-center gap-2">
+                      <UserCheck size={18} className="text-purple-600" />
+                      پرسوناهای اختصاص یافته
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {detail.personaIds.map(personaId => {
+                        const persona = personas.find(p => p.id === personaId);
+                        if (!persona) return null;
+                        return (
+                          <div key={personaId} className={`p-3 rounded-lg flex items-center gap-3 ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                            <div className="text-3xl">{persona.avatar}</div>
+                            <div className="flex-1">
+                              <p className="font-bold text-sm">{persona.name}</p>
+                              <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{persona.tagline}</p>
+                            </div>
+                            <button
+                              onClick={() => assignPersona(detail.id, personaId)}
+                              className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Recent Activity */}
                 <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                   <h4 className="font-bold mb-3">فعالیت‌های اخیر</h4>
@@ -278,6 +390,79 @@ export default function AdminCustomers() {
                     )}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeDetailTab === 'personas' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold flex items-center gap-2">
+                    <UserCheck size={18} className="text-purple-600" />
+                    مدیریت پرسوناهای مشتری
+                  </h4>
+                  <button
+                    onClick={() => setShowPersonaModal(true)}
+                    className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm hover:bg-purple-700 flex items-center gap-2"
+                  >
+                    <UserCheck size={16} />
+                    اختصاص پرسونا
+                  </button>
+                </div>
+
+                {detail.personaIds && detail.personaIds.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {detail.personaIds.map(personaId => {
+                      const persona = personas.find(p => p.id === personaId);
+                      if (!persona) return null;
+                      return (
+                        <div key={personaId} className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="text-4xl">{persona.avatar}</div>
+                              <div>
+                                <h5 className="font-bold">{persona.name}</h5>
+                                <p className={`text-xs italic ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{persona.tagline}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => assignPersona(detail.id, personaId)}
+                              className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div>
+                              <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>سن: </span>
+                              <span className="font-medium">{persona.demographics.ageRange}</span>
+                            </div>
+                            <div>
+                              <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>شغل: </span>
+                              <span className="font-medium">{persona.demographics.occupation}</span>
+                            </div>
+                            <div>
+                              <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>خدمات اصلی: </span>
+                              <span className="font-medium">{persona.services.primaryServices.join(', ')}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className={`p-8 rounded-xl border text-center ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                    <UserCheck size={48} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
+                    <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      هنوز پرسونایی به این مشتری اختصاص داده نشده است
+                    </p>
+                    <button
+                      onClick={() => setShowPersonaModal(true)}
+                      className="mt-4 px-6 py-2 rounded-lg bg-purple-600 text-white text-sm hover:bg-purple-700"
+                    >
+                      اختصاص پرسونا
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

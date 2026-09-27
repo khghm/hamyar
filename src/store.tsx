@@ -15,6 +15,7 @@ export interface User {
   level: 'normal' | 'silver' | 'gold' | 'vip';
   favorites: string[];
   selectedMedia: string[];
+  personaIds?: string[]; // IDs of personas assigned to this customer
   createdAt: string;
 }
 
@@ -320,6 +321,50 @@ export interface AffiliateTransaction {
   status: 'pending' | 'completed' | 'rejected';
   createdAt: string;
   completedAt?: string;
+}
+
+export interface Persona {
+  id: string;
+  name: string;
+  avatar: string; // emoji or image URL
+  tagline: string; // شعار کوتاه
+  demographics: {
+    ageRange: string; // مثال: 25-35
+    gender: 'male' | 'female' | 'mixed';
+    location: string;
+    education: string;
+    occupation: string;
+    incomeLevel: 'low' | 'medium' | 'high' | 'very-high';
+  };
+  psychographics: {
+    personality: string[]; // ویژگی‌های شخصیتی
+    values: string[]; // ارزش‌ها
+    interests: string[]; // علایق
+    lifestyle: string; // سبک زندگی
+  };
+  behavior: {
+    buyingHabits: string; // عادات خرید
+    preferredChannels: string[]; // کانال‌های ترجیحی
+    decisionFactors: string[]; // عوامل تصمیم‌گیری
+    painPoints: string[]; // نقاط درد
+    goals: string[]; // اهداف
+  };
+  services: {
+    primaryServices: string[]; // خدمات اصلی مورد استفاده
+    frequency: 'daily' | 'weekly' | 'monthly' | 'occasionally';
+    avgSpending: number; // میانگین هزینه
+    preferredPayment: string; // روش پرداخت ترجیحی
+  };
+  scenario: {
+    typicalDay: string; // یک روز معمولی
+    challenges: string[]; // چالش‌ها
+    solutions: string[]; // راه‌حل‌های ما
+    touchpoints: string[]; // نقاط تماس
+  };
+  quote: string; // نقل قول نمونه
+  notes: string; // یادداشت‌های اضافی
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DigitalMarketingData {
@@ -764,6 +809,8 @@ interface AppContextType {
   setAffiliateOrders: (o: AffiliateOrder[]) => void;
   affiliateTransactions: AffiliateTransaction[];
   setAffiliateTransactions: (t: AffiliateTransaction[]) => void;
+  personas: Persona[];
+  setPersonas: (p: Persona[]) => void;
 }
 
 export interface AboutContent {
@@ -1296,6 +1343,145 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [personas, setPersonas] = useState<Persona[]>(() => {
+    const saved = localStorage.getItem('hamyar_personas');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    // پرسوناهای پیش‌فرض
+    return [
+      {
+        id: 'persona1',
+        name: 'دانشجوی فعال',
+        avatar: '🎓',
+        tagline: 'دنبال خدمات سریع و ارزان برای پروژه‌های دانشگاهی',
+        demographics: {
+          ageRange: '18-25',
+          gender: 'mixed',
+          location: 'شهرهای بزرگ',
+          education: 'دانشجو',
+          occupation: 'دانشجو',
+          incomeLevel: 'low'
+        },
+        psychographics: {
+          personality: ['کنجکاو', 'صرفه‌جو', 'تکنولوژی‌دوست'],
+          values: ['سرعت', 'قیمت مناسب', 'کیفیت'],
+          interests: ['تکنولوژی', 'فیلم', 'بازی'],
+          lifestyle: 'پرجنب‌وجوش و دیجیتال'
+        },
+        behavior: {
+          buyingHabits: 'مقایسه قیمت قبل از خرید',
+          preferredChannels: ['اینستاگرام', 'تلگرام'],
+          decisionFactors: ['قیمت', 'سرعت انجام', 'نظرات دیگران'],
+          painPoints: ['بودجه محدود', 'کمبود وقت', 'پیچیدگی خدمات'],
+          goals: ['انجام پروژه‌های دانشگاهی', 'یادگیری مهارت‌های جدید']
+        },
+        services: {
+          primaryServices: ['پرینت و اسکن', 'تایپ', 'کپی فیلم'],
+          frequency: 'weekly',
+          avgSpending: 50000,
+          preferredPayment: 'کارت به کارت'
+        },
+        scenario: {
+          typicalDay: 'صبح دانشگاه، عصر پروژه‌های درسی، شب فیلم و سریال',
+          challenges: ['بودجه محدود', 'مهلت‌های فشرده', 'نیاز به خدمات سریع'],
+          solutions: ['قیمت‌های دانشجویی', 'انجام فوری', 'بسته‌های ویژه'],
+          touchpoints: ['اینستاگرام', 'سایت', 'مراجعه حضوری']
+        },
+        quote: 'من به دنبال خدماتی هستم که سریع و ارزان باشه',
+        notes: 'این گروه هدف اصلی ما برای خدمات پرینت و تایپ هستند',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'persona2',
+        name: 'کارمند حرفه‌ای',
+        avatar: '💼',
+        tagline: 'نیازمند خدمات با کیفیت برای کار و زندگی شخصی',
+        demographics: {
+          ageRange: '25-40',
+          gender: 'mixed',
+          location: 'تهران و کلان‌شهرها',
+          education: 'لیسانس و بالاتر',
+          occupation: 'کارمند',
+          incomeLevel: 'medium'
+        },
+        psychographics: {
+          personality: ['منظم', 'کیفیت‌محور', 'مشتری‌مدار'],
+          values: ['کیفیت', 'اعتماد', 'راحتی'],
+          interests: ['تکنولوژی', 'سرمایه‌گذاری', 'سفر'],
+          lifestyle: 'متعادل و حرفه‌ای'
+        },
+        behavior: {
+          buyingHabits: 'تحقیق قبل از خرید',
+          preferredChannels: ['وب‌سایت', 'واتساپ'],
+          decisionFactors: ['کیفیت', 'اعتبار', 'پشتیبانی'],
+          painPoints: ['کمبود وقت', 'نیاز به خدمات حرفه‌ای', 'پیچیدگی فرآیندها'],
+          goals: ['ارتقای شغلی', 'مدیریت بهتر زندگی', 'یادگیری']
+        },
+        services: {
+          primaryServices: ['ترجمه رسمی', 'طراحی سایت', 'خدمات اداری'],
+          frequency: 'monthly',
+          avgSpending: 200000,
+          preferredPayment: 'کارت بانکی'
+        },
+        scenario: {
+          typicalDay: 'صبح کار، ناهار با همکاران، عصر ورزش یا مطالعه',
+          challenges: ['مدیریت زمان', 'نیاز به خدمات حرفه‌ای', 'بودجه متوسط'],
+          solutions: ['خدمات آنلاین', 'بسته‌های ویژه', 'مشاوره رایگان'],
+          touchpoints: ['وب‌سایت', 'ایمیل', 'مراجعه حضوری']
+        },
+        quote: 'من به دنبال خدماتی هستم که حرفه‌ای و قابل اعتماد باشه',
+        notes: 'این گروه برای خدمات ترجمه و طراحی سایت مناسب هستند',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'persona3',
+        name: 'صاحب کسب‌وکار',
+        avatar: '🏢',
+        tagline: 'نیازمند خدمات دیجیتال برای رشد کسب‌وکار',
+        demographics: {
+          ageRange: '30-50',
+          gender: 'mixed',
+          location: 'سراسر ایران',
+          education: 'لیسانس و بالاتر',
+          occupation: 'کارآفرین',
+          incomeLevel: 'high'
+        },
+        psychographics: {
+          personality: ['ریسک‌پذیر', 'خلاق', 'نتیجه‌محور'],
+          values: ['رشد', 'نوآوری', 'سودآوری'],
+          interests: ['کسب‌وکار', 'تکنولوژی', 'بازاریابی'],
+          lifestyle: 'پرجنب‌وجوش و هدفمند'
+        },
+        behavior: {
+          buyingHabits: 'سرمایه‌گذاری در خدمات با کیفیت',
+          preferredChannels: ['لینکدین', 'وب‌سایت'],
+          decisionFactors: ['ROI', 'کیفیت', 'پشتیبانی'],
+          painPoints: ['رقابت شدید', 'نیاز به حضور آنلاین', 'مدیریت زمان'],
+          goals: ['رشد کسب‌وکار', 'افزایش فروش', 'برندسازی']
+        },
+        services: {
+          primaryServices: ['طراحی سایت', 'تولید محتوا', 'دیجیتال مارکتینگ'],
+          frequency: 'monthly',
+          avgSpending: 2000000,
+          preferredPayment: 'حواله بانکی'
+        },
+        scenario: {
+          typicalDay: 'صبح جلسات، ظهر ناهار کاری، عصر برنامه‌ریزی',
+          challenges: ['رقابت', 'بودجه بازاریابی', 'نیاز به نتایج سریع'],
+          solutions: ['پکیج‌های جامع', 'مشاوره تخصصی', 'گزارش‌های منظم'],
+          touchpoints: ['لینکدین', 'وب‌سایت', 'تماس تلفنی']
+        },
+        quote: 'من به دنبال خدماتی هستم که کسب‌وکارم را متحول کند',
+        notes: 'این گروه برای خدمات طراحی سایت و دیجیتال مارکتینگ مناسب هستند',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+  });
+
   const [digitalMarketingData, setDigitalMarketingData] = useState<DigitalMarketingData>(() => {
     const saved = localStorage.getItem('hamyar_digital_marketing');
     if (saved) {
@@ -1394,6 +1580,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_affiliates', JSON.stringify(affiliates)); }, [affiliates]);
   useEffect(() => { localStorage.setItem('hamyar_affiliate_orders', JSON.stringify(affiliateOrders)); }, [affiliateOrders]);
   useEffect(() => { localStorage.setItem('hamyar_affiliate_transactions', JSON.stringify(affiliateTransactions)); }, [affiliateTransactions]);
+  useEffect(() => { localStorage.setItem('hamyar_personas', JSON.stringify(personas)); }, [personas]);
   useEffect(() => { localStorage.setItem('hamyar_digital_marketing', JSON.stringify(digitalMarketingData)); }, [digitalMarketingData]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
@@ -1496,7 +1683,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       digitalMarketingData, setDigitalMarketingData,
       affiliates, setAffiliates,
       affiliateOrders, setAffiliateOrders,
-      affiliateTransactions, setAffiliateTransactions
+      affiliateTransactions, setAffiliateTransactions,
+      personas, setPersonas
     }}>
       {children}
     </AppContext.Provider>
