@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store';
-import { Monitor, Film, ShoppingBag, Globe, ArrowLeft, Newspaper, Star, Shield, Clock } from 'lucide-react';
+import { Monitor, Film, ShoppingBag, Globe, ArrowLeft, Newspaper, Star, Shield, Clock, PenTool, Wifi } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 
 export default function Home() {
@@ -12,7 +12,9 @@ export default function Home() {
     { icon: Monitor, title: 'خدمات کافی‌نت', desc: 'پرینت، اسکن، تایپ، ترجمه، ثبت‌نام و تمامی خدمات اداری', path: '/services', color: 'from-blue-500 to-cyan-500' },
     { icon: Film, title: 'کالکشن فیلم و سریال', desc: 'بزرگ‌ترین مجموعه فیلم، سریال، انیمیشن و انیمه با کیفیت بالا', path: '/media', color: 'from-purple-500 to-pink-500' },
     { icon: ShoppingBag, title: 'فروشگاه محصولات', desc: 'فروش فلش، هارد، کابل، شارژر، دوربین مداربسته و لوازم جانبی', path: '/store', color: 'from-green-500 to-emerald-500' },
-    { icon: Globe, title: 'طراحی وب‌سایت', desc: 'طراحی سایت فروشگاهی، شرکتی و شخصی با جدیدترین تکنولوژی‌ها', path: '/webdesign', color: 'from-orange-500 to-red-500' },
+    { icon: Globe, title: 'طراحی وب‌سایت', desc: 'طراحی سایت، ساخت اپلیکیشن و ربات تلگرامی و غیرتلگرامی', path: '/webdesign', color: 'from-orange-500 to-red-500' },
+    { icon: PenTool, title: 'تولید محتوا', desc: 'تولید محتوای متنی، تصویری و ویدیویی، مدیریت شبکه‌های اجتماعی و سئو', path: '/content', color: 'from-pink-500 to-rose-500' },
+    { icon: Wifi, title: 'نمایندگی اینترنت آسیاتک', desc: 'ثبت‌نام و فروش سرویس‌های اینترنت ثابت ADSL، VDSL و فیبر نوری آسیاتک', path: '/asiatech', color: 'from-red-500 to-orange-500' },
   ];
 
   const stats = [
@@ -94,7 +96,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">خدمات ما</h2>
-            <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>چهار جریان خدماتی برای پاسخگویی به تمامی نیازهای دیجیتال شما</p>
+            <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>شش جریان خدماتی برای پاسخگویی به تمامی نیازهای دیجیتال شما</p>
           </div>
           
           {/* Banner Grid */}
@@ -171,7 +173,45 @@ export default function Home() {
                   </div>
                   <h3 className="text-2xl font-bold text-white">طراحی وب‌سایت</h3>
                 </div>
-                <p className="text-white/90 text-sm">طراحی سایت فروشگاهی، شرکتی و شخصی با جدیدترین تکنولوژی‌ها</p>
+                <p className="text-white/90 text-sm">طراحی سایت، ساخت اپلیکیشن و ربات‌های تلگرامی و غیرتلگرامی</p>
+              </div>
+            </Link>
+
+            {/* Content Marketing Banner */}
+            <Link to="/content" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <img 
+                src="https://image.qwenlm.ai/generated-images/8f3c2a1e-7b4d-4e9f-a6c1-d52b8e9f0a37/_result.png" 
+                alt="تولید محتوا" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
+                    <PenTool size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">تولید محتوا</h3>
+                </div>
+                <p className="text-white/90 text-sm">محتوای متنی، تصویری و ویدیویی، مدیریت شبکه‌های اجتماعی و سئو</p>
+              </div>
+            </Link>
+
+            {/* Asiatech Internet Banner */}
+            <Link to="/asiatech" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
+              <img 
+                src="https://image.qwenlm.ai/generated-images/b7e14d92-3c6a-4f8b-9d2e-6a1c5f8b3e70/_result.png" 
+                alt="نمایندگی اینترنت آسیاتک" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+                    <Wifi size={24} className="text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white">نمایندگی اینترنت آسیاتک</h3>
+                </div>
+                <p className="text-white/90 text-sm">ثبت‌نام سرویس‌های اینترنت ثابت ADSL، VDSL و فیبر نوری</p>
               </div>
             </Link>
           </div>

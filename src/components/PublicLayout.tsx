@@ -18,6 +18,8 @@ export default function PublicLayout() {
     { path: '/media', label: 'کالکشن فیلم و سریال' },
     { path: '/store', label: 'فروشگاه' },
     { path: '/webdesign', label: 'طراحی سایت' },
+    { path: '/content', label: 'تولید محتوا' },
+    { path: '/asiatech', label: 'اینترنت آسیاتک' },
     { path: '/track', label: 'پیگیری سفارش' },
     { path: '/faq', label: 'سوالات متداول' },
     { path: '/news', label: 'اخبار' },

@@ -8,6 +8,8 @@ import Services from './pages/Services';
 import MediaCatalog from './pages/MediaCatalog';
 import Store from './pages/Store';
 import WebDesign from './pages/WebDesign';
+import ContentMarketing from './pages/ContentMarketing';
+import Asiatech from './pages/Asiatech';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import News from './pages/News';
@@ -62,6 +64,8 @@ function AppRoutes() {
         <Route path="/media" element={<MediaCatalog />} />
         <Route path="/store" element={<Store />} />
         <Route path="/webdesign" element={<WebDesign />} />
+        <Route path="/content" element={<ContentMarketing />} />
+        <Route path="/asiatech" element={<Asiatech />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/news" element={<News />} />
