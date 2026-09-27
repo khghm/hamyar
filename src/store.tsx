@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { logActivity } from './utils/auditLog';
 
 // Types
 export interface CartItem {
@@ -72,6 +73,18 @@ export interface Service {
   active: boolean;
 }
 
+export interface OrderItem {
+  productId?: string;
+  name?: string;
+  price?: number;
+  quantity?: number;
+  total?: number;
+  image?: string;
+  [key: string]: any;
+}
+
+export type OrderStatus = 'new' | 'processing' | 'ready' | 'delivered' | 'cancelled';
+
 export interface Order {
   id: string;
   trackingCode: string;
@@ -79,9 +92,9 @@ export interface Order {
   customerName: string;
   type: 'service' | 'media' | 'product' | 'webdesign';
   channel: string;
-  status: 'new' | 'processing' | 'ready' | 'delivered' | 'cancelled';
+  status: OrderStatus;
   priority: 'normal' | 'urgent' | 'vip';
-  items: any[];
+  items: OrderItem[];
   total: number;
   paid: number;
   remaining: number;
@@ -89,7 +102,22 @@ export interface Order {
   createdAt: string;
   dueDate?: string;
   description?: string;
+  // Timeline of status changes – kept in sync with the public order-tracking page
+  statusHistory?: { status: OrderStatus; date: string }[];
+  // Marks that stock has already been deducted for this order (prevents double deduction)
+  stockDeducted?: boolean;
+  // Marks that a receipt (رسید) invoice has already been issued for this order
+  receiptInvoiceId?: string;
 }
+
+// Shared Persian labels for order statuses (used by admin orders + public tracking)
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  new: 'جدید',
+  processing: 'در حال انجام',
+  ready: 'آماده تحویل',
+  delivered: 'تحویل شد',
+  cancelled: 'لغو شده',
+};
 
 export interface NewsItem {
   id: string;
@@ -231,6 +259,7 @@ export interface InvoiceItem {
 export interface Invoice {
   id: string;
   invoiceNumber: string;
+  orderId?: string; // لینک به سفارشی که این فاکتور/رسید برای آن صادر شده
   type: 'service' | 'product' | 'webdesign' | 'combined' | 'media';
   date: string;
   dueDate?: string;
@@ -755,6 +784,10 @@ interface AppContextType {
   setServices: (s: Service[]) => void;
   orders: Order[];
   setOrders: (o: Order[]) => void;
+  // Central, consistent way to change an order status. It keeps the public
+  // tracking page in sync, deducts warehouse stock and issues a receipt on delivery.
+  updateOrder: (id: string, patch: Partial<Order>) => void;
+  updateOrderStatus: (id: string, status: OrderStatus) => void;
   news: NewsItem[];
   setNews: (n: NewsItem[]) => void;
   portfolio: PortfolioItem[];
@@ -1632,6 +1665,170 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
+  // ---------------------------------------------------------------------------
+  // Order status <-> public tracking page & warehouse stock synchronization
+  // ---------------------------------------------------------------------------
+  // Refs so the update functions always read the latest state (no stale closures)
+  const ordersRef = useRef(orders);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
+  const invoicesRef = useRef(invoices);
+  useEffect(() => { invoicesRef.current = invoices; }, [invoices]);
+
+  // Sum of quantities locked (deducted) by delivered orders, per product.
+  const totalDeductedQuantities = (allOrders: Order[]): Record<string, number> => {
+    const map: Record<string, number> = {};
+    allOrders.forEach(o => {
+      if (o.status === 'delivered' && Array.isArray(o.items)) {
+        o.items.forEach((it: any) => {
+          const pid = it?.productId;
+          const qty = Number(it?.quantity) || 0;
+          if (pid && qty > 0) map[pid] = (map[pid] || 0) + qty;
+        });
+      }
+    });
+    return map;
+  };
+
+  // Keep warehouse stock in sync when the set of delivered orders changes
+  // (e.g. an order is moved out of "delivered" through a direct setOrders call).
+  const syncStockWithDeliveredOrders = (prevOrders: Order[], nextOrders: Order[]) => {
+    const prevMap = totalDeductedQuantities(prevOrders);
+    const nextMap = totalDeductedQuantities(nextOrders);
+    const affected = new Set([...Object.keys(prevMap), ...Object.keys(nextMap)]);
+    if (affected.size === 0) return;
+    setProducts(prev => prev.map(p => {
+      if (!affected.has(p.id)) return p;
+      const delta = (prevMap[p.id] || 0) - (nextMap[p.id] || 0); // positive => restore stock
+      const next = Math.max(0, p.stock + delta);
+      return next === p.stock ? p : { ...p, stock: next };
+    }));
+  };
+
+  const pushSmsLog = (phone: string, message: string) => {
+    setSmsLogs(prev => [{
+      id: 'sms' + Date.now() + Math.random().toString(36).slice(2, 6),
+      phone,
+      message,
+      date: new Date().toISOString(),
+      status: 'sent' as const,
+    }, ...prev]);
+  };
+
+  const pushAuditLog = (action: string, details: string, module: string) => {
+    setAuditLogs(prev => [logActivity(currentUser?.name || 'مدیر سیستم', action, details, module), ...prev]);
+  };
+
+  // Issue a receipt (رسید) invoice when an order is delivered
+  const issueDeliveryReceipt = (order: Order) => {
+    if (order.receiptInvoiceId && invoicesRef.current.some(inv => inv.id === order.receiptInvoiceId)) return;
+    const now = new Date();
+    const invoice: Invoice = {
+      id: 'inv' + Date.now() + Math.random().toString(36).slice(2, 6),
+      invoiceNumber: 'RCPT-' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '-' + order.trackingCode.replace(/[^A-Za-z0-9]/g, ''),
+      orderId: order.id,
+      type: order.type === 'product' ? 'product' : order.type === 'media' ? 'media' : order.type === 'webdesign' ? 'webdesign' : 'service',
+      date: now.toISOString(),
+      customerName: order.customerName,
+      items: (order.items && order.items.length > 0)
+        ? order.items.map((it: any) => ({
+            name: it.name || 'محصول',
+            quantity: Number(it.quantity) || 1,
+            unit: 'عدد',
+            price: Number(it.price) || 0,
+          }))
+        : [{ name: order.description || 'خدمات ارائه‌شده', quantity: 1, unit: 'خدمت', price: order.total }],
+      subtotal: order.total,
+      discount: 0,
+      discountType: 'fixed',
+      discountAmount: 0,
+      tax: 0,
+      taxAmount: 0,
+      total: order.total,
+      note: `رسید تحویل سفارش ${order.trackingCode}`,
+      status: order.remaining <= 0 ? 'paid' : 'issued',
+      createdAt: now.toISOString(),
+    };
+    setInvoices(prev => [invoice, ...prev]);
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, receiptInvoiceId: invoice.id } : o));
+    pushAuditLog('صدور رسید', `رسید «${invoice.invoiceNumber}» برای سفارش ${order.trackingCode} صادر شد`, 'فاکتورها');
+  };
+
+  // Apply product-order stock deduction at delivery time (single source of truth)
+  const applyProductStockAtDelivery = (order: Order, delivered: boolean) => {
+    if (order.type !== 'product') return;
+    const lines = (order.items || []).filter((it: any) => it?.productId);
+    if (lines.length === 0) return;
+    setProducts(prev => prev.map(p => {
+      const line = lines.find((it: any) => it.productId === p.id);
+      if (!line) return p;
+      const qty = Math.max(0, Number(line.quantity) || 0);
+      const next = delivered ? Math.max(0, p.stock - qty) : p.stock + qty;
+      return next === p.stock ? p : { ...p, stock: next };
+    }));
+  };
+
+  // Central patch function – keeps orders/stock/invoices/logs consistent
+  const updateOrder = (id: string, patch: Partial<Order>) => {
+    const prevList = ordersRef.current;
+    const target = prevList.find(o => o.id === id);
+    if (!target) return;
+    const nextList = prevList.map(o => o.id === id ? { ...o, ...patch } : o);
+    setOrders(nextList);
+    syncStockWithDeliveredOrders(prevList, nextList);
+  };
+
+  const updateOrderStatus = (id: string, status: OrderStatus) => {
+    const order = ordersRef.current.find(o => o.id === id);
+    if (!order || order.status === status) return;
+
+    const wasDelivered = order.status === 'delivered';
+    const isDelivered = status === 'delivered';
+    const history = [...(order.statusHistory || [{ status: order.status, date: order.createdAt }]), { status, date: new Date().toISOString() }];
+
+    setOrders(ordersRef.current.map(o => o.id === id ? { ...o, status, statusHistory: history } : o));
+
+    // Notify the customer via SMS log so the public tracking info stays in sync
+    const customer = users.find(u => u.id === order.customerId);
+    if (customer?.phone) {
+      pushSmsLog(customer.phone, `وضعیت سفارش ${order.trackingCode} به «${ORDER_STATUS_LABELS[status as OrderStatus] || status}» تغییر کرد.`);
+    }
+    pushAuditLog('تغییر وضعیت سفارش', `سفارش ${order.trackingCode} از «${ORDER_STATUS_LABELS[order.status] || order.status}» به «${ORDER_STATUS_LABELS[status as OrderStatus] || status}» تغییر یافت`, 'سفارشات');
+
+    if (isDelivered && !wasDelivered) {
+      // Stock deduction is handled by the effect below (single source of truth)
+      issueDeliveryReceipt(order);
+    }
+  };
+
+  // Safety net: whenever the orders list changes (e.g. kanban drag & drop or
+  // direct edits through setOrders), keep warehouse stock and receipts in sync.
+  const prevOrdersRef = useRef<Order[]>(orders);
+  useEffect(() => {
+    const prev = prevOrdersRef.current;
+    prevOrdersRef.current = orders;
+
+    orders.forEach(o => {
+      const old = prev.find(p => p.id === o.id);
+      const becameDelivered = o.status === 'delivered' && (!old || old.status !== 'delivered');
+      const stoppedBeingDelivered = old?.status === 'delivered' && o.status !== 'delivered';
+
+      if (becameDelivered && !o.stockDeducted) {
+        applyProductStockAtDelivery(o, true);
+        setOrders(cur => cur.map(x => x.id === o.id ? { ...x, stockDeducted: true } : x));
+        pushAuditLog('کسر موجودی انبار', `با تحویل سفارش ${o.trackingCode}، موجودی محصولات فروخته‌شده از انبار کسر شد`, 'محصولات');
+      }
+      if (stoppedBeingDelivered && o.stockDeducted) {
+        applyProductStockAtDelivery(o, false);
+        setOrders(cur => cur.map(x => x.id === o.id ? { ...x, stockDeducted: false } : x));
+        pushAuditLog('بازگشت موجودی انبار', `وضعیت سفارش ${o.trackingCode} از «تحویل شد» خارج شد و موجودی به انبار بازگشت`, 'محصولات');
+      }
+      if (becameDelivered && !o.receiptInvoiceId) {
+        issueDeliveryReceipt(o);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
+
   const login = (phone: string, name: string, invitedBy?: string) => {
     let user = users.find(u => u.phone === phone);
     if (!user) {
@@ -1758,7 +1955,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       darkMode, toggleDarkMode, currentUser, login, adminLogin, logout,
       products, setProducts, mediaItems, setMediaItems, services, setServices,
-      orders, setOrders, news, setNews, portfolio, setPortfolio,
+      orders, setOrders, updateOrder, updateOrderStatus, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
       addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, cartItems, updateAvatar, chargeWallet, deductWallet, aboutContent, setAboutContent,
       notes, setNotes,
