@@ -269,52 +269,12 @@ export default function Store() {
             })}
           </div>
           
-          {/* Coupon */}
-          <div className="mb-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={couponCode}
-                onChange={e => setCouponCode(e.target.value)}
-                placeholder="کد تخفیف"
-                className={`flex-1 px-2 py-1.5 rounded text-xs ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'} border`}
-              />
-              <button
-                onClick={applyCoupon}
-                className="px-3 py-1.5 rounded bg-purple-600 text-white text-xs hover:bg-purple-700"
-              >
-                اعمال
-              </button>
-            </div>
-            {couponError && <p className="text-red-500 text-xs mt-1">{couponError}</p>}
-            {appliedCoupon && (
-              <p className="text-green-600 text-xs mt-1">✓ کد {appliedCoupon.title} اعمال شد</p>
-            )}
-          </div>
-
           <div className="border-t pt-2 mb-3 space-y-1">
             <div className="flex justify-between items-center">
               <span className="text-sm">جمع کل:</span>
               <span className="text-sm">{formatPrice(cartTotal)} تومان</span>
             </div>
-            {discountAmount > 0 && (
-              <div className="flex justify-between items-center text-green-600">
-                <span className="text-sm">تخفیف:</span>
-                <span className="text-sm">-{formatPrice(discountAmount)} تومان</span>
-              </div>
-            )}
-            <div className="flex justify-between items-center pt-1 border-t border-gray-200 dark:border-slate-700">
-              <span className="text-sm font-bold">مبلغ نهایی:</span>
-              <span className="text-blue-600 font-bold">{formatPrice(finalTotal)} تومان</span>
-            </div>
           </div>
-          
-          <button 
-            onClick={checkout}
-            className="w-full py-2.5 rounded-lg bg-green-600 text-white font-medium text-sm hover:bg-green-700 transition-all"
-          >
-            ثبت سفارش
-          </button>
         </div>
       )}
       </div>
