@@ -4,7 +4,7 @@ import { useApp } from '../store';
 import { ShoppingCart, Trash2, Plus, Minus, CreditCard, Wallet, ArrowLeft, Tag, CheckCircle } from 'lucide-react';
 
 export default function Cart() {
-  const { darkMode, currentUser, products, campaigns, orders, setOrders, clearCart, updateCartQuantity, removeFromCart, deductWallet } = useApp();
+  const { darkMode, currentUser, products, campaigns, orders, setOrders, cartItems, clearCart, updateCartQuantity, removeFromCart, deductWallet } = useApp();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
@@ -12,7 +12,8 @@ export default function Cart() {
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'wallet'>('online');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  const cart = currentUser?.cart || [];
+  // Single source of truth: the main store's cart (persisted in localStorage)
+  const cart = cartItems;
   
   const cartTotal = cart.reduce((sum, c) => {
     const p = products.find(pr => pr.id === c.productId);
@@ -63,7 +64,7 @@ export default function Cart() {
       alert('سبد خرید شما خالی است');
       return;
     }
-    if (paymentMethod === 'wallet' && (currentUser.loyaltyPoints || 0) < finalTotal) {
+    if (paymentMethod === 'wallet' && (currentUser.walletBalance || 0) < finalTotal) {
       alert('موجودی کیف پول شما کافی نیست');
       return;
     }
@@ -312,7 +313,7 @@ export default function Cart() {
                   <div className="flex-1">
                     <p className="font-medium text-sm">کیف پول</p>
                     <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                      موجودی: {formatPrice(currentUser.loyaltyPoints || 0)} تومان
+                      موجودی: {formatPrice(currentUser.walletBalance || 0)} تومان
                     </p>
                   </div>
                 </label>
@@ -352,7 +353,7 @@ export default function Cart() {
               {paymentMethod === 'wallet' && (
                 <div className="flex justify-between text-sm">
                   <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>موجودی کیف پول:</span>
-                  <span className="font-bold">{formatPrice(currentUser.loyaltyPoints || 0)} تومان</span>
+                  <span className="font-bold">{formatPrice(currentUser.walletBalance || 0)} تومان</span>
                 </div>
               )}
             </div>

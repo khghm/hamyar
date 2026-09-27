@@ -4,12 +4,13 @@ import { useApp } from '../store';
 import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart } from 'lucide-react';
 
 export default function PublicLayout() {
-  const { darkMode, toggleDarkMode, currentUser, logout } = useApp();
+  const { darkMode, toggleDarkMode, currentUser, logout, cartItems } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
 
-  const cartItemsCount = currentUser?.cart?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  // Read badge count from the main store's cart (single source of truth)
+  const cartItemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const navItems = [
     { path: '/', label: 'صفحه اصلی' },
