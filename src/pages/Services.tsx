@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../store';
-import { Search, SlidersHorizontal, Clock, DollarSign, Filter } from 'lucide-react';
+import { Search, SlidersHorizontal, DollarSign, Filter, ArrowLeft } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 
 export default function Services() {
@@ -206,10 +207,13 @@ export default function Services() {
                 <span className="text-blue-600 font-bold text-lg">{formatPrice(service.basePrice)}</span>
                 <span className={`text-xs mr-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>/ {service.unit}</span>
               </div>
-              <div className={`flex items-center gap-1 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                <Clock size={12} />
-                <span>زمان انجام: متغیر</span>
-              </div>
+              <Link
+                to={`/services/${service.id}`}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
+              >
+                ثبت سفارش
+                <ArrowLeft size={16} />
+              </Link>
             </div>
           </div>
         ))}
@@ -226,10 +230,10 @@ export default function Services() {
       <div className={`mt-12 p-6 rounded-xl border ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-blue-50 border-blue-200'}`}>
         <h3 className="font-bold mb-3">نکات مهم</h3>
         <ul className={`space-y-2 text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+          <li>- روی دکمه «ثبت سفارش» هر خدمت کلیک کنید؛ اطلاعات لازم، بارگذاری مدارک و پرداخت در یک فرم سه‌مرحله‌ای انجام می‌شود</li>
+          <li>- پرداخت از طریق درگاه اینترنتی یا کیف پول امکان‌پذیر است و پس از پرداخت، کد رهگیری سفارش صادر می‌شود</li>
           <li>- قیمت‌ها ممکن است بر اساس حجم، تعداد و فوری بودن تغییر کنند</li>
           <li>- برای سفارش خدمات فوری، ۵۰ درصد اضافه بر قیمت پایه محاسبه می‌شود</li>
-          <li>- خدمات ترجمه تخصصی با قیمت متفاوت محاسبه می‌شوند</li>
-          <li>- برای اطلاع از قیمت دقیق و زمان انجام، با ما تماس بگیرید</li>
           <li>- تمامی خدمات با ضمانت کیفیت ارائه می‌شوند</li>
         </ul>
       </div>

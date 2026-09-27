@@ -67,6 +67,25 @@ export interface MediaItem {
   imdb?: number;
 }
 
+// A dynamic form field shown in the "اطلاعات سفارش" step of the service
+// order wizard. The key is stored inside order.formData.
+export interface ServiceFormField {
+  key: string;
+  label: string;
+  type: 'text' | 'tel' | 'number' | 'email' | 'date' | 'select' | 'textarea';
+  required?: boolean;
+  placeholder?: string;
+  options?: string[]; // used when type === 'select'
+}
+
+// A document slot shown in the "بارگذاری مدارک" step (uploaded from disk).
+export interface ServiceDocField {
+  key: string;
+  label: string;
+  required?: boolean;
+  hint?: string;
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -75,6 +94,11 @@ export interface Service {
   unit: string;
   description: string;
   active: boolean;
+  // Optional per-service customization of the ordering wizard. When missing,
+  // sensible defaults are derived from the service itself so every item in the
+  // internet-cafe services page stays fully orderable.
+  fields?: ServiceFormField[];
+  docs?: ServiceDocField[];
 }
 
 export interface OrderItem {
@@ -112,6 +136,13 @@ export interface Order {
   stockDeducted?: boolean;
   // Marks that a receipt (رسید) invoice has already been issued for this order
   receiptInvoiceId?: string;
+  // ---- Online service-order wizard fields (خدمات کافی‌نت) ----
+  serviceId?: string; // the Service this order was created from
+  formData?: Record<string, string>; // step 1: customer-entered details
+  documents?: { key: string; label: string; name: string; size: number; dataUrl: string }[]; // step 2: uploaded docs
+  paymentMethod?: 'online' | 'wallet';
+  gatewayRef?: string; // bank/gateway reference id for online payments
+  documentStatus?: 'pending' | 'approved' | 'rejected'; // admin review of uploads
 }
 
 // Shared Persian labels for order statuses (used by admin orders + public tracking)
@@ -122,6 +153,232 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   delivered: 'تحویل شد',
   cancelled: 'لغو شده',
 };
+
+// ---------------------------------------------------------------------------
+// Service-order wizard helpers. Every item of the internet-cafe services page
+// is orderable through a 3-step flow (details → documents → payment), so each
+// service gets a set of form fields and document slots. Services can define
+// their own `fields`/`docs`; otherwise defaults are derived from the service
+// category/name so nothing is left unorderable.
+// ---------------------------------------------------------------------------
+const CONTACT_FIELDS: ServiceFormField[] = [
+  { key: 'fullName', label: 'نام و نام خانوادگی', type: 'text', required: true, placeholder: 'مثلاً علی رضایی' },
+  { key: 'nationalId', label: 'کد ملی', type: 'text', required: true, placeholder: '۱۰ رقم بدون خط تیره' },
+  { key: 'phone', label: 'شماره موبایل', type: 'tel', required: true, placeholder: '09xxxxxxxxx' },
+];
+
+export function getServiceFormFields(service: Service): ServiceFormField[] {
+  if (service.fields && service.fields.length > 0) return service.fields;
+  const cat = service.category || '';
+  const name = service.name || '';
+  const qtyField: ServiceFormField = {
+    key: 'quantity',
+    label: `تعداد / حجم کار (${service.unit})`,
+    type: 'number',
+    required: true,
+    placeholder: '1',
+  };
+  const descField: ServiceFormField = {
+    key: 'details', label: 'توضیحات سفارش', type: 'textarea', required: false,
+    placeholder: 'هر نکته‌ای که برای انجام این خدمت لازم است بنویسید...',
+  };
+  const fileField: ServiceFormField = {
+    key: 'fileNote', label: 'آدرس فایل یا لینک منبع (اختیاری)', type: 'text', required: false,
+    placeholder: 'مثلاً لینک گوگل درایو یا توضیح محل فایل',
+  };
+
+  switch (cat) {
+    case 'پرینت':
+    case 'کپی':
+      return [...CONTACT_FIELDS, qtyField,
+        { key: 'colorMode', label: 'نوع چاپ', type: 'select', required: true, options: ['سیاه و سفید', 'رنگی'] },
+        { key: 'paperSize', label: 'قطع کاغذ', type: 'select', required: true, options: ['A4', 'A3', 'A5'] },
+        { key: 'sides', label: 'رو و برگشتی', type: 'select', required: true, options: ['یک رو', 'دو رو'] },
+        fileField, descField];
+    case 'اسکن':
+      return [...CONTACT_FIELDS, qtyField,
+        { key: 'scanQuality', label: 'کیفیت اسکن', type: 'select', required: true, options: ['۳۰۰ DPI', '۶۰۰ DPI', '۱۲۰۰ DPI'] },
+        { key: 'outputFormat', label: 'خروجی', type: 'select', required: true, options: ['PDF', 'JPG', 'هم PDF و هم JPG'] },
+        descField];
+    case 'تایپ':
+      return [...CONTACT_FIELDS, qtyField,
+        { key: 'language', label: 'زبان متن', type: 'select', required: true, options: ['فارسی', 'انگلیسی', 'فارسی و انگلیسی'] },
+        fileField, descField];
+    case 'ترجمه':
+      return [...CONTACT_FIELDS, qtyField,
+        { key: 'sourceLang', label: 'زبان مبدأ', type: 'select', required: true, options: ['فارسی', 'انگلیسی', 'عربی', 'دیگر'] },
+        { key: 'targetLang', label: 'زبان مقصد', type: 'select', required: true, options: ['فارسی', 'انگلیسی', 'عربی', 'دیگر'] },
+        { key: 'certified', label: 'رسمی با مهر دادگستری؟', type: 'select', required: true, options: ['خیر', 'بله'] },
+        fileField, descField];
+    case 'ثبت‌نام':
+      return [...CONTACT_FIELDS,
+        { key: 'portal', label: 'سامانه / سایت مربوطه', type: 'text', required: true, placeholder: 'مثلاً سامانه سنج، ثنا، دولت من' },
+        { key: 'codeTracking', label: 'کد رهگیری یا شماره داوطلبی (در صورت وجود)', type: 'text', required: false },
+        { key: 'loginInfo', label: 'نام کاربری / رمز ورود سامانه (در صورت نیاز)', type: 'text', required: false },
+        descField];
+    case 'رزومه':
+      return [...CONTACT_FIELDS,
+        { key: 'resumeType', label: 'نوع خدمت', type: 'select', required: true, options: ['طراحی رزومه جدید', 'ویرایش رزومه موجود'] },
+        { key: 'jobField', label: 'حوزه شغلی مورد نظر', type: 'text', required: true, placeholder: 'مثلاً برنامه‌نویسی، حسابداری' },
+        { key: 'languageOut', label: 'زبان رزومه', type: 'select', required: true, options: ['فارسی', 'انگلیسی', 'هر دو'] },
+        fileField, descField];
+    case 'نصب':
+      return [...CONTACT_FIELDS,
+        { key: 'osVersion', label: 'ویندوز / سیستم عامل', type: 'select', required: true, options: ['Windows 10', 'Windows 11', 'Linux', 'فرقی نمی‌کند'] },
+        { key: 'softwareName', label: 'نام نرم‌افزار(ها)', type: 'text', required: false, placeholder: 'مثلاً Office، Adobe، آنتی‌ویروس' },
+        { key: 'deviceModel', label: 'مدل دستگاه (لپ‌تاپ/کیس)', type: 'text', required: false },
+        descField];
+    case 'لمینت':
+    case 'صحافی':
+      return [...CONTACT_FIELDS, qtyField,
+        { key: 'size', label: 'قطع سند', type: 'select', required: true, options: ['A4', 'A3', 'تخصصی'] },
+        { key: 'finish', label: 'نوع جلد / پرداخت', type: 'select', required: false, options: ['معمولی', 'جلد گالینگور', 'فلزی / چسب گرم'] },
+        descField];
+    case 'ارائه':
+      return [...CONTACT_FIELDS,
+        { key: 'slidesCount', label: 'تعداد اسلاید', type: 'number', required: true, placeholder: '15' },
+        { key: 'topic', label: 'موضوع ارائه', type: 'text', required: true },
+        fileField, descField];
+    case 'تبدیل':
+      return [...CONTACT_FIELDS, qtyField,
+        { key: 'fromFormat', label: 'فرمت مبدأ', type: 'text', required: true, placeholder: 'مثلاً PDF' },
+        { key: 'toFormat', label: 'فرمت مقصد', type: 'text', required: true, placeholder: 'مثلاً Word' },
+        fileField, descField];
+    case 'نظام وظیفه':
+      return [...CONTACT_FIELDS,
+        { key: 'serviceStatus', label: 'وضعیت نظام وظیفه', type: 'select', required: true, options: ['معافیت', 'پایان خدمت', 'در حال خدمت', 'هیچ‌کدام'] },
+        { key: 'requestType', label: 'نوع درخواست', type: 'select', required: true, options: ['تعیین تکلیف', 'درخواست معافیت', 'امریه', 'پیگیری '] },
+        descField];
+    case 'قوه قضاییه':
+      return [...CONTACT_FIELDS,
+        { key: 'caseCode', label: 'کد پرونده / بایگانی (اختیاری)', type: 'text', required: false },
+        { key: 'requestType', label: 'نوع درخواست', type: 'select', required: true, options: ['ثبت‌نام و احراز هویت ثنا', 'دریافت ابلاغیه', 'گواهی عدم سوءپیشینه', 'دیگر'] },
+        descField];
+    case 'مالیاتی':
+      return [...CONTACT_FIELDS,
+        { key: 'economicCode', label: 'کد اقتصادی (اختیاری)', type: 'text', required: false },
+        { key: 'taxType', label: 'نوع خدمت مالیاتی', type: 'select', required: true, options: ['تشکیل پرونده', 'ارسال اظهارنامه', 'ارزش افزوده', 'مشاوره'] },
+        { key: 'fiscalYear', label: 'سال مالی', type: 'text', required: false, placeholder: 'مثلاً ۱۴۰۳' },
+        descField];
+    case 'بیمه':
+      return [...CONTACT_FIELDS,
+        { key: 'insuranceType', label: 'نوع بیمه', type: 'select', required: true, options: ['شخص ثالث', 'بدنه', 'عمر و زندگی', 'مسافرتی', 'آتش‌سوزی'] },
+        { key: 'insuredItem', label: 'موضوع بیمه (خودرو/ملک/...)', type: 'text', required: false },
+        { key: 'plateOrDoc', label: 'شماره پلاک یا سند', type: 'text', required: false },
+        { key: 'startDate', label: 'تاریخ شروع پوشش', type: 'date', required: false },
+        descField];
+    case 'شارژ':
+      return [...CONTACT_FIELDS,
+        { key: 'operator', label: 'اپراتور', type: 'select', required: true, options: ['همراه اول', 'ایرانسل', 'رایتل'] },
+        { key: 'phoneNumber', label: 'شماره سیم‌کارت', type: 'tel', required: true, placeholder: '09xxxxxxxxx' },
+        { key: 'packageName', label: 'نوع شارژ / بسته', type: 'text', required: true, placeholder: 'مثلاً بسته ۱۰ گیگ یک‌ماهه' },
+        descField];
+    case 'پلیس +۱۰':
+      return [...CONTACT_FIELDS,
+        { key: 'policeService', label: 'نوع خدمت', type: 'select', required: true, options: ['گذرنامه', 'گواهینامه', 'کارت پایان خدمت', 'کارت ملی', 'دیگر'] },
+        { key: 'appointmentDate', label: 'تاریخ نوبت (در صورت وجود)', type: 'date', required: false },
+        descField];
+    case 'مالی':
+      return [...CONTACT_FIELDS,
+        { key: 'financeType', label: 'نوع خدمت', type: 'select', required: true, options: ['سهام عدالت', 'استعلام بدهی', 'پرداخت اقساط', 'دیگر'] },
+        { key: 'trackingNumber', label: 'شماره پیگیری / کد ملی مرتبط', type: 'text', required: false },
+        descField];
+    case 'بانکی':
+      return [...CONTACT_FIELDS,
+        { key: 'bankName', label: 'نام بانک', type: 'text', required: true, placeholder: 'مثلاً ملت، ملی، پاسارگاد' },
+        { key: 'accountType', label: 'نوع حساب / خدمت', type: 'select', required: true, options: ['افتتاح حساب', 'وام', 'رمز پویا / همراه بانک', 'دیگر'] },
+        descField];
+    case 'حقوقی':
+      return [...CONTACT_FIELDS,
+        { key: 'legalType', label: 'نوع خدمت حقوقی', type: 'select', required: true, options: ['تنظیم قرارداد', 'وکالت‌نامه', 'گواهی حصر وراثت', 'شکایت کیفری', 'دیگر'] },
+        { key: 'parties', label: 'طرفین معامله / دعوا', type: 'text', required: false },
+        descField];
+    case 'قبوض':
+      return [...CONTACT_FIELDS,
+        { key: 'billType', label: 'نوع قبض', type: 'select', required: true, options: ['آب', 'برق', 'گاز', 'تلفن ثابت', 'موبایل'] },
+        { key: 'billId', label: 'شناسه قبض', type: 'text', required: true },
+        { key: 'paymentId', label: 'شناسه پرداخت', type: 'text', required: false },
+        descField];
+    case 'مشاوره':
+      return [...CONTACT_FIELDS,
+        { key: 'consultTopic', label: 'موضوع مشاوره', type: 'text', required: true, placeholder: 'مثلاً انتخاب رشته کنکور ۱۴۰۴' },
+        { key: 'preferredTime', label: 'زمان ترجیحی گفتگو', type: 'text', required: false },
+        descField];
+    case 'مخابرات':
+      return [...CONTACT_FIELDS,
+        { key: 'telecomOperator', label: 'اپراتور', type: 'select', required: true, options: ['آسیاتک', 'مخابرات (TPP)', 'همراه اول', 'ایرانسل', 'رایتل', 'شاتل'] },
+        { key: 'serviceType', label: 'نوع سرویس', type: 'select', required: true, options: ['ADSL', 'VDSL', 'فیبر نوری (FTTH)', 'سیم‌کارت دائمی', 'ایمیل سازمانی', 'دیگر'] },
+        { key: 'phoneNumber', label: 'شماره تلفن ثابت (برای سرویس اینترنت)', type: 'tel', required: false, placeholder: '0xx-------' },
+        { key: 'address', label: 'آدرس کامل نصب', type: 'textarea', required: true },
+        descField];
+    case 'طراحی':
+      return [...CONTACT_FIELDS,
+        { key: 'projectType', label: 'نوع پروژه', type: 'select', required: true, options: ['سایت شرکتی', 'فروشگاهی', 'اپلیکیشن موبایل', 'ربات تلگرام', 'ربات غیرتلگرامی', 'دیگر'] },
+        { key: 'domainName', label: 'دامنه (در صورت وجود)', type: 'text', required: false },
+        { key: 'features', label: 'امکانات مورد نیاز', type: 'textarea', required: true },
+        descField];
+    default:
+      // Unknown categories still get a complete, working order form.
+      if (/ثبت.?نام|سامانه/.test(name)) return [...CONTACT_FIELDS, { key: 'portal', label: 'سامانه مربوطه', type: 'text', required: true }, descField];
+      return [...CONTACT_FIELDS, qtyField, fileField, descField];
+  }
+}
+
+export function getServiceDocFields(service: Service): ServiceDocField[] {
+  if (service.docs && service.docs.length > 0) return service.docs;
+  const cat = service.category || '';
+  const idCards: ServiceDocField[] = [
+    { key: 'nidFront', label: 'تصویر روی کارت ملی', required: true, hint: 'JPG یا PNG، حداکثر ۵ مگابایت' },
+    { key: 'nidBack', label: 'تصویر پشت کارت ملی', required: true, hint: 'JPG یا PNG، حداکثر ۵ مگابایت' },
+  ];
+  switch (cat) {
+    case 'پرینت':
+    case 'کپی':
+    case 'اسکن':
+    case 'تایپ':
+    case 'تبدیل':
+    case 'ارائه':
+    case 'لمینت':
+    case 'صحافی':
+    case 'نصب':
+    case 'اداری':
+      return [{ key: 'sourceFile', label: 'فایل اصلی (Word / PDF / عکس)', required: true, hint: 'فرمت‌های مجاز: docx, pdf, jpg, png' }];
+    case 'ترجمه':
+      return [{ key: 'sourceDoc', label: 'فایل یا تصویر متن قابل ترجمه', required: true }, { key: 'nidPhoto', label: 'تصویر کارت ملی (برای ترجمه رسمی)', required: false }];
+    case 'ثبت‌نام':
+      return [...idCards, { key: 'extraDoc', label: 'مدارک خاص سامانه (در صورت نیاز)', required: false }];
+    case 'رزومه':
+      return [{ key: 'oldResume', label: 'رزومه قبلی یا سوابق کاری', required: false }, { key: 'degree', label: 'تصویر مدرک تحصیلی', required: false }, { key: 'photo', label: 'عکس پرسنلی', required: false }];
+    case 'نظام وظیفه':
+      return [...idCards, { key: 'serviceCard', label: 'کارت پایان خدمت / معافیت', required: false }];
+    case 'قوه قضاییه':
+      return [...idCards];
+    case 'مالیاتی':
+      return [...idCards, { key: 'bizLicense', label: 'آگهی تأسیس / پروانه کسب', required: false }, { key: 'bankStmt', label: 'پرینت حساب بانکی', required: false }];
+    case 'بیمه':
+      return [...idCards, { key: 'vehicleDoc', label: 'تصویر سند / کارت خودرو (برای بیمه خودرو)', required: false }, { key: 'deed', label: 'تصویر سند ملک (برای بیمه آتش‌سوزی)', required: false }];
+    case 'پلیس +۱۰':
+      return [...idCards, { key: 'oldDocs', label: 'مدارک مرتبط (گواهینامه/گذرنامه قبلی)', required: false }, { key: 'photo', label: 'عکس ۴×۳', required: false }];
+    case 'بانکی':
+    case 'مالی':
+      return [...idCards, { key: 'paySlip', label: 'فیش حقوقی / گواهی اشتغال به کار', required: false }];
+    case 'حقوقی':
+      return [...idCards, { key: 'contractDraft', label: 'پیش‌نویس یا اطلاعات طرفین', required: false }, { key: 'proof', label: 'مدارک مثبته', required: false }];
+    case 'مخابرات':
+      return [...idCards, { key: 'billPhoto', label: 'تصویر آخرین قبض تلفن ثابت', required: false }, { key: 'addressProof', label: 'مدیرک احراز آدرس', required: false }];
+    case 'طراحی':
+      return [{ key: 'brief', label: 'بریف / نمونه مورد نظر', required: false }, { key: 'brandAssets', label: 'لوگو و تصاویر برند', required: false }];
+    case 'قبوض':
+    case 'شارژ':
+    case 'مشاوره':
+      return [{ key: 'billImage', label: 'تصویر قبض / اطلاعات سرویس', required: false }];
+    default:
+      return idCards;
+  }
+}
+
+// Urgency surcharge used by both the public wizard and the admin pricing view
+export const SERVICE_URGENCY_MULTIPLIER = 1.5; // ۵۰٪ اضافه برای خدمات فوری
 
 export interface NewsItem {
   id: string;
@@ -827,6 +1084,17 @@ interface AppContextType {
   // tracking page in sync, deducts warehouse stock and issues a receipt on delivery.
   updateOrder: (id: string, patch: Partial<Order>) => void;
   updateOrderStatus: (id: string, status: OrderStatus) => void;
+  // Creates a paid service order from the public ordering wizard and keeps
+  // every related admin section (orders, invoices/finance, SMS, audit log) in sync.
+  createServiceOrder: (input: {
+    service: Service;
+    quantity: number;
+    urgent: boolean;
+    formData: Record<string, string>;
+    documents: NonNullable<Order['documents']>;
+    paymentMethod: 'online' | 'wallet';
+    gatewayRef?: string;
+  }) => { ok: boolean; error?: string; order?: Order };
   news: NewsItem[];
   setNews: (n: NewsItem[]) => void;
   portfolio: PortfolioItem[];
@@ -1180,8 +1448,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : initialMedia;
   });
   const [services, setServices] = useState<Service[]>(() => {
-    const saved = localStorage.getItem('hamyar_services');
-    return saved ? JSON.parse(saved) : initialServices;
+    try {
+      const saved = localStorage.getItem('hamyar_services');
+      return saved ? JSON.parse(saved) : initialServices;
+    } catch {
+      return initialServices;
+    }
   });
   const [orders, setOrders] = useState<Order[]>(() => {
     const saved = localStorage.getItem('hamyar_orders');
@@ -1892,6 +2164,96 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // Online service-order wizard (public side). Creates a fully-paid service
+  // order and keeps every related admin section in sync with its order code:
+  //   • Orders (kanban/list) receive the order with its details + documents
+  //   • Invoices receive an immediate payment receipt (status: paid)
+  //   • Finance income (sum of order.paid) reflects the payment automatically
+  //   • The customer gets an SMS with the tracking code
+  //   • The audit log records the payment method and gateway reference
+  // ---------------------------------------------------------------------------
+  const createServiceOrder: AppContextType['createServiceOrder'] = ({
+    service, quantity, urgent, formData, documents, paymentMethod, gatewayRef,
+  }) => {
+    if (!currentUser) return { ok: false, error: 'برای ثبت سفارش ابتدا وارد حساب کاربری خود شوید' };
+    const qty = Math.max(1, Number(quantity) || 1);
+    const unitPrice = urgent ? Math.round(service.basePrice * SERVICE_URGENCY_MULTIPLIER) : service.basePrice;
+    const total = unitPrice * qty;
+
+    let paidAmount = 0;
+    if (paymentMethod === 'wallet') {
+      const balance = currentUser.walletBalance || 0;
+      if (balance < total) return { ok: false, error: 'موجودی کیف پول شما کافی نیست. لطفاً کیف پول را شارژ کنید یا پرداخت آنلاین را انتخاب نمایید.' };
+      // Deduct from the authoritative users list (and the live session) at once
+      const updatedUsers = usersRef.current.map(u =>
+        u.id === currentUser.id ? { ...u, walletBalance: (u.walletBalance || 0) - total } : u);
+      setUsers(updatedUsers);
+      setCurrentUser(cu => cu ? { ...cu, walletBalance: (cu.walletBalance || 0) - total } : cu);
+      paidAmount = total;
+    } else {
+      // Online gateway flow – in this demo the gateway callback confirms payment
+      paidAmount = total;
+    }
+
+    const now = new Date();
+    const orderId = 'o' + Date.now();
+    const trackingCode = 'HMY-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+    const order: Order = {
+      id: orderId,
+      trackingCode,
+      customerId: currentUser.id,
+      customerName: formData.fullName || currentUser.name,
+      type: 'service',
+      channel: 'وب‌سایت',
+      status: 'new',
+      priority: urgent ? 'urgent' : 'normal',
+      items: [{ name: service.name, price: unitPrice, quantity: qty, total, image: '' }],
+      total,
+      paid: paidAmount,
+      remaining: total - paidAmount,
+      createdAt: now.toISOString(),
+      description: `سفارش آنلاین خدمت «${service.name}» (${qty} ${service.unit})${urgent ? ' – فوری' : ''}`,
+      statusHistory: [{ status: 'new' as OrderStatus, date: now.toISOString() }],
+      serviceId: service.id,
+      formData,
+      documents,
+      paymentMethod,
+      gatewayRef,
+      documentStatus: 'pending',
+    };
+    setOrders([...ordersRef.current, order]);
+
+    // Payment receipt invoice linked to the order id (visible in admin invoices)
+    const invoice: Invoice = {
+      id: 'inv' + Date.now() + Math.random().toString(36).slice(2, 6),
+      invoiceNumber: 'PAY-' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '-' + trackingCode.replace(/[^A-Za-z0-9]/g, ''),
+      orderId,
+      type: 'service',
+      date: now.toISOString(),
+      customerName: order.customerName,
+      customerPhone: formData.phone || currentUser.phone,
+      items: [{ name: service.name, quantity: qty, unit: service.unit, price: unitPrice }],
+      subtotal: total,
+      discount: 0,
+      discountType: 'fixed',
+      discountAmount: 0,
+      tax: 0,
+      taxAmount: 0,
+      total,
+      note: `رسید پرداخت آنلاین سفارش ${trackingCode} – روش پرداخت: ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'}${gatewayRef ? ` (کد پیگیری بانک: ${gatewayRef})` : ''}`,
+      status: 'paid',
+      createdAt: now.toISOString(),
+    };
+    setInvoices(prev => [{ ...invoice }, ...prev]);
+    setOrders(cur => cur.map(o => o.id === orderId ? { ...o, receiptInvoiceId: invoice.id } : o));
+
+    pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${service.name}» با کد رهگیری ${trackingCode} ثبت و پرداخت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان.`);
+    pushAuditLog('ثبت سفارش آنلاین خدمات', `سفارش ${trackingCode} برای خدمت «${service.name}» به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''}`, 'سفارشات');
+
+    return { ok: true, order };
+  };
+
   // Safety net: whenever the orders list changes (e.g. kanban drag & drop or
   // direct edits through setOrders), keep warehouse stock and receipts in sync.
   const prevOrdersRef = useRef<Order[]>(orders);
@@ -2200,7 +2562,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       darkMode, toggleDarkMode, currentUser, login, adminLogin, logout,
       products, setProducts, mediaItems, setMediaItems, services, setServices,
-      orders, setOrders, updateOrder, updateOrderStatus, news, setNews, portfolio, setPortfolio,
+      orders, setOrders, updateOrder, updateOrderStatus, createServiceOrder, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
       addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, cartItems, updateAvatar, chargeWallet, deductWallet, aboutContent, setAboutContent,
       notes, setNotes,
