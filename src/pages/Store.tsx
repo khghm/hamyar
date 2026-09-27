@@ -5,7 +5,7 @@ import { Search, SlidersHorizontal, ShoppingCart, X, Star, ChevronDown, Heart } 
 import { useBanner } from '../hooks/useBanner';
 
 export default function Store() {
-  const { darkMode, products } = useApp();
+  const { darkMode, currentUser, products } = useApp();
   const banner = useBanner('store');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -13,52 +13,7 @@ export default function Store() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000000]);
   const [sortBy, setSortBy] = useState('default');
   const [showMobileFilter, setShowMobileFilter] = useState(false);
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
-  const [couponError, setCouponError] = useState('');
-  const { campaigns, currentUser, orders, setOrders, addToCart: addToCartStore, removeFromCart: removeFromCartStore, updateCartQuantity, clearCart } = useApp();
-
-  // Load cart from user data
-  const cart = currentUser?.cart || [];
-  
-  const cartTotal = cart.reduce((sum, c) => {
-    const p = products.find(pr => pr.id === c.productId);
-    return sum + (p ? p.price * c.quantity : 0);
-  }, 0);
-
-  const applyCoupon = () => {
-    const campaign = campaigns.find(c => c.code === couponCode.toUpperCase() && c.active);
-    if (!campaign) {
-      setCouponError('کد تخفیف معتبر نیست');
-      setAppliedCoupon(null);
-      return;
-    }
-    if (new Date(campaign.endDate) < new Date()) {
-      setCouponError('کد تخفیف منقضی شده است');
-      setAppliedCoupon(null);
-      return;
-    }
-    if (campaign.usedCount >= campaign.maxUses) {
-      setCouponError('ظرفیت استفاده از این کد تکمیل شده است');
-      setAppliedCoupon(null);
-      return;
-    }
-    if (cartTotal < campaign.minPurchase) {
-      setCouponError(`حداقل خرید برای این کد: ${campaign.minPurchase.toLocaleString('fa-IR')} تومان`);
-      setAppliedCoupon(null);
-      return;
-    }
-    setAppliedCoupon(campaign);
-    setCouponError('');
-  };
-
-  const discountAmount = appliedCoupon 
-    ? appliedCoupon.type === 'percent' 
-      ? Math.round(cartTotal * appliedCoupon.discount / 100)
-      : appliedCoupon.discount
-    : 0;
-  
-  const finalTotal = cartTotal - discountAmount;
+  const { cartItems: cart, addToCart: addToCartStore, removeFromCart: removeFromCartStore, updateCartQuantity, clearCart } = useApp();
 
   const categories = Array.from(new Set(products.map(p => p.category)));
   const brands = Array.from(new Set(products.map(p => p.brand)));
@@ -101,48 +56,10 @@ export default function Store() {
     updateCartQuantity(id, qty);
   };
 
-  const checkout = () => {
-    if (!currentUser) {
-      alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
-      return;
-    }
-    if (cart.length === 0) {
-      alert('سبد خرید شما خالی است');
-      return;
-    }
-
-    const orderItems = cart.map(c => {
-      const product = products.find(p => p.id === c.productId);
-      return {
-        productId: c.productId,
-        name: product?.name || '',
-        price: product?.price || 0,
-        quantity: c.quantity,
-        total: (product?.price || 0) * c.quantity
-      };
-    });
-
-    const newOrder = {
-      id: 'o' + Date.now(),
-      trackingCode: 'HMY-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
-      customerId: currentUser.id,
-      customerName: currentUser.name,
-      type: 'product' as const,
-      channel: 'وب‌سایت',
-      status: 'new' as const,
-      priority: 'normal' as const,
-      items: orderItems,
-      total: cartTotal,
-      paid: 0,
-      remaining: cartTotal,
-      createdAt: new Date().toISOString(),
-      description: 'سفارش از فروشگاه آنلاین'
-    };
-
-    setOrders([...orders, newOrder]);
-    clearCart();
-    alert(`سفارش شما با کد رهگیری ${newOrder.trackingCode} ثبت شد. برای پرداخت با ما تماس بگیرید.`);
-  };
+  const cartTotal = cart.reduce((sum, c) => {
+    const p = products.find(pr => pr.id === c.productId);
+    return sum + (p ? p.price * c.quantity : 0);
+  }, 0);
 
   const FilterSidebar = () => (
     <div className="space-y-6">
