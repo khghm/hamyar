@@ -823,6 +823,14 @@ interface AppContextType {
   setPersonas: (p: Persona[]) => void;
 }
 
+export interface SocialMedia {
+  id: string;
+  name: string;
+  url: string;
+  icon: string;
+  handle: string;
+}
+
 export interface AboutContent {
   description: string;
   licenseImage: string;
@@ -830,6 +838,8 @@ export interface AboutContent {
   trustVideo: string;
   mission: string;
   vision: string;
+  logo: string;
+  socialMedia: SocialMedia[];
 }
 
 const defaultAbout: AboutContent = {
@@ -838,7 +848,15 @@ const defaultAbout: AboutContent = {
   trustImages: [],
   trustVideo: '',
   mission: 'ارائه خدمات دیجیتال با کیفیت بالا و قیمت مناسب برای تمامی مشتریان',
-  vision: 'تبدیل شدن به مرجع اصلی خدمات دیجیتال در منطقه'
+  vision: 'تبدیل شدن به مرجع اصلی خدمات دیجیتال در منطقه',
+  logo: '',
+  socialMedia: [
+    { id: 'sm1', name: 'ایتا', url: 'https://eitaa.com/@hamyar_service1', icon: '', handle: '@hamyar_service1' },
+    { id: 'sm2', name: 'روبیکا', url: 'https://rubika.ir/hamyar_service1', icon: '', handle: '@hamyar_service1' },
+    { id: 'sm3', name: 'بله', url: 'https://ble.ir/hamyar_service1', icon: '', handle: '@hamyar_service1' },
+    { id: 'sm4', name: 'تلگرام', url: 'https://t.me/hamyar_service1', icon: '', handle: '@hamyar_service1' },
+    { id: 'sm5', name: 'اینستاگرام', url: 'https://instagram.com/hamyar_service1', icon: '', handle: '@hamyar_service1' },
+  ]
 };
 
 const initialProducts: Product[] = [
