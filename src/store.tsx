@@ -773,6 +773,41 @@ export interface SystemUser {
   createdAt: string;
 }
 
+// Maps an admin panel route to the permission ids that grant access to it.
+// Used both by the sidebar (to hide restricted items) and by the router
+// (to block direct URL access), so the restrictions defined in the RBAC
+// section are actually enforced for every staff account. An empty list
+// means the page is available to all logged-in admins.
+export const ADMIN_PAGE_PERMISSIONS: Record<string, string[]> = {
+  '/admin': [], // dashboard – visible to every logged-in admin
+  '/admin/analytics': ['perm34'],
+  '/admin/digital-marketing': ['perm34'],
+  '/admin/affiliates': ['perm36', 'perm37', 'perm38', 'perm39', 'perm40'],
+  '/admin/personas': ['perm3', 'perm4'],
+  '/admin/orders': ['perm1', 'perm2'],
+  '/admin/notes': ['perm1', 'perm2'],
+  '/admin/customers': ['perm3', 'perm4'],
+  '/admin/invites': ['perm29'],
+  '/admin/products': ['perm5', 'perm6'],
+  '/admin/media': ['perm7', 'perm8'],
+  '/admin/services': ['perm9', 'perm10'],
+  '/admin/projects': ['perm11', 'perm12'],
+  '/admin/finance': ['perm13', 'perm14'],
+  '/admin/invoices': ['perm13', 'perm14'],
+  '/admin/employees': ['perm15', 'perm16'],
+  '/admin/okr-kpi': ['perm15', 'perm16', 'perm34'],
+  '/admin/suppliers': ['perm17', 'perm18'],
+  '/admin/campaigns': ['perm19', 'perm20'],
+  '/admin/sms': ['perm21', 'perm22'],
+  '/admin/reviews': ['perm23', 'perm24'],
+  '/admin/content-team': ['perm27', 'perm28'],
+  '/admin/rbac': ['perm35'],
+  '/admin/training': [], // training – available to all staff accounts
+  '/admin/audit': ['perm32'],
+  '/admin/backup': ['perm33'],
+  '/admin/settings': ['perm30', 'perm31'],
+};
+
 interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -855,6 +890,8 @@ interface AppContextType {
   // Permissions of the logged-in admin (all permissions when undefined / super admin)
   userPermissions?: string[];
   hasPermission: (permId: string) => boolean;
+  // Route-level access check used by the admin sidebar and router guards
+  canAccessPage: (permIds?: string[]) => boolean;
   // Creates a staff account in the RBAC section and keeps it usable for login
   createStaffUser: (data: { username: string; password: string; name: string; roleId: string; email?: string; phone?: string }) => { ok: boolean; error?: string };
   okrs: OKR[];
@@ -1697,6 +1734,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { permissionsRef.current = permissions; }, [permissions]);
   const usersRef = useRef(users);
   useEffect(() => { usersRef.current = users; }, [users]);
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // Whenever the RBAC data changes, refresh the live admin session so that:
+  // - a staff account whose role/permissions were just edited gets them applied
+  //   immediately (without needing to log out and back in),
+  // - an inactive or deleted staff account loses its admin access right away.
+  useEffect(() => {
+    const cu = currentUserRef.current;
+    if (!cu || cu.role !== 'admin' || !cu.currentAdminId) return;
+    const su = systemUsers.find(s => s.id === cu.currentAdminId);
+    if (!su) {
+      // The staff record was removed – drop the elevated session but keep the user logged in
+      setCurrentUser({ ...cu, role: 'customer', currentAdminId: undefined, roleId: undefined, permissions: undefined });
+      setUserPermissions(undefined);
+      return;
+    }
+    if (!su.active) {
+      // Account deactivated by the admin – kick the active session out of the panel
+      setCurrentUser({ ...cu, role: 'customer', permissions: undefined });
+      setUserPermissions(undefined);
+      return;
+    }
+    const role = roles.find(r => r.id === su.roleId);
+    const perms = su.username === 'admin' ? permissions.map(p => p.id) : role?.permissions;
+    setUserPermissions(perms);
+    setCurrentUser(prev => prev && prev.id === cu.id
+      ? { ...prev, name: su.name || su.username, username: su.username, password: su.password, phone: su.phone || '', roleId: su.roleId, permissions: perms }
+      : prev);
+  }, [systemUsers, roles, permissions]);
 
   // Sum of quantities locked (deducted) by delivered orders, per product.
   const totalDeductedQuantities = (allOrders: Order[]): Record<string, number> => {
@@ -1903,6 +1970,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return userPermissions.includes(permId);
   };
 
+  // A page is reachable only if the logged-in admin has at least one of its
+  // permissions. `undefined` means "no permission required" (e.g. the dashboard).
+  const canAccessPage = (permIds?: string[]): boolean => {
+    if (currentUser?.role !== 'admin') return false;
+    if (!permIds || permIds.length === 0) return true;
+    // Super admin (and legacy sessions without a linked staff record) can see everything
+    if (!currentUser.currentAdminId) return true;
+    if (userPermissions === undefined) return true;
+    return permIds.some(p => userPermissions.includes(p));
+  };
+
   // Build the session object for a staff account and make sure it also exists in
   // the users list (so orders, audit logs and the profile page keep working).
   const establishAdminSession = (su: SystemUser, roleName: string, perms?: string[]) => {
@@ -1940,33 +2018,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const pass = password || '';
     if (!uname || !pass) return false;
 
-    // Built-in super admin (kept for backward compatibility)
-    if (uname === 'admin' && pass === 'admin123') {
-      const su = systemUsersRef.current.find(s => s.username === 'admin');
-      if (su && su.active) {
+    // Built-in super admin (kept for backward compatibility). If its staff record
+    // was edited in the RBAC section, the custom password set there also works.
+    if (uname === 'admin') {
+      const su = systemUsersRef.current.find(s => s.username.trim() === 'admin');
+      if (su && su.active && pass === su.password) {
         establishAdminSession(su, 'مدیر کل', permissionsRef.current.map(p => p.id));
         return true;
       }
-      const sessionUser: User = {
-        id: 'admin',
-        username: 'admin',
-        password: 'admin123',
-        role: 'admin',
-        name: 'مدیر سیستم',
-        phone: '09913911880',
-        loyaltyPoints: 0,
-        level: 'vip',
-        favorites: [],
-        selectedMedia: [],
-        createdAt: new Date().toISOString(),
-      };
-      setCurrentUser(sessionUser);
-      setUserPermissions(undefined);
-      return true;
+      if (pass === 'admin123') {
+        if (su && !su.active) return false; // deactivated through the RBAC section
+        const sessionUser: User = {
+          id: 'admin',
+          username: 'admin',
+          password: 'admin123',
+          role: 'admin',
+          name: su?.name || 'مدیر سیستم',
+          phone: su?.phone || '09913911880',
+          loyaltyPoints: 0,
+          level: 'vip',
+          favorites: [],
+          selectedMedia: [],
+          createdAt: new Date().toISOString(),
+        };
+        setCurrentUser(sessionUser);
+        setUserPermissions(undefined);
+        return true;
+      }
+      return false;
     }
 
-    // Any staff account created in the "کنترل دسترسی (RBAC)" section can log in too
-    const su = systemUsersRef.current.find(s => s.username.trim() === uname);
+    // Any staff account created in the "کنترل دسترسی (RBAC)" section can log in too.
+    // Username matching is case-insensitive so accounts saved with different casing
+    // still work, and the role restrictions are attached to the session.
+    const su = systemUsersRef.current.find(s => s.username.trim().toLowerCase() === uname.toLowerCase());
     if (!su) return false;
     if (!su.active) return false;
     if ((su.password || '') !== pass) return false;
@@ -2136,7 +2221,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       roles, setRoles,
       systemUsers, setSystemUsers,
       currentAdminId: currentUser?.currentAdminId,
-      userPermissions, hasPermission, createStaffUser,
+      userPermissions, hasPermission, canAccessPage, createStaffUser,
       okrs, setOkrs,
       kpis, setKpis,
       digitalMarketingData, setDigitalMarketingData,
