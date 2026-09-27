@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp, Persona } from '../../store';
 import { 
   Users, Plus, X, Edit, Trash2, Eye, UserCheck, 
-  TrendingUp, DollarSign, Heart, Target, MessageCircle
+  TrendingUp, DollarSign, Heart, Target, MessageCircle, Upload
 } from 'lucide-react';
 
 export default function AdminPersonas() {
@@ -118,7 +118,28 @@ export default function AdminPersonas() {
     return users.filter(u => u.role === 'customer' && u.personaIds?.includes(personaId));
   };
 
-  const avatarOptions = ['👤', '👨', '👩', '👨‍💼', '👩‍💼', '👨‍🎓', '👩‍🎓', '👴', '👵', '🧑', '👦', '👧', '🎓', '💼', '🏢', '🛒', '🎮', '🎨', '🎵', '📱'];
+  const avatarOptions = [
+    { id: 'student', label: 'دانشجو', icon: '🎓', color: 'from-blue-500 to-cyan-500' },
+    { id: 'professional', label: 'کارمند حرفه‌ای', icon: '💼', color: 'from-purple-500 to-pink-500' },
+    { id: 'business', label: 'صاحب کسب‌وکار', icon: '🏢', color: 'from-green-500 to-emerald-500' },
+    { id: 'developer', label: 'توسعه‌دهنده', icon: '💻', color: 'from-indigo-500 to-blue-500' },
+    { id: 'designer', label: 'طراح', icon: '🎨', color: 'from-pink-500 to-rose-500' },
+    { id: 'gamer', label: 'گیمر', icon: '🎮', color: 'from-red-500 to-orange-500' },
+    { id: 'musician', label: 'موسیقیدان', icon: '🎵', color: 'from-violet-500 to-purple-500' },
+    { id: 'photographer', label: 'عکاس', icon: '📷', color: 'from-amber-500 to-yellow-500' },
+    { id: 'writer', label: 'نویسنده', icon: '✍️', color: 'from-teal-500 to-cyan-500' },
+    { id: 'marketer', label: 'بازاریاب', icon: '📢', color: 'from-orange-500 to-red-500' },
+    { id: 'teacher', label: 'معلم', icon: '👨‍🏫', color: 'from-blue-500 to-indigo-500' },
+    { id: 'doctor', label: 'پزشک', icon: '⚕️', color: 'from-green-500 to-teal-500' },
+    { id: 'lawyer', label: 'وکیل', icon: '⚖️', color: 'from-gray-500 to-slate-500' },
+    { id: 'engineer', label: 'مهندس', icon: '⚙️', color: 'from-blue-500 to-purple-500' },
+    { id: 'artist', label: 'هنرمند', icon: '🎭', color: 'from-pink-500 to-purple-500' },
+    { id: 'chef', label: 'آشپز', icon: '👨‍🍳', color: 'from-orange-500 to-red-500' },
+    { id: 'athlete', label: 'ورزشکار', icon: '⚽', color: 'from-green-500 to-blue-500' },
+    { id: 'traveler', label: 'مسافر', icon: '✈️', color: 'from-cyan-500 to-blue-500' },
+    { id: 'shopper', label: 'خریدار', icon: '🛍️', color: 'from-pink-500 to-rose-500' },
+    { id: 'parent', label: 'والدین', icon: '👨‍👩‍👧', color: 'from-purple-500 to-pink-500' },
+  ];
 
   const incomeLabels: Record<string, string> = {
     low: 'کم',
@@ -625,17 +646,58 @@ export default function AdminPersonas() {
                   </div>
                   <div>
                     <label className="text-sm font-medium block mb-1">آواتار</label>
-                    <div className="flex flex-wrap gap-2">
-                      {avatarOptions.map(emoji => (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {avatarOptions.map(avatar => (
                         <button
-                          key={emoji}
+                          key={avatar.id}
                           type="button"
-                          onClick={() => setForm({...form, avatar: emoji})}
-                          className={`text-2xl p-2 rounded-lg ${form.avatar === emoji ? 'bg-blue-600' : darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-white hover:bg-gray-100'}`}
+                          onClick={() => setForm({...form, avatar: avatar.icon})}
+                          className={`relative group p-3 rounded-xl transition-all ${
+                            form.avatar === avatar.icon 
+                              ? 'ring-2 ring-blue-500 bg-gradient-to-br ' + avatar.color
+                              : darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-white hover:bg-gray-100 border border-gray-200'
+                          }`}
+                          title={avatar.label}
                         >
-                          {emoji}
+                          <span className="text-3xl">{avatar.icon}</span>
+                          <span className={`absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity ${
+                            darkMode ? 'text-slate-300' : 'text-slate-600'
+                          }`}>
+                            {avatar.label}
+                          </span>
                         </button>
                       ))}
+                    </div>
+                    <div className="mt-4">
+                      <label className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-dashed cursor-pointer transition-all ${
+                        darkMode ? 'border-slate-600 hover:border-blue-500 hover:bg-slate-700/50' : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
+                      }`}>
+                        <Upload size={20} className={darkMode ? 'text-slate-400' : 'text-slate-500'} />
+                        <span className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                          آپلود تصویر سفارشی
+                        </span>
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                setForm({...form, avatar: ev.target?.result as string});
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden" 
+                        />
+                      </label>
+                      {form.avatar && form.avatar.startsWith('data:image') && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <img src={form.avatar} alt="آواتار" className="w-12 h-12 rounded-lg object-cover" />
+                          <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>تصویر آپلود شده</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="md:col-span-2">

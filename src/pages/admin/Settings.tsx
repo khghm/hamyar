@@ -266,6 +266,29 @@ export default function AdminSettings() {
       {tab === 'about' && (
         <div className={`p-6 rounded-xl border space-y-4 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <h3 className="font-bold">مدیریت محتوای درباره ما</h3>
+          
+          {/* Logo Upload */}
+          <div>
+            <label className="text-sm font-medium block mb-1">لوگوی سایت</label>
+            <div className="flex items-start gap-4">
+              <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer w-fit ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}>
+                <Upload size={16} /> آپلود لوگو
+                <input type="file" accept="image/*" onChange={handleImageUpload((url) => setAboutContent({...aboutContent, logo: url}))} className="hidden" />
+              </label>
+              {aboutContent.logo && (
+                <div className="relative">
+                  <img src={aboutContent.logo} alt="لوگو" className="w-32 h-32 object-contain rounded-lg border" />
+                  <button 
+                    onClick={() => setAboutContent({...aboutContent, logo: ''})}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div>
             <label className="text-sm font-medium block mb-1">توضیحات</label>
             <textarea value={aboutContent.description} onChange={e => setAboutContent({...aboutContent, description: e.target.value})} rows={4}
@@ -325,6 +348,110 @@ export default function AdminSettings() {
               <input type="file" accept="video/*" onChange={handleVideoUpload} className="hidden" />
             </label>
             {aboutContent.trustVideo && <video src={aboutContent.trustVideo} controls className="mt-2 w-64 rounded" />}
+          </div>
+
+          {/* Social Media Management */}
+          <div>
+            <label className="text-sm font-medium block mb-2">شبکه‌های اجتماعی</label>
+            <div className="space-y-3">
+              {aboutContent.socialMedia.map((social, idx) => (
+                <div key={social.id} className={`p-4 rounded-lg border ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      {social.icon ? (
+                        <img src={social.icon} alt={social.name} className="w-12 h-12 rounded-lg object-cover" />
+                      ) : (
+                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${darkMode ? 'bg-slate-600' : 'bg-gray-200'}`}>
+                          <span className="text-xl font-bold">{social.name.charAt(0)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={social.name}
+                          onChange={e => {
+                            const updated = [...aboutContent.socialMedia];
+                            updated[idx] = { ...social, name: e.target.value };
+                            setAboutContent({...aboutContent, socialMedia: updated});
+                          }}
+                          placeholder="نام شبکه اجتماعی"
+                          className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`}
+                        />
+                        <input
+                          type="text"
+                          value={social.handle}
+                          onChange={e => {
+                            const updated = [...aboutContent.socialMedia];
+                            updated[idx] = { ...social, handle: e.target.value };
+                            setAboutContent({...aboutContent, socialMedia: updated});
+                          }}
+                          placeholder="آیدی (مثال: @hamyar)"
+                          className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`}
+                        />
+                      </div>
+                      <input
+                        type="url"
+                        value={social.url}
+                        onChange={e => {
+                          const updated = [...aboutContent.socialMedia];
+                          updated[idx] = { ...social, url: e.target.value };
+                          setAboutContent({...aboutContent, socialMedia: updated});
+                        }}
+                        placeholder="لینک URL"
+                        className={`w-full px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200'}`}
+                      />
+                      <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer w-fit text-sm ${darkMode ? 'border-slate-600 hover:bg-slate-600' : 'border-gray-300 hover:bg-gray-100'}`}>
+                        <Upload size={14} /> آپلود لوگو
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const updated = [...aboutContent.socialMedia];
+                                updated[idx] = { ...social, icon: ev.target?.result as string };
+                                setAboutContent({...aboutContent, socialMedia: updated});
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden" 
+                        />
+                      </label>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const updated = aboutContent.socialMedia.filter((_, i) => i !== idx);
+                        setAboutContent({...aboutContent, socialMedia: updated});
+                      }}
+                      className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  const newSocial = {
+                    id: 'sm' + Date.now(),
+                    name: '',
+                    url: '',
+                    icon: '',
+                    handle: ''
+                  };
+                  setAboutContent({...aboutContent, socialMedia: [...aboutContent.socialMedia, newSocial]});
+                }}
+                className="w-full px-4 py-3 rounded-lg border-2 border-dashed text-sm font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-center gap-2"
+              >
+                <Plus size={16} />
+                افزودن شبکه اجتماعی جدید
+              </button>
+            </div>
           </div>
 
           <button onClick={() => setAboutContent({...aboutContent})} className="px-6 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
