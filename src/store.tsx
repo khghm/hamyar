@@ -771,6 +771,7 @@ interface AppContextType {
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  cartItems: CartItem[];
   updateAvatar: (avatarUrl: string) => void;
   chargeWallet: (amount: number) => void;
   deductWallet: (amount: number) => boolean;
@@ -1077,6 +1078,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('hamyar_user');
     return saved ? JSON.parse(saved) : null;
+  });
+  // Cart is stored separately in localStorage so it persists across reloads
+  // and cannot be overwritten by stale user data (fixes duplicate/leftover carts).
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('hamyar_cart');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('hamyar_products');
@@ -1582,6 +1593,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [darkMode]);
 
   useEffect(() => { localStorage.setItem('hamyar_user', JSON.stringify(currentUser)); }, [currentUser]);
+  useEffect(() => { localStorage.setItem('hamyar_cart', JSON.stringify(cartItems)); }, [cartItems]);
   useEffect(() => { localStorage.setItem('hamyar_products', JSON.stringify(products)); }, [products]);
   useEffect(() => { localStorage.setItem('hamyar_media', JSON.stringify(mediaItems)); }, [mediaItems]);
   useEffect(() => { localStorage.setItem('hamyar_services', JSON.stringify(services)); }, [services]);
@@ -1664,7 +1676,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return false;
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    setCurrentUser(null);
+    // Remove the cart on logout so no leftover/duplicate cart remains
+    setCartItems([]);
+  };
 
   const addToFavorites = (mediaId: string) => {
     if (!currentUser) return;
@@ -1688,23 +1704,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (productId: string, quantity: number = 1) => {
     if (!currentUser) return;
-    const cart = currentUser.cart || [];
-    const existing = cart.find(item => item.productId === productId);
+    const existing = cartItems.find(item => item.productId === productId);
     const updatedCart = existing
-      ? cart.map(item => item.productId === productId ? { ...item, quantity: item.quantity + quantity } : item)
-      : [...cart, { productId, quantity }];
-    const updated = { ...currentUser, cart: updatedCart };
-    setCurrentUser(updated);
-    setUsers(users.map(u => u.id === updated.id ? updated : u));
+      ? cartItems.map(item => item.productId === productId ? { ...item, quantity: item.quantity + quantity } : item)
+      : [...cartItems, { productId, quantity }];
+    setCartItems(updatedCart);
   };
 
   const removeFromCart = (productId: string) => {
     if (!currentUser) return;
-    const cart = currentUser.cart || [];
-    const updatedCart = cart.filter(item => item.productId !== productId);
-    const updated = { ...currentUser, cart: updatedCart };
-    setCurrentUser(updated);
-    setUsers(users.map(u => u.id === updated.id ? updated : u));
+    setCartItems(cartItems.filter(item => item.productId !== productId));
   };
 
   const updateCartQuantity = (productId: string, quantity: number) => {
@@ -1713,18 +1722,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       removeFromCart(productId);
       return;
     }
-    const cart = currentUser.cart || [];
-    const updatedCart = cart.map(item => item.productId === productId ? { ...item, quantity } : item);
-    const updated = { ...currentUser, cart: updatedCart };
-    setCurrentUser(updated);
-    setUsers(users.map(u => u.id === updated.id ? updated : u));
+    setCartItems(cartItems.map(item => item.productId === productId ? { ...item, quantity } : item));
   };
 
   const clearCart = () => {
-    if (!currentUser) return;
-    const updated = { ...currentUser, cart: [] };
-    setCurrentUser(updated);
-    setUsers(users.map(u => u.id === updated.id ? updated : u));
+    setCartItems([]);
   };
 
   const updateAvatar = (avatarUrl: string) => {
@@ -1758,7 +1760,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       products, setProducts, mediaItems, setMediaItems, services, setServices,
       orders, setOrders, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
-      addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, updateAvatar, chargeWallet, deductWallet, aboutContent, setAboutContent,
+      addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, cartItems, updateAvatar, chargeWallet, deductWallet, aboutContent, setAboutContent,
       notes, setNotes,
       reviews, setReviews,
       suppliers, setSuppliers,
