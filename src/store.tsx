@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { logActivity } from './utils/auditLog';
 
 // Types
 export interface CartItem {
@@ -13,6 +14,10 @@ export interface User {
   role: 'admin' | 'customer';
   name: string;
   phone: string;
+  // Admin-only fields: link to the staff account created in the RBAC section
+  currentAdminId?: string;
+  roleId?: string;
+  permissions?: string[];
   inviteCode?: string;
   invitedBy?: string;
   invitedCount?: number;
@@ -72,6 +77,18 @@ export interface Service {
   active: boolean;
 }
 
+export interface OrderItem {
+  productId?: string;
+  name?: string;
+  price?: number;
+  quantity?: number;
+  total?: number;
+  image?: string;
+  [key: string]: any;
+}
+
+export type OrderStatus = 'new' | 'processing' | 'ready' | 'delivered' | 'cancelled';
+
 export interface Order {
   id: string;
   trackingCode: string;
@@ -79,9 +96,9 @@ export interface Order {
   customerName: string;
   type: 'service' | 'media' | 'product' | 'webdesign';
   channel: string;
-  status: 'new' | 'processing' | 'ready' | 'delivered' | 'cancelled';
+  status: OrderStatus;
   priority: 'normal' | 'urgent' | 'vip';
-  items: any[];
+  items: OrderItem[];
   total: number;
   paid: number;
   remaining: number;
@@ -89,7 +106,22 @@ export interface Order {
   createdAt: string;
   dueDate?: string;
   description?: string;
+  // Timeline of status changes – kept in sync with the public order-tracking page
+  statusHistory?: { status: OrderStatus; date: string }[];
+  // Marks that stock has already been deducted for this order (prevents double deduction)
+  stockDeducted?: boolean;
+  // Marks that a receipt (رسید) invoice has already been issued for this order
+  receiptInvoiceId?: string;
 }
+
+// Shared Persian labels for order statuses (used by admin orders + public tracking)
+export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  new: 'جدید',
+  processing: 'در حال انجام',
+  ready: 'آماده تحویل',
+  delivered: 'تحویل شد',
+  cancelled: 'لغو شده',
+};
 
 export interface NewsItem {
   id: string;
@@ -231,6 +263,7 @@ export interface InvoiceItem {
 export interface Invoice {
   id: string;
   invoiceNumber: string;
+  orderId?: string; // لینک به سفارشی که این فاکتور/رسید برای آن صادر شده
   type: 'service' | 'product' | 'webdesign' | 'combined' | 'media';
   date: string;
   dueDate?: string;
@@ -755,6 +788,10 @@ interface AppContextType {
   setServices: (s: Service[]) => void;
   orders: Order[];
   setOrders: (o: Order[]) => void;
+  // Central, consistent way to change an order status. It keeps the public
+  // tracking page in sync, deducts warehouse stock and issues a receipt on delivery.
+  updateOrder: (id: string, patch: Partial<Order>) => void;
+  updateOrderStatus: (id: string, status: OrderStatus) => void;
   news: NewsItem[];
   setNews: (n: NewsItem[]) => void;
   portfolio: PortfolioItem[];
@@ -813,6 +850,13 @@ interface AppContextType {
   setRoles: (r: Role[]) => void;
   systemUsers: SystemUser[];
   setSystemUsers: (u: SystemUser[]) => void;
+  // The SystemUser record that the current admin session was created from
+  currentAdminId?: string;
+  // Permissions of the logged-in admin (all permissions when undefined / super admin)
+  userPermissions?: string[];
+  hasPermission: (permId: string) => boolean;
+  // Creates a staff account in the RBAC section and keeps it usable for login
+  createStaffUser: (data: { username: string; password: string; name: string; roleId: string; email?: string; phone?: string }) => { ok: boolean; error?: string };
   okrs: OKR[];
   setOkrs: (o: OKR[]) => void;
   kpis: KPI[];
@@ -1125,6 +1169,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('hamyar_users');
     return saved ? JSON.parse(saved) : [];
   });
+  // Staff accounts created in the RBAC section are stored as admin users here so
+  // they share the same customer/admin data model (orders, logs, profile, ...).
+  const staffAdmins: User[] = users.filter(u => u.role === 'admin');
   const [aboutContent, setAboutContent] = useState<AboutContent>(() => {
     const saved = localStorage.getItem('hamyar_about');
     return saved ? JSON.parse(saved) : defaultAbout;
@@ -1632,6 +1679,180 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
 
+  // ---------------------------------------------------------------------------
+  // Order status <-> public tracking page & warehouse stock synchronization
+  // ---------------------------------------------------------------------------
+  // Refs so the update functions always read the latest state (no stale closures)
+  const ordersRef = useRef(orders);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
+  const invoicesRef = useRef(invoices);
+  useEffect(() => { invoicesRef.current = invoices; }, [invoices]);
+  // Refs for the admin login flow – they always hold the latest state so a staff
+  // account created moments ago can log in immediately (no stale closure).
+  const systemUsersRef = useRef(systemUsers);
+  useEffect(() => { systemUsersRef.current = systemUsers; }, [systemUsers]);
+  const rolesRef = useRef(roles);
+  useEffect(() => { rolesRef.current = roles; }, [roles]);
+  const permissionsRef = useRef(permissions);
+  useEffect(() => { permissionsRef.current = permissions; }, [permissions]);
+  const usersRef = useRef(users);
+  useEffect(() => { usersRef.current = users; }, [users]);
+
+  // Sum of quantities locked (deducted) by delivered orders, per product.
+  const totalDeductedQuantities = (allOrders: Order[]): Record<string, number> => {
+    const map: Record<string, number> = {};
+    allOrders.forEach(o => {
+      if (o.status === 'delivered' && Array.isArray(o.items)) {
+        o.items.forEach((it: any) => {
+          const pid = it?.productId;
+          const qty = Number(it?.quantity) || 0;
+          if (pid && qty > 0) map[pid] = (map[pid] || 0) + qty;
+        });
+      }
+    });
+    return map;
+  };
+
+  // Keep warehouse stock in sync when the set of delivered orders changes
+  // (e.g. an order is moved out of "delivered" through a direct setOrders call).
+  const syncStockWithDeliveredOrders = (prevOrders: Order[], nextOrders: Order[]) => {
+    const prevMap = totalDeductedQuantities(prevOrders);
+    const nextMap = totalDeductedQuantities(nextOrders);
+    const affected = new Set([...Object.keys(prevMap), ...Object.keys(nextMap)]);
+    if (affected.size === 0) return;
+    setProducts(prev => prev.map(p => {
+      if (!affected.has(p.id)) return p;
+      const delta = (prevMap[p.id] || 0) - (nextMap[p.id] || 0); // positive => restore stock
+      const next = Math.max(0, p.stock + delta);
+      return next === p.stock ? p : { ...p, stock: next };
+    }));
+  };
+
+  const pushSmsLog = (phone: string, message: string) => {
+    setSmsLogs(prev => [{
+      id: 'sms' + Date.now() + Math.random().toString(36).slice(2, 6),
+      phone,
+      message,
+      date: new Date().toISOString(),
+      status: 'sent' as const,
+    }, ...prev]);
+  };
+
+  const pushAuditLog = (action: string, details: string, module: string) => {
+    setAuditLogs(prev => [logActivity(currentUser?.name || 'مدیر سیستم', action, details, module), ...prev]);
+  };
+
+  // Issue a receipt (رسید) invoice when an order is delivered
+  const issueDeliveryReceipt = (order: Order) => {
+    if (order.receiptInvoiceId && invoicesRef.current.some(inv => inv.id === order.receiptInvoiceId)) return;
+    const now = new Date();
+    const invoice: Invoice = {
+      id: 'inv' + Date.now() + Math.random().toString(36).slice(2, 6),
+      invoiceNumber: 'RCPT-' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '-' + order.trackingCode.replace(/[^A-Za-z0-9]/g, ''),
+      orderId: order.id,
+      type: order.type === 'product' ? 'product' : order.type === 'media' ? 'media' : order.type === 'webdesign' ? 'webdesign' : 'service',
+      date: now.toISOString(),
+      customerName: order.customerName,
+      items: (order.items && order.items.length > 0)
+        ? order.items.map((it: any) => ({
+            name: it.name || 'محصول',
+            quantity: Number(it.quantity) || 1,
+            unit: 'عدد',
+            price: Number(it.price) || 0,
+          }))
+        : [{ name: order.description || 'خدمات ارائه‌شده', quantity: 1, unit: 'خدمت', price: order.total }],
+      subtotal: order.total,
+      discount: 0,
+      discountType: 'fixed',
+      discountAmount: 0,
+      tax: 0,
+      taxAmount: 0,
+      total: order.total,
+      note: `رسید تحویل سفارش ${order.trackingCode}`,
+      status: order.remaining <= 0 ? 'paid' : 'issued',
+      createdAt: now.toISOString(),
+    };
+    setInvoices(prev => [invoice, ...prev]);
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, receiptInvoiceId: invoice.id } : o));
+    pushAuditLog('صدور رسید', `رسید «${invoice.invoiceNumber}» برای سفارش ${order.trackingCode} صادر شد`, 'فاکتورها');
+  };
+
+  // Apply product-order stock deduction at delivery time (single source of truth)
+  const applyProductStockAtDelivery = (order: Order, delivered: boolean) => {
+    if (order.type !== 'product') return;
+    const lines = (order.items || []).filter((it: any) => it?.productId);
+    if (lines.length === 0) return;
+    setProducts(prev => prev.map(p => {
+      const line = lines.find((it: any) => it.productId === p.id);
+      if (!line) return p;
+      const qty = Math.max(0, Number(line.quantity) || 0);
+      const next = delivered ? Math.max(0, p.stock - qty) : p.stock + qty;
+      return next === p.stock ? p : { ...p, stock: next };
+    }));
+  };
+
+  // Central patch function – keeps orders/stock/invoices/logs consistent
+  const updateOrder = (id: string, patch: Partial<Order>) => {
+    const prevList = ordersRef.current;
+    const target = prevList.find(o => o.id === id);
+    if (!target) return;
+    const nextList = prevList.map(o => o.id === id ? { ...o, ...patch } : o);
+    setOrders(nextList);
+    syncStockWithDeliveredOrders(prevList, nextList);
+  };
+
+  const updateOrderStatus = (id: string, status: OrderStatus) => {
+    const order = ordersRef.current.find(o => o.id === id);
+    if (!order || order.status === status) return;
+
+    const wasDelivered = order.status === 'delivered';
+    const isDelivered = status === 'delivered';
+    const history = [...(order.statusHistory || [{ status: order.status, date: order.createdAt }]), { status, date: new Date().toISOString() }];
+
+    setOrders(ordersRef.current.map(o => o.id === id ? { ...o, status, statusHistory: history } : o));
+
+    // Notify the customer via SMS log so the public tracking info stays in sync
+    const customer = users.find(u => u.id === order.customerId);
+    if (customer?.phone) {
+      pushSmsLog(customer.phone, `وضعیت سفارش ${order.trackingCode} به «${ORDER_STATUS_LABELS[status as OrderStatus] || status}» تغییر کرد.`);
+    }
+    pushAuditLog('تغییر وضعیت سفارش', `سفارش ${order.trackingCode} از «${ORDER_STATUS_LABELS[order.status] || order.status}» به «${ORDER_STATUS_LABELS[status as OrderStatus] || status}» تغییر یافت`, 'سفارشات');
+
+    if (isDelivered && !wasDelivered) {
+      // Stock deduction is handled by the effect below (single source of truth)
+      issueDeliveryReceipt(order);
+    }
+  };
+
+  // Safety net: whenever the orders list changes (e.g. kanban drag & drop or
+  // direct edits through setOrders), keep warehouse stock and receipts in sync.
+  const prevOrdersRef = useRef<Order[]>(orders);
+  useEffect(() => {
+    const prev = prevOrdersRef.current;
+    prevOrdersRef.current = orders;
+
+    orders.forEach(o => {
+      const old = prev.find(p => p.id === o.id);
+      const becameDelivered = o.status === 'delivered' && (!old || old.status !== 'delivered');
+      const stoppedBeingDelivered = old?.status === 'delivered' && o.status !== 'delivered';
+
+      if (becameDelivered && !o.stockDeducted) {
+        applyProductStockAtDelivery(o, true);
+        setOrders(cur => cur.map(x => x.id === o.id ? { ...x, stockDeducted: true } : x));
+        pushAuditLog('کسر موجودی انبار', `با تحویل سفارش ${o.trackingCode}، موجودی محصولات فروخته‌شده از انبار کسر شد`, 'محصولات');
+      }
+      if (stoppedBeingDelivered && o.stockDeducted) {
+        applyProductStockAtDelivery(o, false);
+        setOrders(cur => cur.map(x => x.id === o.id ? { ...x, stockDeducted: false } : x));
+        pushAuditLog('بازگشت موجودی انبار', `وضعیت سفارش ${o.trackingCode} از «تحویل شد» خارج شد و موجودی به انبار بازگشت`, 'محصولات');
+      }
+      if (becameDelivered && !o.receiptInvoiceId) {
+        issueDeliveryReceipt(o);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
+
   const login = (phone: string, name: string, invitedBy?: string) => {
     let user = users.find(u => u.phone === phone);
     if (!user) {
@@ -1656,9 +1877,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentUser(user);
   };
 
+  // Permissions granted to the logged-in admin through its RBAC role.
+  // `undefined` means "full access" (super admin / legacy sessions).
+  const [userPermissions, setUserPermissions] = useState<string[] | undefined>(() => {
+    try {
+      const saved = localStorage.getItem('hamyar_user');
+      if (!saved) return undefined;
+      const u: User = JSON.parse(saved);
+      if (u.role !== 'admin' || !u.currentAdminId) return undefined;
+      const su = (JSON.parse(localStorage.getItem('hamyar_system_users') || '[]') as SystemUser[])
+        .find(s => s.id === u.currentAdminId);
+      if (!su) return undefined;
+      const sr = JSON.parse(localStorage.getItem('hamyar_roles') || '[]') as Role[];
+      return sr.find(r => r.id === su.roleId)?.permissions;
+    } catch {
+      return undefined;
+    }
+  });
+
+  const hasPermission = (permId: string): boolean => {
+    if (currentUser?.role !== 'admin') return false;
+    // Super admin (and legacy sessions without a linked staff record) can see everything
+    if (!currentUser.currentAdminId) return true;
+    if (userPermissions === undefined) return true;
+    return userPermissions.includes(permId);
+  };
+
+  // Build the session object for a staff account and make sure it also exists in
+  // the users list (so orders, audit logs and the profile page keep working).
+  const establishAdminSession = (su: SystemUser, roleName: string, perms?: string[]) => {
+    const id = 'admin_' + su.id;
+    const existing = usersRef.current.find(u => u.id === id);
+    const sessionUser: User = {
+      id,
+      username: su.username,
+      password: su.password,
+      role: 'admin',
+      name: su.name || su.username,
+      phone: su.phone || '',
+      loyaltyPoints: existing?.loyaltyPoints ?? 0,
+      level: existing?.level ?? 'vip',
+      favorites: existing?.favorites ?? [],
+      selectedMedia: existing?.selectedMedia ?? [],
+      currentAdminId: su.id,
+      roleId: su.roleId,
+      permissions: perms,
+      createdAt: existing?.createdAt || new Date().toISOString(),
+    };
+    setUsers([...usersRef.current.filter(u => u.id !== id), sessionUser]);
+    setCurrentUser(sessionUser);
+    setUserPermissions(perms);
+    // Remember when this account last signed in
+    setSystemUsers(systemUsersRef.current.map(s => s.id === su.id ? { ...s, lastLogin: new Date().toISOString() } : s));
+    setAuditLogs(prev => [{
+      ...logActivity(sessionUser.name, 'ورود', `ورود به پنل مدیریت با نقش «${roleName}»`, 'RBAC'),
+      user: sessionUser.name,
+    }, ...prev]);
+  };
+
   const adminLogin = (username: string, password: string): boolean => {
-    if (username === 'admin' && password === 'admin123') {
-      setCurrentUser({
+    const uname = (username || '').trim();
+    const pass = password || '';
+    if (!uname || !pass) return false;
+
+    // Built-in super admin (kept for backward compatibility)
+    if (uname === 'admin' && pass === 'admin123') {
+      const su = systemUsersRef.current.find(s => s.username === 'admin');
+      if (su && su.active) {
+        establishAdminSession(su, 'مدیر کل', permissionsRef.current.map(p => p.id));
+        return true;
+      }
+      const sessionUser: User = {
         id: 'admin',
         username: 'admin',
         password: 'admin123',
@@ -1669,15 +1958,82 @@ export function AppProvider({ children }: { children: ReactNode }) {
         level: 'vip',
         favorites: [],
         selectedMedia: [],
-        createdAt: new Date().toISOString()
-      });
+        createdAt: new Date().toISOString(),
+      };
+      setCurrentUser(sessionUser);
+      setUserPermissions(undefined);
       return true;
     }
-    return false;
+
+    // Any staff account created in the "کنترل دسترسی (RBAC)" section can log in too
+    const su = systemUsersRef.current.find(s => s.username.trim() === uname);
+    if (!su) return false;
+    if (!su.active) return false;
+    if ((su.password || '') !== pass) return false;
+
+    const role = rolesRef.current.find(r => r.id === su.roleId);
+    establishAdminSession(su, role?.name || 'نامشخص', role?.permissions);
+    return true;
+  };
+
+  // Create a staff account from the RBAC page. The account is registered both as a
+  // SystemUser (for login) and as an admin User record (for the rest of the app),
+  // so it can sign in through the admin login form right away.
+  const createStaffUser = (data: { username: string; password: string; name: string; roleId: string; email?: string; phone?: string }) => {
+    const uname = (data.username || '').trim();
+    if (!uname) return { ok: false, error: 'نام کاربری را وارد کنید' };
+    if (!(data.password || '')) return { ok: false, error: 'رمز عبور را وارد کنید' };
+    if (!data.roleId) return { ok: false, error: 'یک نقش را انتخاب کنید' };
+    if (systemUsersRef.current.some(s => s.username.trim().toLowerCase() === uname.toLowerCase())) {
+      return { ok: false, error: 'این نام کاربری قبلاً ثبت شده است' };
+    }
+
+    const now = new Date().toISOString();
+    const su: SystemUser = {
+      id: 'sysuser' + Date.now(),
+      username: uname,
+      password: data.password,
+      name: (data.name || '').trim() || uname,
+      email: data.email,
+      phone: data.phone,
+      roleId: data.roleId,
+      active: true,
+      createdAt: now,
+    };
+    const nextSystemUsers = [...systemUsersRef.current, su];
+    setSystemUsers(nextSystemUsers);
+    systemUsersRef.current = nextSystemUsers;
+
+    // Mirror the account into the users list as an admin user
+    const uid = 'admin_' + su.id;
+    const role = rolesRef.current.find(r => r.id === su.roleId);
+    const adminUser: User = {
+      id: uid,
+      username: su.username,
+      password: su.password,
+      role: 'admin',
+      name: su.name,
+      phone: su.phone || '',
+      loyaltyPoints: 0,
+      level: 'vip',
+      favorites: [],
+      selectedMedia: [],
+      currentAdminId: su.id,
+      roleId: su.roleId,
+      permissions: role?.permissions,
+      createdAt: now,
+    };
+    const nextUsers = [...usersRef.current.filter(u => u.id !== uid), adminUser];
+    setUsers(nextUsers);
+    usersRef.current = nextUsers;
+
+    pushAuditLog('ایجاد', `کاربر سیستم «${su.username}» با نقش «${role?.name || 'نامشخص'}» ایجاد شد`, 'RBAC');
+    return { ok: true };
   };
 
   const logout = () => {
     setCurrentUser(null);
+    setUserPermissions(undefined);
     // Remove the cart on logout so no leftover/duplicate cart remains
     setCartItems([]);
   };
@@ -1758,7 +2114,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       darkMode, toggleDarkMode, currentUser, login, adminLogin, logout,
       products, setProducts, mediaItems, setMediaItems, services, setServices,
-      orders, setOrders, news, setNews, portfolio, setPortfolio,
+      orders, setOrders, updateOrder, updateOrderStatus, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
       addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, cartItems, updateAvatar, chargeWallet, deductWallet, aboutContent, setAboutContent,
       notes, setNotes,
@@ -1779,6 +2135,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       permissions, setPermissions,
       roles, setRoles,
       systemUsers, setSystemUsers,
+      currentAdminId: currentUser?.currentAdminId,
+      userPermissions, hasPermission, createStaffUser,
       okrs, setOkrs,
       kpis, setKpis,
       digitalMarketingData, setDigitalMarketingData,
