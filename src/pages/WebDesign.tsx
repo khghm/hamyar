@@ -1,20 +1,18 @@
 import React from 'react';
-import { useApp } from '../store';
-import { Globe, Smartphone, Bot, MessageSquare, Palette, Shield, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useApp, PROJECT_SERVICES } from '../store';
+import { Globe, Smartphone, Bot, MessageSquare, PenTool, Instagram, Video, Search, ArrowLeft, ExternalLink } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 
 export default function WebDesign() {
   const { darkMode, portfolio } = useApp();
   const banner = useBanner('webdesign');
 
-  const services = [
-    { icon: Globe, title: 'سایت فروشگاهی', desc: 'طراحی فروشگاه آنلاین با سبد خرید، پرداخت آنلاین و پنل مدیریت', features: ['مدیریت محصولات', 'سبد خرید', 'درگاه پرداخت', 'پنل مدیریت'] },
-    { icon: Globe, title: 'سایت شرکتی', desc: 'طراحی وب‌سایت حرفه‌ای برای شرکت‌ها و سازمان‌ها', features: ['معرفی خدمات', 'نمونه‌کارها', 'فرم تماس', 'بلاگ'] },
-    { icon: Globe, title: 'سایت شخصی', desc: 'طراحی پورتفولیو و سایت شخصی برای افراد', features: ['رزومه آنلاین', 'نمونه‌کارها', 'فرم ارتباط', 'شبکه‌های اجتماعی'] },
-    { icon: Smartphone, title: 'ساخت اپلیکیشن موبایل', desc: 'طراحی و توسعه اپلیکیشن اندروید و iOS برای کسب‌وکار شما', features: ['اپلیکیشن فروشگاهی', 'اپلیکیشن سازمانی', 'رابط کاربری اختصاصی', 'انتشار در کافه‌بازار و مایکت'] },
-    { icon: Bot, title: 'ربات تلگرام', desc: 'ساخت ربات‌های تلگرامی فروشگاهی، پشتیبانی، مدیریت گروه و اطلاع‌رسانی', features: ['فروش خودکار در تلگرام', 'مدیریت گروه و کانال', 'اتصال به درگاه پرداخت', 'پشتیبانی هوشمند'] },
-    { icon: MessageSquare, title: 'ربات غیرتلگرامی', desc: 'ساخت چت‌بات و ربات برای واتساپ، اینستاگرام، وب‌سایت و سایر پیام‌رسان‌ها', features: ['چت‌بات سایت', 'ربات واتساپ و اینستاگرام', 'پاسخ‌گویی خودکار', 'اتصال به CRM و پنل سفارش'] },
-  ];
+  // The selectable items come from the shared PROJECT_SERVICES catalogue so the
+  // details page (/project-services/:id), the order wizard and the admin panel
+  // all reference exactly the same data.
+  const services = PROJECT_SERVICES.filter(s => s.group === 'webdesign');
+  const iconOf: Record<string, any> = { Globe, Smartphone, Bot, MessageSquare };
 
   return (
     <div className="fade-in">
@@ -52,16 +50,16 @@ export default function WebDesign() {
         <h2 className="text-2xl font-bold text-center mb-4">انواع خدمات طراحی سایت، اپلیکیشن و ربات</h2>
         <p className={`text-center mb-12 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>از طراحی وب‌سایت تا ساخت اپلیکیشن موبایل و ربات‌های تلگرامی و غیرتلگرامی</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((s, i) => {
-            const Icon = s.icon;
+          {services.map(s => {
+            const Icon = iconOf[s.icon] || Globe;
             return (
-            <div key={i} className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <div key={s.id} className={`p-6 rounded-2xl border transition-all hover:shadow-lg ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-purple-500' : 'bg-white border-gray-200 hover:border-purple-300'}`}>
               <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
                 <Icon size={24} className="text-purple-600" />
               </div>
               <h3 className="font-bold text-lg mb-2">{s.title}</h3>
               <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.desc}</p>
-              <ul className="space-y-2">
+              <ul className="space-y-2 mb-4">
                 {s.features.map((f, j) => (
                   <li key={j} className={`text-sm flex items-center gap-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     <div className="w-1.5 h-1.5 rounded-full bg-purple-600"></div>
@@ -69,6 +67,20 @@ export default function WebDesign() {
                   </li>
                 ))}
               </ul>
+              {/* Selectable item: opens the exact details + order page */}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-slate-700">
+                <div>
+                  <span className="text-purple-600 font-bold text-sm">{s.basePrice.toLocaleString('fa-IR')} تومان</span>
+                  <span className={`text-xs mr-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>/ {s.unit}</span>
+                </div>
+                <Link
+                  to={`/project-services/${s.id}`}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 transition-all shadow-sm hover:shadow-md"
+                >
+                  انتخاب و ثبت سفارش
+                  <ArrowLeft size={16} />
+                </Link>
+              </div>
             </div>
             );
           })}

@@ -320,7 +320,17 @@ export const PROJECT_FIELD_LABELS: Record<string, string> = {
   contentType: 'نوع محتوا', articlesCount: 'تعداد مقالات', visualType: 'نوع خروجی',
   itemsCount: 'تعداد اقلام', seoType: 'خدمات سئو', package: 'پکیج', duration: 'مدت همکاری',
   siteUrl: 'آدرس سایت', domainName: 'دامنه', deadline: 'مهلت تحویل', budget: 'بودجه',
+  profession: 'حوزه کاری', siteType: 'نوع سایت', backendNeeded: 'پنل مدیریت', paymentNeeded: 'درگاه پرداخت',
+  channelLink: 'کانال/گروه', crmConnect: 'اتصال به CRM', platform: 'پلتفرم', accountLink: 'آیدی/لینک پیج',
+  topics: 'موضوعات', keywords: 'کلمات کلیدی', sizeFormat: 'قطع/فرمت', goals: 'اهداف سئو',
+  quantity: 'تعداد / حجم کار', details: 'توضیحات سفارش', fileNote: 'فایل یا لینک منبع', colorMode: 'نوع چاپ',
+  paperSize: 'قطع کاغذ', sides: 'رو و برگشتی', nationalId: 'کد ملی', phoneNumber: 'شماره تماس',
+  slidesCount: 'تعداد اسلاید', urgency: 'نوع انجام',
 };
+
+// Field keys that represent a quantity multiplier in the project-order wizard
+// (the order total = base price × this number).
+export const PROJECT_QTY_KEYS = ['productCount', 'articlesCount', 'itemsCount', 'duration'];
 
 export interface OrderItem {
   productId?: string;
@@ -2488,6 +2498,179 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { ok: true, order };
   };
 
+  // ---------------------------------------------------------------------------
+  // Same wizard for the items of the «طراحی سایت» and «تولید محتوا» pages.
+  // After the customer completes the extra-information form, uploads the docs
+  // from disk and pays through the gateway or the wallet, a tracking code is
+  // generated and every admin section that references this code stays in sync:
+  //   • Orders (طراحی سایت / تولید محتوا) with details + documents
+  //   • A linked project in admin Projects (stage/payment/progress sync)
+  //   • Payment-receipt invoice in Invoices + income in Finance
+  //   • SMS to the customer and an entry in the audit log
+  // ---------------------------------------------------------------------------
+  const createProjectOrder: AppContextType['createProjectOrder'] = ({
+    projectService, quantity, urgent, formData, documents, paymentMethod, gatewayRef,
+  }) => {
+    if (!currentUser) return { ok: false, error: 'برای ثبت سفارش ابتدا وارد حساب کاربری خود شوید' };
+    const qty = Math.max(1, Number(quantity) || 1);
+    const unitPrice = urgent ? Math.round(projectService.basePrice * SERVICE_URGENCY_MULTIPLIER) : projectService.basePrice;
+    const total = unitPrice * qty;
+
+    let paidAmount = 0;
+    if (paymentMethod === 'wallet') {
+      const balance = currentUser.walletBalance || 0;
+      if (balance < total) return { ok: false, error: 'موجودی کیف پول شما کافی نیست. لطفاً کیف پول را شارژ کنید یا پرداخت آنلاین را انتخاب نمایید.' };
+      const updatedUsers = usersRef.current.map(u =>
+        u.id === currentUser.id ? { ...u, walletBalance: (u.walletBalance || 0) - total } : u);
+      setUsers(updatedUsers);
+      setCurrentUser(cu => cu ? { ...cu, walletBalance: (cu.walletBalance || 0) - total } : cu);
+      paidAmount = total;
+    } else {
+      // Online gateway flow – in this demo the gateway callback confirms payment
+      paidAmount = total;
+    }
+
+    const now = new Date();
+    const orderId = 'o' + Date.now();
+    const trackingCode = 'HMY-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+    const groupLabel = projectService.group === 'webdesign' ? 'طراحی سایت' : 'تولید محتوا';
+    const order: Order = {
+      id: orderId,
+      trackingCode,
+      customerId: currentUser.id,
+      customerName: formData.fullName || currentUser.name,
+      type: projectService.group === 'webdesign' ? 'webdesign' : 'service',
+      channel: 'وب‌سایت',
+      status: 'new',
+      priority: urgent ? 'urgent' : 'normal',
+      items: [{ name: projectService.title, price: unitPrice, quantity: qty, total, image: '' }],
+      total,
+      paid: paidAmount,
+      remaining: total - paidAmount,
+      createdAt: now.toISOString(),
+      description: `سفارش آنلاین «${projectService.title}» (${groupLabel}) – ${qty} ${projectService.unit}${urgent ? ' – فوری' : ''}`,
+      statusHistory: [{ status: 'new' as OrderStatus, date: now.toISOString() }],
+      projectServiceId: projectService.id,
+      formData,
+      documents,
+      paymentMethod,
+      gatewayRef,
+      documentStatus: 'pending',
+    };
+
+    // Linked project in the admin Projects board (kept in sync via projectId)
+    const projectId = 'pr' + Date.now();
+    const domainOrLink = formData.domainName || formData.siteUrl || formData.accountLink || '';
+    const newProject: Project = {
+      id: projectId,
+      title: `${projectService.title} – ${order.customerName}`,
+      clientName: order.customerName,
+      type: groupLabel,
+      stage: 'پیش‌پرداخت',
+      domain: domainOrLink || undefined,
+      deadline: formData.deadline || '',
+      totalCost: total,
+      paidAmount: paidAmount,
+      progress: 5,
+      description: `خودکار از سفارش ${trackingCode}. جزئیات: ${Object.entries(formData).filter(([k]) => !['fullName', 'phone', 'email'].includes(k)).map(([k, v]) => `${PROJECT_FIELD_LABELS[k] || k}: ${v}`).join(' | ')}`,
+    };
+    order.projectId = projectId;
+    setOrders([...ordersRef.current, order]);
+    setProjects([...projects, newProject]);
+
+    // Payment receipt invoice linked to the order id (visible in admin invoices)
+    const invoice: Invoice = {
+      id: 'inv' + Date.now() + Math.random().toString(36).slice(2, 6),
+      invoiceNumber: 'PAY-' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '-' + trackingCode.replace(/[^A-Za-z0-9]/g, ''),
+      orderId,
+      type: projectService.group === 'webdesign' ? 'webdesign' : 'service',
+      date: now.toISOString(),
+      customerName: order.customerName,
+      customerPhone: formData.phone || currentUser.phone,
+      items: [{ name: projectService.title, quantity: qty, unit: projectService.unit, price: unitPrice }],
+      subtotal: total,
+      discount: 0,
+      discountType: 'fixed',
+      discountAmount: 0,
+      tax: 0,
+      taxAmount: 0,
+      total,
+      note: `رسید پرداخت آنلاین سفارش ${trackingCode} (${groupLabel}) – روش پرداخت: ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'}${gatewayRef ? ` (کد پیگیری بانک: ${gatewayRef})` : ''}`,
+      status: 'paid',
+      createdAt: now.toISOString(),
+    };
+    setInvoices(prev => [{ ...invoice }, ...prev]);
+    setOrders(cur => cur.map(o => o.id === orderId ? { ...o, receiptInvoiceId: invoice.id } : o));
+
+    pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${projectService.title}» (${groupLabel}) با کد رهگیری ${trackingCode} ثبت و پرداخت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان. پروژه مربوطه در پنل مدیریت ایجاد شد.`);
+    pushAuditLog('ثبت سفارش آنلاین پروژه', `سفارش ${trackingCode} برای «${projectService.title}» (${groupLabel}) به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''} و پروژه مرتبط آن در بخش پروژه‌ها ایجاد گردید`, 'سفارشات');
+
+    return { ok: true, order };
+  };
+
+  // Keep the admin Projects board synchronized with its source order:
+  // when the order status changes, the linked project's stage/progress moves;
+  // when the project stage reaches تحویل/تسویه, the order becomes delivered.
+  const prevOrdersForProjectSync = useRef<Order[]>(orders);
+  useEffect(() => {
+    const prev = prevOrdersForProjectSync.current;
+    prevOrdersForProjectSync.current = orders;
+
+    const changed = orders.filter(o => {
+      const old = prev.find(p => p.id === o.id);
+      return old && old.status !== o.status;
+    });
+    const linked = changed.filter(o => o.projectId);
+    if (linked.length === 0) return;
+
+    const nextStage: Record<OrderStatus, string> = {
+      new: 'قرارداد', processing: 'طراحی', ready: 'تایید', delivered: 'تحویل', cancelled: 'قرارداد',
+    };
+    const nextProgress: Record<OrderStatus, number> = {
+      new: 15, processing: 50, ready: 85, delivered: 100, cancelled: 15,
+    };
+    setProjects(cur => cur.map(p => {
+      const o = linked.find(x => x.projectId === p.id);
+      if (!o) return p;
+      if (o.status === 'cancelled') return { ...p, stage: 'مشاوره', progress: 0 };
+      return {
+        ...p,
+        stage: nextStage[o.status],
+        progress: Math.max(p.progress, nextProgress[o.status]),
+        paidAmount: o.paid,
+        totalCost: o.total,
+      };
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
+
+  // Reverse direction of the sync: if an admin moves a linked project on the
+  // Projects board, the source order status follows it immediately.
+  const prevProjectsForOrderSync = useRef<Project[]>(projects);
+  useEffect(() => {
+    const prev = prevProjectsForOrderSync.current;
+    prevProjectsForOrderSync.current = projects;
+
+    const changed = projects.filter(p => {
+      const old = prev.find(x => x.id === p.id);
+      return old && old.stage !== p.stage;
+    });
+    if (changed.length === 0) return;
+
+    const toStatus: Record<string, OrderStatus> = {
+      'مشاوره': 'new', 'قرارداد': 'new', 'پیش‌پرداخت': 'new',
+      'طراحی': 'processing', 'تایید': 'ready', 'راه‌اندازی': 'ready',
+      'تحویل': 'delivered', 'تسویه': 'delivered',
+    };
+    changed.forEach(p => {
+      const o = ordersRef.current.find(x => x.projectId === p.id);
+      const target = toStatus[p.stage];
+      if (!o || !target || o.status === target) return;
+      updateOrderStatus(o.id, target);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects]);
+
   // Safety net: whenever the orders list changes (e.g. kanban drag & drop or
   // direct edits through setOrders), keep warehouse stock and receipts in sync.
   const prevOrdersRef = useRef<Order[]>(orders);
@@ -2796,7 +2979,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       darkMode, toggleDarkMode, currentUser, login, adminLogin, logout,
       products, setProducts, mediaItems, setMediaItems, services, setServices,
-      orders, setOrders, updateOrder, updateOrderStatus, createServiceOrder, news, setNews, portfolio, setPortfolio,
+      orders, setOrders, updateOrder, updateOrderStatus, createServiceOrder, createProjectOrder, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
       addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, cartItems, updateAvatar, chargeWallet, deductWallet, aboutContent, setAboutContent,
       notes, setNotes,
