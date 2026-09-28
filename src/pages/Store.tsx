@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Search, SlidersHorizontal, ShoppingCart, X, Star, ChevronDown, Heart } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
+import { track } from '../utils/analytics';
 
 export default function Store() {
   const { darkMode, currentUser, products } = useApp();
@@ -46,6 +47,7 @@ export default function Store() {
       return;
     }
     addToCartStore(id, 1);
+    track('add_to_cart', { productId: id });
   };
 
   const removeFromCart = (id: string) => {
@@ -145,7 +147,7 @@ export default function Store() {
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="flex-1 relative">
           <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" placeholder="جستجو در محصولات..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="جستجو در محصولات..." value={search} onChange={e => { setSearch(e.target.value); if (e.target.value.length >= 3) track('internal_search', { q: e.target.value, area: 'store' }); }}
             className={`w-full pr-10 pl-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-400' : 'bg-white border-gray-200 placeholder-gray-400'}`} />
         </div>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}

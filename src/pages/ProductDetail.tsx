@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
 import { ArrowRight, ShoppingCart, Star, Package, Shield, Truck, MessageSquare } from 'lucide-react';
+import { track } from '../utils/analytics';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -35,6 +36,7 @@ export default function ProductDetail() {
       approved: false // نظرات جدید باید توسط ادمین تایید شوند
     };
     setReviews([...reviews, review]);
+    track('review_submit', { productId: product.id, rating: newRating });
     setNewComment('');
     setNewRating(5);
     alert('نظر شما با موفقیت ثبت شد و پس از تایید مدیریت نمایش داده خواهد شد');
@@ -47,6 +49,7 @@ export default function ProductDetail() {
     }
     if (!product) return;
     addToCart(product.id, 1);
+    track('add_to_cart', { productId: product.id, name: product.name });
     alert('محصول به سبد خرید اضافه شد');
   };
 
