@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp, PROJECT_SERVICES } from '../store';
-import { Globe, Smartphone, Bot, MessageSquare, PenTool, Instagram, Video, Search, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Globe, Smartphone, Bot, MessageSquare, User, ShoppingCart, ArrowLeft, ExternalLink } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 
 export default function WebDesign() {
@@ -12,7 +12,7 @@ export default function WebDesign() {
   // details page (/project-services/:id), the order wizard and the admin panel
   // all reference exactly the same data.
   const services = PROJECT_SERVICES.filter(s => s.group === 'webdesign');
-  const iconOf: Record<string, any> = { Globe, Smartphone, Bot, MessageSquare };
+  const iconOf: Record<string, any> = { Globe, Smartphone, Bot, MessageSquare, User, ShoppingCart };
 
   return (
     <div className="fade-in">

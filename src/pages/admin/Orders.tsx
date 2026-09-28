@@ -36,9 +36,21 @@ export default function AdminOrders() {
     webdesign: 'طراحی سایت',
   };
 
+  // Orders created through the public wizard of «تولید محتوا» carry a
+  // projectServiceId (ps-ct-*) while keeping the technical type "service" –
+  // show them with their own label so admins can tell the two apart.
+  const isContentOrder = (o: Order) => o.type === 'service' && !!o.projectServiceId && o.projectServiceId.startsWith('ps-ct');
+  const orderTypeLabel = (o: Order) => (isContentOrder(o) ? 'تولید محتوا' : typeLabels[o.type]);
+
+  // Details modal state – shows the supplementary info + uploaded documents of
+  // online orders and lets the admin approve/reject the documents. The linked
+  // project / invoice stay in sync through the store (same order code).
+  const [detailsOrder, setDetailsOrder] = useState<Order | null>(null);
+
   const filtered = orders.filter(o => {
     if (filterStatus !== 'all' && o.status !== filterStatus) return false;
-    if (filterType !== 'all' && o.type !== filterType) return false;
+    if (filterType === 'content') { if (!isContentOrder(o)) return false; }
+    else if (filterType !== 'all' && o.type !== filterType) return false;
     if (search && !o.customerName.includes(search) && !o.trackingCode.includes(search)) return false;
     return true;
   });
@@ -168,6 +180,7 @@ export default function AdminOrders() {
           className={`px-3 py-2.5 rounded-lg border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200'}`}>
           <option value="all">همه انواع</option>
           {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          <option value="content">تولید محتوا</option>
         </select>
       </div>
 
@@ -221,7 +234,7 @@ export default function AdminOrders() {
                             {order.priority === 'urgent' ? 'فوری' : order.priority === 'vip' ? 'VIP' : 'عادی'}
                           </span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-gray-700'}`}>
-                            {typeLabels[order.type]}
+                            {orderTypeLabel(order)}
                           </span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-gray-700'}`}>
                             {order.channel}
@@ -319,7 +332,7 @@ export default function AdminOrders() {
                   <tr key={o.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
                     <td className="p-3 font-mono text-xs">{o.trackingCode}</td>
                     <td className="p-3 font-medium">{o.customerName}</td>
-                    <td className="p-3">{typeLabels[o.type]}</td>
+                    <td className="p-3">{orderTypeLabel(o)}</td>
                     <td className="p-3">{o.channel}</td>
                     <td className="p-3">
                       <span className={`px-2 py-0.5 rounded text-xs ${priorityColors[o.priority]}`}>
