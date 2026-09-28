@@ -22,6 +22,12 @@ export interface User {
   invitedBy?: string;
   invitedCount?: number;
   loyaltyPoints: number;
+  // Lifetime points earned — `loyaltyPoints` is the spendable balance after redemptions.
+  totalEarnedPoints?: number;
+  // Last day the daily-login streak was credited (YYYY-MM-DD).
+  lastLoginStreakDate?: string;
+  // Consecutive days of logging in (resets when a day is skipped).
+  loginStreak?: number;
   level: 'normal' | 'silver' | 'gold' | 'vip';
   favorites: string[];
   selectedMedia: string[];
@@ -30,6 +36,120 @@ export interface User {
   avatar?: string; // User avatar image URL
   walletBalance?: number; // Wallet balance in Tomans
   createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Customer club / gamification engine (managed from admin «کدهای دعوت»)
+// ---------------------------------------------------------------------------
+export type LoyaltyCategory =
+  | 'invite'        // دعوت دوست
+  | 'purchase'      // خرید
+  | 'review'        // ثبت نظر
+  | 'login_streak'  // ورود روزانه
+  | 'profile'       // تکمیل پروفایل
+  | 'birthday'      // هدیه تولد
+  | 'manual'        // اعطای دستی ادمین
+  | 'redeem';       // خرج امتیاز (قرارداد پاداش)
+
+export interface LoyaltyTransaction {
+  id: string;
+  userId: string;
+  points: number;               // positive = credit, negative = debit
+  reason: string;               // human readable description (Persian)
+  category: LoyaltyCategory;
+  byAdmin?: boolean;            // credited/debited manually from the panel
+  createdAt: string;
+}
+
+export interface LoyaltyTierRule {
+  level: User['level'];
+  label: string;
+  minPoints: number;            // lifetime earned points needed for this tier
+  discountPercent: number;
+  multiplier: number;           // earning multiplier on purchases while in tier
+  perks: string[];
+}
+
+export interface LoyaltyRewardItem {
+  id: string;
+  title: string;
+  description: string;
+  cost: number;                 // spendable points required
+  icon: string;                 // emoji shown in the club UI
+  enabled: boolean;
+}
+
+export interface GamificationBadgeDef {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  metric: 'invitedCount' | 'totalEarnedPoints' | 'ordersCount' | 'reviewsCount' | 'loginStreak';
+  threshold: number;
+}
+
+export interface GamificationConfig {
+  enabled: boolean;
+  pointsPerToman: number;             // purchase amount / pointsPerToman = points
+  inviteBonus: number;                // bonus granted to the inviter per invite
+  invitedUserBonus: number;           // welcome bonus for a newly invited user
+  reviewBonus: number;                // bonus per approved/registered review
+  dailyLoginBonus: number;            // base daily-login points
+  streakDayMultiplier: number;        // bonus * day * multiplier (capped below)
+  streakMaxDays: number;              // cap of the consecutive-day bonus
+  profileCompletionBonus: number;
+  birthdayBonus: number;
+  tiers: LoyaltyTierRule[];
+  rewards: LoyaltyRewardItem[];
+  badges: GamificationBadgeDef[];
+}
+
+export const DEFAULT_TIERS: LoyaltyTierRule[] = [
+  { level: 'normal', label: 'عادی', minPoints: 0, discountPercent: 0, multiplier: 1, perks: ['شرکت در جشنواره‌های عضویت'] },
+  { level: 'silver', label: 'نقره‌ای', minPoints: 100, discountPercent: 5, multiplier: 1.25, perks: ['۵٪ تخفیف عضویت', 'کسب امتیاز ۱.۲۵ برابر'] },
+  { level: 'gold', label: 'طلایی', minPoints: 500, discountPercent: 10, multiplier: 1.5, perks: ['۱۰٪ تخفیف عضویت', 'ارسال رایگان ماهانه', 'پشتیبانی اولویت‌دار'] },
+  { level: 'vip', label: 'VIP', minPoints: 1000, discountPercent: 15, multiplier: 2, perks: ['۱۵٪ تخفیف عضویت', 'اولویت در پروژه‌ها', 'پاداش تولد دوچندان'] },
+];
+
+export const DEFAULT_REWARDS: LoyaltyRewardItem[] = [
+  { id: 'rw1', title: '۵۰ هزار تومان اعتبار کیف پول', description: 'اعتبار نقدی به کیف پول شما افزوده می‌شود.', cost: 200, icon: '💰', enabled: true },
+  { id: 'rw2', title: 'یک ماه اینترنت رایگان', description: 'فعال‌سازی بسته یک‌ماهه برای حساب کاربری.', cost: 350, icon: '📶', enabled: true },
+  { id: 'rw3', title: 'کد تخفیف ۲۰٪ خدمات طراحی', description: 'روی سفارش بعدی طراحی سایت قابل استفاده است.', cost: 500, icon: '🎨', enabled: true },
+  { id: 'rw4', title: 'مشاوره رایگان سئو (۴۵ دقیقه)', description: 'جلسه مشاوره تخصصی با تیم دیجیتال مارکتینگ.', cost: 800, icon: '🚀', enabled: true },
+];
+
+export const DEFAULT_BADGES: GamificationBadgeDef[] = [
+  { id: 'bg-invite-1', name: 'دعوت‌کننده نقره‌ای', icon: '🤝', description: 'حداقل ۳ دوست را با کد دعوت خود وارد کرده‌اید.', metric: 'invitedCount', threshold: 3 },
+  { id: 'bg-invite-2', name: 'سفیر برند', icon: '📣', description: 'حداقل ۱۰ دعوت موفق دارید.', metric: 'invitedCount', threshold: 10 },
+  { id: 'bg-points-1', name: 'امتیازآور برنزی', icon: '⭐', description: 'در مجموع ۲۵۰ امتیاز کسب کرده‌اید.', metric: 'totalEarnedPoints', threshold: 250 },
+  { id: 'bg-points-2', name: 'امتیازآور طلایی', icon: '🌟', description: 'در مجموع ۱۰۰۰ امتیاز کسب کرده‌اید.', metric: 'totalEarnedPoints', threshold: 1000 },
+  { id: 'bg-orders-1', name: 'خریدار وفادار', icon: '🛒', description: 'بیش از ۵ سفارش موفق داشته‌اید.', metric: 'ordersCount', threshold: 5 },
+  { id: 'bg-reviews-1', name: 'نظردهنده فعال', icon: '✍️', description: 'حداقل ۳ نظر ثبت کرده‌اید.', metric: 'reviewsCount', threshold: 3 },
+  { id: 'bg-streak-1', name: 'ورود هفتگی', icon: '🔥', description: '۷ روز پشت سر هم وارد شوید.', metric: 'loginStreak', threshold: 7 },
+  { id: 'bg-streak-2', name: 'وفادار ماهانه', icon: '🏆', description: '۳۰ روز پشت سر هم وارد شوید.', metric: 'loginStreak', threshold: 30 },
+];
+
+export const DEFAULT_GAMIFICATION_CONFIG: GamificationConfig = {
+  enabled: true,
+  pointsPerToman: 10000,
+  inviteBonus: 50,
+  invitedUserBonus: 50,
+  reviewBonus: 10,
+  dailyLoginBonus: 5,
+  streakDayMultiplier: 1,
+  streakMaxDays: 7,
+  profileCompletionBonus: 20,
+  birthdayBonus: 100,
+  tiers: DEFAULT_TIERS,
+  rewards: DEFAULT_REWARDS,
+  badges: DEFAULT_BADGES,
+};
+
+// Tier used when a legacy record has no explicit level or points.
+export function computeLevelFromPoints(points: number, tiers: LoyaltyTierRule[]): User['level'] {
+  const sorted = [...tiers].sort((a, b) => b.minPoints - a.minPoints);
+  for (const t of sorted) if (points >= t.minPoints) return t.level;
+  return 'normal';
 }
 
 export interface Product {
@@ -1412,6 +1532,20 @@ interface AppContextType {
   setFaqs: (f: FaqItem[]) => void;
   invoices: Invoice[];
   setInvoices: (i: Invoice[]) => void;
+  // ---- Customer club / gamification (managed from admin «کدهای دعوت») ----
+  loyaltyTx: LoyaltyTransaction[];
+  gamificationConfig: GamificationConfig;
+  setGamificationConfig: (c: GamificationConfig) => void;
+  // Award points to any user (admin manual credit, event bonuses…). Never negative.
+  awardLoyaltyPoints: (userId: string, points: number, reason: string, opts?: { category?: LoyaltyCategory; autoLevelUp?: boolean }) => void;
+  // Remove points from a user's spendable balance (admin correction).
+  deductLoyaltyPointsForAdmin: (userId: string, points: number, reason: string) => boolean;
+  // Customer club bonus for submitting a review.
+  awardReviewPoints: () => void;
+  // Redeem a reward for a user — debits the spendable balance and logs the transaction.
+  redeemLoyaltyReward: (userId: string, rewardId: string) => { ok: boolean; error?: string };
+  // Manually set a user's tier from the admin panel.
+  setUserLevel: (userId: string, level: User['level']) => void;
   contentProjects: ContentProject[];
   setContentProjects: (p: ContentProject[]) => void;
   contentComments: ContentComment[];
@@ -1846,6 +1980,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('hamyar_invoices');
     return saved ? JSON.parse(saved) : [];
   });
+  // ---- Customer club / gamification state ----
+  const [loyaltyTx, setLoyaltyTx] = useState<LoyaltyTransaction[]>(() => {
+    const saved = localStorage.getItem('hamyar_loyalty_tx');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [gamificationConfig, setGamificationConfigState] = useState<GamificationConfig>(() => {
+    const saved = localStorage.getItem('hamyar_gamification');
+    if (!saved) return DEFAULT_GAMIFICATION_CONFIG;
+    try {
+      const parsed = JSON.parse(saved);
+      // Merge so newly added keys (badges/rewards/tiers) get defaults for old saves.
+      return { ...DEFAULT_GAMIFICATION_CONFIG, ...parsed };
+    } catch {
+      return DEFAULT_GAMIFICATION_CONFIG;
+    }
+  });
   const [contentProjects, setContentProjects] = useState<ContentProject[]>(() => {
     const saved = localStorage.getItem('hamyar_content_projects');
     return saved ? JSON.parse(saved) : [];
@@ -2266,6 +2416,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_personas', JSON.stringify(personas)); }, [personas]);
   useEffect(() => { localStorage.setItem('hamyar_digital_marketing', JSON.stringify(digitalMarketingData)); }, [digitalMarketingData]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
+  useEffect(() => { localStorage.setItem('hamyar_loyalty_tx', JSON.stringify(loyaltyTx)); }, [loyaltyTx]);
+  useEffect(() => { localStorage.setItem('hamyar_gamification', JSON.stringify(gamificationConfig)); }, [gamificationConfig]);
   // Consistency guard: an inviter's `invitedCount` must always equal the number of
   // customers whose `invitedBy` points to them. This fixes legacy records created
   // by the old bug (invite counter / bonus attached to the wrong user), so the
@@ -2381,6 +2533,121 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAuditLogs(prev => [logActivity(currentUser?.name || 'مدیر سیستم', action, details, module), ...prev]);
   };
 
+  // ---------------------------------------------------------------------------
+  // Customer club / gamification engine (defined before the order flows so they
+  // can award purchase points; all reads go through refs to avoid stale state)
+  // ---------------------------------------------------------------------------
+  const loyaltyTxRef = useRef(loyaltyTx);
+  useEffect(() => { loyaltyTxRef.current = loyaltyTx; }, [loyaltyTx]);
+  const configRef = useRef(gamificationConfig);
+  useEffect(() => { configRef.current = gamificationConfig; }, [gamificationConfig]);
+
+  const setGamificationConfig = (c: GamificationConfig) => setGamificationConfigState(c);
+
+  const pushLoyaltyTx = (tx: Omit<LoyaltyTransaction, 'id' | 'createdAt'>) => {
+    setLoyaltyTx(prev => [{
+      ...tx,
+      id: 'ltx' + Date.now() + Math.random().toString(36).slice(2, 6),
+      createdAt: new Date().toISOString(),
+    }, ...prev].slice(0, 2000));
+  };
+
+  // Award points to any user. Updates both the spendable balance (`loyaltyPoints`)
+  // and lifetime earnings (`totalEarnedPoints`), then auto-promotes the tier unless
+  // disabled. Always works from usersRef so it never clobbers concurrent updates.
+  const awardLoyaltyPoints = (userId: string, points: number, reason: string, opts?: { category?: LoyaltyCategory; autoLevelUp?: boolean }) => {
+    if (!Number.isFinite(points) || points <= 0) return;
+    const cfg = configRef.current;
+    const base = usersRef.current;
+    const target = base.find(u => u.id === userId);
+    if (!target) return;
+    const nextPoints = (target.loyaltyPoints || 0) + points;
+    const nextTotal = (target.totalEarnedPoints ?? target.loyaltyPoints ?? 0) + points;
+    const level = opts?.autoLevelUp === false
+      ? target.level
+      : computeLevelFromPoints(nextTotal, cfg.tiers);
+    setUsers(base.map(u => u.id === userId ? { ...u, loyaltyPoints: nextPoints, totalEarnedPoints: nextTotal, level } : u));
+    pushLoyaltyTx({ userId, points, reason, category: opts?.category || 'manual', byAdmin: currentUser?.role === 'admin' });
+  };
+
+  // Admin manual debit: reduce a user's spendable balance only (lifetime earned
+  // stays intact so tiers are not silently demoted by a correction).
+  const deductLoyaltyPointsForAdmin = (userId: string, points: number, reason: string) => {
+    if (!Number.isFinite(points) || points <= 0) return false;
+    const base = usersRef.current;
+    const target = base.find(u => u.id === userId);
+    if (!target || (target.loyaltyPoints || 0) < points) return false;
+    setUsers(base.map(u => u.id === userId ? { ...u, loyaltyPoints: (u.loyaltyPoints || 0) - points } : u));
+    pushLoyaltyTx({ userId, points: -points, reason, category: 'manual', byAdmin: true });
+    return true;
+  };
+
+  const setUserLevel = (userId: string, level: User['level']) => {
+    const u = usersRef.current.find(x => x.id === userId);
+    setUsers(usersRef.current.map(x => x.id === userId ? { ...x, level } : x));
+    if (u) pushAuditLog('تغییر سطح باشگاه مشتریان', `سطح «${u.name}» به «${level}» تغییر کرد`, 'دعوت‌ها');
+  };
+
+  // Redeem a reward catalog item for a user (used by admin panel & customer club).
+  const redeemLoyaltyReward = (userId: string, rewardId: string): { ok: boolean; error?: string } => {
+    const cfg = configRef.current;
+    const reward = cfg.rewards.find(r => r.id === rewardId);
+    if (!reward) return { ok: false, error: 'پاداش یافت نشد' };
+    if (!reward.enabled) return { ok: false, error: 'این پاداش غیرفعال است' };
+    const target = usersRef.current.find(u => u.id === userId);
+    if (!target) return { ok: false, error: 'کاربر یافت نشد' };
+    if ((target.loyaltyPoints || 0) < reward.cost) return { ok: false, error: 'امتیاز کافی نیست' };
+    setUsers(usersRef.current.map(u => u.id === userId ? { ...u, loyaltyPoints: (u.loyaltyPoints || 0) - reward.cost } : u));
+    pushLoyaltyTx({ userId, points: -reward.cost, reason: `ثبت‌نام پاداش: ${reward.title}`, category: 'redeem' });
+    pushAuditLog('خرج امتیاز باشگاه', `${target.name} پاداش «${reward.title}» (${reward.cost} امتیاز) را فعال کرد`, 'دعوت‌ها');
+    return { ok: true };
+  };
+
+  // Purchase-based earning: called when an order becomes delivered/paid.
+  const awardPurchasePoints = (orderUserId: string | undefined, amount: number, trackingCode: string) => {
+    if (!orderUserId || amount <= 0) return;
+    const cfg = configRef.current;
+    if (!cfg.enabled || cfg.pointsPerToman <= 0) return;
+    const target = usersRef.current.find(u => u.id === orderUserId);
+    if (!target || target.role !== 'customer') return;
+    const tier = cfg.tiers.find(t => t.level === target.level) || cfg.tiers[0];
+    const raw = Math.floor(amount / cfg.pointsPerToman) * (tier?.multiplier || 1);
+    const pts = Math.max(1, Math.round(raw));
+    awardLoyaltyPoints(orderUserId, pts, `امتیاز خرید سفارش ${trackingCode} (${tier?.label || 'عادی'} ×${tier?.multiplier || 1})`, { category: 'purchase' });
+  };
+
+  // Customer club: bonus for submitting a review (called from ProductDetail).
+  const awardReviewPoints = () => {
+    if (!currentUser || currentUser.role !== 'customer') return;
+    const cfg = configRef.current;
+    if (!cfg.enabled || cfg.reviewBonus <= 0) return;
+    awardLoyaltyPoints(currentUser.id, cfg.reviewBonus, 'ثبت نظر درباره محصول/خدمت', { category: 'review' });
+  };
+
+  // Daily-login streak bonus: credited at most once per calendar day per user.
+  const applyLoginStreak = (user: User): User => {
+    const cfg = configRef.current;
+    if (!cfg.enabled || cfg.dailyLoginBonus <= 0 || user.role !== 'customer') return user;
+    const today = new Date().toISOString().slice(0, 10);
+    if (user.lastLoginStreakDate === today) return user;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const streak = user.lastLoginStreakDate === yesterday ? (user.loginStreak || 0) + 1 : 1;
+    const cappedDay = Math.min(streak, cfg.streakMaxDays || 7);
+    const bonus = Math.round(cfg.dailyLoginBonus * cappedDay * (cfg.streakDayMultiplier || 1));
+    const nextTotal = (user.totalEarnedPoints ?? user.loyaltyPoints ?? 0) + bonus;
+    const updated: User = {
+      ...user,
+      loginStreak: streak,
+      lastLoginStreakDate: today,
+      loyaltyPoints: (user.loyaltyPoints || 0) + bonus,
+      totalEarnedPoints: nextTotal,
+      level: computeLevelFromPoints(nextTotal, cfg.tiers),
+    };
+    setUsers(usersRef.current.map(u => u.id === user.id ? updated : u));
+    pushLoyaltyTx({ userId: user.id, points: bonus, reason: `ورود روزانه — روز ${streak} از استریک 🔥`, category: 'login_streak' });
+    return updated;
+  };
+
   // Issue a receipt (رسید) invoice when an order is delivered
   const issueDeliveryReceipt = (order: Order) => {
     if (order.receiptInvoiceId && invoicesRef.current.some(inv => inv.id === order.receiptInvoiceId)) return;
@@ -2460,6 +2727,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (isDelivered && !wasDelivered) {
       // Stock deduction is handled by the effect below (single source of truth)
       issueDeliveryReceipt(order);
+      // Customer club: award purchase points once the order is completed
+      awardPurchasePoints(order.customerId, order.paid || order.total, order.trackingCode);
     }
   };
 
@@ -2861,6 +3130,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const login = (phone: string, name: string, invitedBy?: string) => {
     // Always work from the latest users list so reward updates made right before
     // login (e.g. the inviter's bonus in Auth.tsx) are not overwritten.
+    const cfg = configRef.current;
     const baseUsers = usersRef.current;
     let user = baseUsers.find(u => u.phone === phone);
     if (!user) {
@@ -2874,7 +3144,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         inviteCode: 'INV' + Math.random().toString(36).substr(2, 6).toUpperCase(),
         invitedBy,
         invitedCount: 0,
-        loyaltyPoints: invitedBy ? 50 : 0, // New user gets 50 points if invited
+        loyaltyPoints: invitedBy ? cfg.invitedUserBonus : 0, // New user gets welcome bonus if invited
+        totalEarnedPoints: invitedBy ? cfg.invitedUserBonus : 0,
         level: 'normal',
         favorites: [],
         selectedMedia: [],
@@ -2889,20 +3160,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const updatedUser: User = { ...user, invitedBy };
         const nextUsers = baseUsers.map(u => {
           if (u.id === inviter.id) {
+            const inviterTotal = (u.totalEarnedPoints ?? u.loyaltyPoints ?? 0) + cfg.inviteBonus;
             return {
               ...u,
               invitedCount: (u.invitedCount || 0) + 1,
-              loyaltyPoints: (u.loyaltyPoints || 0) + 50,
+              loyaltyPoints: (u.loyaltyPoints || 0) + cfg.inviteBonus,
+              totalEarnedPoints: inviterTotal,
+              level: computeLevelFromPoints(inviterTotal, cfg.tiers),
             };
           }
           if (u.id === user!.id) return updatedUser;
           return u;
         });
         setUsers(nextUsers);
-        user = updatedUser;
+        // Keep the local reference in sync with the latest saved record so the
+        // streak logic below never writes a stale copy over the new referral data.
+        user = usersRef.current.find(u => u.id === user!.id) || updatedUser;
       }
     }
-    setCurrentUser(user);
+    // Daily-login streak bonus (at most once per calendar day).
+    setCurrentUser(applyLoginStreak(user));
   };
 
   // Permissions granted to the logged-in admin through its RBAC role.
