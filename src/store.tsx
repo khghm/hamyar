@@ -993,6 +993,39 @@ export const TICKET_CATEGORY_LABELS: Record<TicketCategory, string> = {
 };
 
 // SLA deadlines per priority (used by the admin board to flag overdue tickets)
+// Session keys. Tickets and orders are keyed by the user id, so the login
+// session must be stable across reloads AND logins with the same phone — a
+// fresh `u + Date.now()` id per visit used to orphan every previously created
+// ticket (customer saw an empty list after logout/refresh).
+const CUSTOMER_SESSION_KEY = 'hamyar_customer_session';
+export interface CustomerSession { id: string; name: string; phone: string }
+
+// One-time migration for sessions created before ids were persisted in the
+// users list: adopt the matching account's id so old tickets/orders stay
+// reachable. Returns null when nothing was stored under the legacy key.
+function migrateLegacyCustomerSession(users: User[]): CustomerSession | null {
+  try {
+    const raw = localStorage.getItem('hamyar_user');
+    if (!raw) return null;
+    const legacy: User = JSON.parse(raw);
+    if (!legacy || legacy.role !== 'customer' || !legacy.phone) return null;
+    const match = users.find(u => u.id === legacy.id && u.role === 'customer')
+      || users.find(u => u.phone === legacy.phone && u.role === 'customer');
+    const session: CustomerSession = {
+      id: match ? match.id : legacy.id,
+      name: legacy.name || '',
+      phone: legacy.phone,
+    };
+    localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(session));
+    // The legacy key is consumed; drop it so future reloads read from the
+    // authoritative session + users list only.
+    localStorage.removeItem('hamyar_user');
+    return session;
+  } catch {
+    return null;
+  }
+}
+
 export const TICKET_SLA_HOURS: Record<TicketPriority, number> = {
   low: 72,
   normal: 24,
@@ -1965,14 +1998,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('hamyar_dark');
     return saved === 'true';
   });
+  // Customer sessions are restored from a dedicated key + the authoritative
+  // users list (see CustomerSession above). Admin sessions keep using the
+  // legacy 'hamyar_user' snapshot because they embed RBAC permissions that
+  // only exist in the session object.
+  const initialCustomerSessionRef = { current: null as User | null };
+  const restoreCustomerSession = (): User | null => {
+    try {
+      const raw = localStorage.getItem(CUSTOMER_SESSION_KEY);
+      if (!raw) return null;
+      const s: CustomerSession = JSON.parse(raw);
+      if (!s || !s.id || !s.phone) return null;
+      const all: User[] = (() => {
+        try {
+          const saved = localStorage.getItem('hamyar_users');
+          return saved ? (JSON.parse(saved) as User[]) : [];
+        } catch { return []; }
+      })();
+      const account =
+        all.find(u => u.id === s.id && u.role === 'customer') ||
+        all.find(u => u.phone === s.phone && u.role === 'customer');
+      // Rebuild the full user object from the stored account so profile data,
+      // wallet and favorites stay in sync with the users list. The id is kept
+      // stable either way, which is what ties tickets/orders to this session.
+      if (account) {
+        const restored = { ...account, name: s.name || account.name };
+        initialCustomerSessionRef.current = restored;
+        return restored;
+      }
+      const rebuilt: User = {
+        id: s.id, username: s.phone, password: '', role: 'customer',
+        name: s.name, phone: s.phone, loyaltyPoints: 0, totalEarnedPoints: 0,
+        level: 'normal', favorites: [], selectedMedia: [], createdAt: new Date().toISOString(),
+      };
+      initialCustomerSessionRef.current = rebuilt;
+      return rebuilt;
+    } catch { return null; }
+  };
+
+  const stripLegacySessionPoints = (u: User | null): User | null => {
+    // Strip legacy hard-coded points from the live session as well (one-time).
+    if (!u || localStorage.getItem(GAMIFICATION_RESET_KEY)) return u;
+    if (u.role !== 'customer') return u;
+    if (!(u.loyaltyPoints || 0) && !(u.totalEarnedPoints || 0) && !u.loginStreak && !u.lastLoginStreakDate) return u;
+    return { ...u, loyaltyPoints: 0, totalEarnedPoints: 0, loginStreak: undefined, lastLoginStreakDate: undefined, level: 'normal' };
+  };
+
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const customer = restoreCustomerSession();
+    if (customer) return stripLegacySessionPoints(customer);
     const saved = localStorage.getItem('hamyar_user');
     const parsed: User | null = saved ? JSON.parse(saved) : null;
-    // Strip legacy hard-coded points from the live session as well (one-time).
-    if (!parsed || localStorage.getItem(GAMIFICATION_RESET_KEY)) return parsed;
-    if (parsed.role !== 'customer') return parsed;
-    if (!(parsed.loyaltyPoints || 0) && !(parsed.totalEarnedPoints || 0) && !parsed.loginStreak && !parsed.lastLoginStreakDate) return parsed;
-    return { ...parsed, loyaltyPoints: 0, totalEarnedPoints: 0, loginStreak: undefined, lastLoginStreakDate: undefined, level: 'normal' };
+    // Legacy migration: previous builds saved the whole session under
+    // 'hamyar_user' and generated a brand-new id on every login, which
+    // orphaned tickets after logout/refresh. Adopt the stable session now.
+    if (parsed && parsed.role === 'customer') {
+      try {
+        const all: User[] = (() => {
+          try {
+            const s = localStorage.getItem('hamyar_users');
+            return s ? (JSON.parse(s) as User[]) : [];
+          } catch { return []; }
+        })();
+        const migrated = migrateLegacyCustomerSession(all);
+        if (migrated) {
+          const healed = stripLegacySessionPoints({ ...parsed, id: migrated.id, name: migrated.name || parsed.name });
+          // Remember the legacy id so `login` keeps using it instead of
+          // generating a fresh one for the same person.
+          initialCustomerSessionRef.current = healed;
+          return healed;
+        }
+      } catch { /* fall through to the plain parsed session */ }
+    }
+    return stripLegacySessionPoints(parsed);
   });
   // Cart is stored separately in localStorage so it persists across reloads
   // and cannot be overwritten by stale user data (fixes duplicate/leftover carts).
@@ -2026,7 +2124,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('hamyar_users');
-    const parsed: User[] = saved ? JSON.parse(saved) : [];
+    let parsed: User[] = saved ? JSON.parse(saved) : [];
+    // The live customer session must exist in the users list, otherwise the
+    // admin «مشتریان» section never shows the account (and a later write to
+    // the list would silently drop the session). This also heals data created
+    // by older builds where only 'hamyar_user' held the customer record.
+    try {
+      const raw = localStorage.getItem(CUSTOMER_SESSION_KEY);
+      if (raw) {
+        const s: CustomerSession = JSON.parse(raw);
+        if (s && s.id && s.phone && !parsed.some(u => u.id === s.id)) {
+          const byPhone = parsed.find(u => u.phone === s.phone && u.role === 'customer');
+          if (byPhone) {
+            // Legacy duplicate: merge the orphaned record into the session id
+            // and re-point tickets/orders so nothing ends up ownerless.
+            const migrate = (key: string, apply: (list: any[]) => any[]) => {
+              try {
+                const v = localStorage.getItem(key);
+                if (!v) return;
+                const list = JSON.parse(v);
+                if (Array.isArray(list)) localStorage.setItem(key, JSON.stringify(apply(list)));
+              } catch { /* ignore malformed collections */ }
+            };
+            const repoint = (list: any[]) => list.map(x => x && x.customerId === byPhone.id ? { ...x, customerId: s.id } : x);
+            migrate('hamyar_tickets', repoint);
+            migrate('hamyar_orders', repoint);
+            migrate('hamyar_loyalty_tx', repoint);
+            migrate('hamyar_invoices', repoint);
+            const merged: User = { ...byPhone, id: s.id, name: s.name || byPhone.name };
+            const rest = parsed.filter(u => u.id !== byPhone.id);
+            return localStorage.getItem(GAMIFICATION_RESET_KEY) ? rest.concat(merged) : stripLegacyLoyalty(rest.concat(merged));
+          }
+          parsed = [...parsed, {
+            id: s.id, username: s.phone, password: '', role: 'customer' as const,
+            name: s.name, phone: s.phone, loyaltyPoints: 0, totalEarnedPoints: 0,
+            level: 'normal' as const, favorites: [], selectedMedia: [], createdAt: new Date().toISOString(),
+          }];
+        }
+      }
+    } catch { /* fall through to the plain parsed list */ }
     // One-time cleanup of the old hard-coded loyalty balances (see stripLegacyLoyalty).
     return localStorage.getItem(GAMIFICATION_RESET_KEY) ? parsed : stripLegacyLoyalty(parsed);
   });
@@ -2531,7 +2667,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     else document.documentElement.classList.remove('dark');
   }, [darkMode]);
 
-  useEffect(() => { localStorage.setItem('hamyar_user', JSON.stringify(currentUser)); }, [currentUser]);
+  useEffect(() => {
+    // Customers persist through the dedicated session key (id + name + phone);
+    // their full profile always comes from the users list on the next load.
+    // Admin sessions keep embedding RBAC permissions, so they stay in the
+    // legacy snapshot. null clears both.
+    if (!currentUser) {
+      localStorage.removeItem('hamyar_user');
+      localStorage.removeItem(CUSTOMER_SESSION_KEY);
+      return;
+    }
+    if (currentUser.role === 'customer') {
+      const s: CustomerSession = { id: currentUser.id, name: currentUser.name, phone: currentUser.phone };
+      localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(s));
+      localStorage.removeItem('hamyar_user');
+    } else {
+      localStorage.setItem('hamyar_user', JSON.stringify(currentUser));
+      localStorage.removeItem(CUSTOMER_SESSION_KEY);
+    }
+  }, [currentUser]);
   useEffect(() => { localStorage.setItem('hamyar_cart', JSON.stringify(cartItems)); }, [cartItems]);
   useEffect(() => { localStorage.setItem('hamyar_products', JSON.stringify(products)); }, [products]);
   useEffect(() => { localStorage.setItem('hamyar_media', JSON.stringify(mediaItems)); }, [mediaItems]);
@@ -2612,6 +2766,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { usersRef.current = users; }, [users]);
   const currentUserRef = useRef(currentUser);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // Safety net: the logged-in customer must always exist in the users list —
+  // otherwise the admin «مشتریان» section cannot show them and any write to
+  // the list would drop their account. Covers legacy data where the session
+  // lived only in 'hamyar_user' and login generated a fresh id every visit.
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'customer') return;
+    if (users.some(u => u.id === currentUser.id)) return;
+    setUsers(prev => prev.some(u => u.id === currentUser.id)
+      ? prev
+      : [...prev, { ...currentUser }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, currentUser?.role, users.length]);
 
   // Whenever the RBAC data changes, refresh the live admin session so that:
   // - a staff account whose role/permissions were just edited gets them applied
@@ -3480,8 +3647,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const baseUsers = usersRef.current;
     let user = baseUsers.find(u => u.phone === phone);
     if (!user) {
+      // Keep the id stable across logins: reuse the current session id when it
+      // is not already taken by another account, otherwise fall back to the
+      // legacy snapshot id (pre-fix sessions) and finally a fresh id. A brand
+      // new id per visit used to orphan every previously created ticket.
+      const cu = currentUserRef.current;
+      const legacyId = initialCustomerSessionRef.current?.id;
+      const reusedId =
+        cu && cu.role === 'customer' && !baseUsers.some(u => u.id === cu.id) ? cu.id :
+        legacyId && !baseUsers.some(u => u.id === legacyId) ? legacyId : undefined;
       user = {
-        id: 'u' + Date.now(),
+        id: reusedId || 'u' + Date.now(),
         username: phone,
         password: '',
         role: 'customer',
