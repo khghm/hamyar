@@ -35,7 +35,8 @@ export const activityModules = [
   'دعوت‌ها',
   'تنظیمات',
   'RBAC',
-  'یادداشت‌ها'
+  'یادداشت‌ها',
+  'پشتیبانی'
 ];
 
 export const activityActions = [

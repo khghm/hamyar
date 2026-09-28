@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { logActivity } from './utils/auditLog';
+import { track } from './utils/analytics';
 
 // Types
 export interface CartItem {
@@ -926,6 +927,79 @@ export interface FaqItem {
   category: string;
 }
 
+// ---------------------------------------------------------------------------
+// Support ticketing (بخش تیکت و پشتیبانی)
+// A ticket is a threaded conversation between a customer and the support team.
+// Statuses are intentionally limited to four values so both the public profile
+// page and the admin workspace share one simple workflow:
+//   open → in_progress → resolved, plus `closed` for tickets that were
+//   terminated without a resolution (spam / duplicate).
+// ---------------------------------------------------------------------------
+export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type TicketCategory = 'general' | 'order' | 'technical' | 'billing' | 'complaint' | 'other';
+
+export interface TicketMessage {
+  id: string;
+  sender: 'customer' | 'support';
+  // Name shown on the bubble — the staff member's name when replying as support
+  author: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  code: string; // human-readable tracking code, e.g. TCK-1403125
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  subject: string;
+  description: string; // opening message (also kept as the first thread entry)
+  category: TicketCategory;
+  priority: TicketPriority;
+  status: TicketStatus;
+  orderId?: string; // optional link to an existing order
+  messages: TicketMessage[];
+  assignedTo?: string; // staff member handling the ticket
+  rating?: number; // 1..5 satisfaction score given by the customer after resolution
+  ratedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  closedAt?: string;
+}
+
+export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
+  open: 'باز',
+  in_progress: 'در حال رسیدگی',
+  resolved: 'حل شده',
+  closed: 'بسته شده',
+};
+
+export const TICKET_PRIORITY_LABELS: Record<TicketPriority, string> = {
+  low: 'کم',
+  normal: 'عادی',
+  high: 'زیاد',
+  urgent: 'فوری',
+};
+
+export const TICKET_CATEGORY_LABELS: Record<TicketCategory, string> = {
+  general: 'عمومی',
+  order: 'سفارش و خدمات',
+  technical: 'مشکل فنی',
+  billing: 'مالی و پرداخت',
+  complaint: 'شکایت',
+  other: 'سایر',
+};
+
+// SLA deadlines per priority (used by the admin board to flag overdue tickets)
+export const TICKET_SLA_HOURS: Record<TicketPriority, number> = {
+  low: 72,
+  normal: 24,
+  high: 8,
+  urgent: 2,
+};
+
 export interface InvoiceItem {
   name: string;
   quantity: number;
@@ -1477,6 +1551,7 @@ export const ADMIN_PAGE_PERMISSIONS: Record<string, string[]> = {
   '/admin/campaigns': ['perm19', 'perm20'],
   '/admin/sms': ['perm21', 'perm22'],
   '/admin/reviews': ['perm23', 'perm24'],
+  '/admin/tickets': ['perm41', 'perm42'],
   '/admin/content-team': ['perm27', 'perm28'],
   '/admin/rbac': ['perm35'],
   '/admin/training': [], // training – available to all staff accounts
@@ -1565,6 +1640,21 @@ interface AppContextType {
   setAuditLogs: (a: AuditLog[]) => void;
   faqs: FaqItem[];
   setFaqs: (f: FaqItem[]) => void;
+  // ---- Support tickets (تیکت و پشتیبانی) ----
+  tickets: SupportTicket[];
+  setTickets: (t: SupportTicket[]) => void;
+  // Customer side: open a new ticket thread, returns the generated tracking code
+  createTicket: (input: { subject: string; description: string; category: TicketCategory; priority: TicketPriority; orderId?: string }) => { ok: boolean; error?: string; ticket?: SupportTicket };
+  // Customer side: append a follow-up message to their own ticket
+  replyTicket: (ticketId: string, text: string) => void;
+  // Customer side: reopen a resolved/closed ticket with a new message
+  reopenTicket: (ticketId: string, text: string) => void;
+  // Customer side: rate the support quality after the ticket was resolved
+  rateTicket: (ticketId: string, rating: number) => void;
+  // Admin side: reply as the support team (also flips `open` → `in_progress`)
+  adminReplyTicket: (ticketId: string, text: string) => void;
+  // Admin side: change status / priority / assignee in one patch
+  updateTicket: (id: string, patch: Partial<Pick<SupportTicket, 'status' | 'priority' | 'assignedTo'>>) => void;
   invoices: Invoice[];
   setInvoices: (i: Invoice[]) => void;
   // ---- Customer club / gamification (managed from admin «کدهای دعوت») ----
@@ -2026,6 +2116,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('hamyar_invoices');
     return saved ? JSON.parse(saved) : [];
   });
+  // ---- Support tickets state (persisted like the other collections) ----
+  const [tickets, setTickets] = useState<SupportTicket[]>(() => {
+    const saved = localStorage.getItem('hamyar_tickets');
+    return saved ? JSON.parse(saved) : [];
+  });
   // ---- Customer club / gamification state ----
   const [loyaltyTx, setLoyaltyTx] = useState<LoyaltyTransaction[]>(() => {
     const saved = localStorage.getItem('hamyar_loyalty_tx');
@@ -2122,6 +2217,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       { id: 'perm38', name: 'مشاهده سفارشات همکار', description: 'مشاهده سفارشات ارجاعی همکاران', module: 'همکاران' },
       { id: 'perm39', name: 'مدیریت کیف پول', description: 'مدیریت تراکنش‌های کیف پول همکاران', module: 'همکاران' },
       { id: 'perm40', name: 'گزارش‌های همکاران', description: 'مشاهده گزارش‌های عملکرد همکاران', module: 'همکاران' },
+      { id: 'perm41', name: 'مشاهده تیکت‌ها', description: 'مشاهده تیکت‌های پشتیبانی مشتریان', module: 'پشتیبانی' },
+      { id: 'perm42', name: 'مدیریت تیکت‌ها', description: 'پاسخ‌دهی، تغییر وضعیت و اولویت تیکت‌ها', module: 'پشتیبانی' },
     ];
   });
 
@@ -2173,6 +2270,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         name: 'همکار',
         description: 'دسترسی به پنل همکاران و مشاهده پورسانت‌ها',
         permissions: ['perm36', 'perm38'],
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'role7',
+        name: 'کارشناس پشتیبانی',
+        description: 'پاسخ‌دهی و رسیدگی به تیکت‌های مشتریان',
+        permissions: ['perm41', 'perm42', 'perm1', 'perm21'],
         isDefault: false,
         createdAt: new Date().toISOString()
       },
@@ -2444,6 +2549,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_sms', JSON.stringify(smsLogs)); }, [smsLogs]);
   useEffect(() => { localStorage.setItem('hamyar_audit', JSON.stringify(auditLogs)); }, [auditLogs]);
   useEffect(() => { localStorage.setItem('hamyar_faqs', JSON.stringify(faqs)); }, [faqs]);
+  useEffect(() => { localStorage.setItem('hamyar_tickets', JSON.stringify(tickets)); }, [tickets]);
   useEffect(() => { localStorage.setItem('hamyar_invoices', JSON.stringify(invoices)); }, [invoices]);
   useEffect(() => { localStorage.setItem('hamyar_content_projects', JSON.stringify(contentProjects)); }, [contentProjects]);
   useEffect(() => { localStorage.setItem('hamyar_content_comments', JSON.stringify(contentComments)); }, [contentComments]);
@@ -2577,6 +2683,117 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const pushAuditLog = (action: string, details: string, module: string) => {
     setAuditLogs(prev => [logActivity(currentUser?.name || 'مدیر سیستم', action, details, module), ...prev]);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Support ticket workflow. Customers open threads from their profile page;
+  // the staff answers them from the admin «تیکت و پشتیبانی» board. Every admin
+  // action is mirrored into the SMS log and the audit log so the ticketing
+  // section stays consistent with the rest of the panel.
+  // ---------------------------------------------------------------------------
+  const ticketsRef = useRef(tickets);
+  useEffect(() => { ticketsRef.current = tickets; }, [tickets]);
+
+  const newTicketCode = (): string => {
+    // Sequential-per-day code like the order tracking codes, e.g. TCK-4821
+    const n = ticketsRef.current.length + 1;
+    return 'TCK-' + String(1000 + n) + Math.floor(Math.random() * 90 + 10);
+  };
+
+  const createTicket: AppContextType['createTicket'] = (input) => {
+    if (!currentUser) return { ok: false, error: 'برای ثبت تیکت باید وارد حساب خود شوید.' };
+    const subject = input.subject.trim();
+    const description = input.description.trim();
+    if (!subject || !description) return { ok: false, error: 'موضوع و شرح مشکل را کامل وارد کنید.' };
+    const now = new Date().toISOString();
+    const ticket: SupportTicket = {
+      id: 'tck' + Date.now() + Math.random().toString(36).slice(2, 6),
+      code: newTicketCode(),
+      customerId: currentUser.id,
+      customerName: currentUser.name,
+      customerPhone: currentUser.phone,
+      subject,
+      description,
+      category: input.category,
+      priority: input.priority,
+      status: 'open',
+      orderId: input.orderId,
+      messages: [{ id: 'tm' + Date.now(), sender: 'customer', author: currentUser.name, text: description, createdAt: now }],
+      createdAt: now,
+      updatedAt: now,
+    };
+    setTickets(prev => [ticket, ...prev]);
+    track('ticket_created', { category: ticket.category, priority: ticket.priority });
+    return { ok: true, ticket };
+  };
+
+  // Shared helper for the customer-side replies (new message + reopen flow)
+  const customerTicketReply = (ticketId: string, text: string, reopen: boolean) => {
+    const body = text.trim();
+    if (!body || !currentUser) return;
+    const now = new Date().toISOString();
+    setTickets(prev => prev.map(t => t.id === ticketId && t.customerId === currentUser.id ? {
+      ...t,
+      status: reopen && (t.status === 'resolved' || t.status === 'closed') ? 'open' : t.status,
+      closedAt: reopen && (t.status === 'resolved' || t.status === 'closed') ? undefined : t.closedAt,
+      messages: [...t.messages, { id: 'tm' + Date.now() + Math.random().toString(36).slice(2, 5), sender: 'customer', author: currentUser.name, text: body, createdAt: now }],
+      updatedAt: now,
+    } : t));
+  };
+
+  const replyTicket = (ticketId: string, text: string) => customerTicketReply(ticketId, text, false);
+  const reopenTicket = (ticketId: string, text: string) => customerTicketReply(ticketId, text, true);
+
+  const rateTicket = (ticketId: string, rating: number) => {
+    if (!rating || rating < 1 || rating > 5) return;
+    const now = new Date().toISOString();
+    setTickets(prev => prev.map(t => t.id === ticketId && t.customerId === currentUser?.id ? { ...t, rating, ratedAt: now, updatedAt: now } : t));
+    track('ticket_rated', { rating });
+  };
+
+  const adminReplyTicket = (ticketId: string, text: string) => {
+    const body = text.trim();
+    if (!body) return;
+    const now = new Date().toISOString();
+    const author = currentUser?.name || 'تیم پشتیبانی';
+    let target: SupportTicket | undefined;
+    setTickets(prev => prev.map(t => {
+      if (t.id !== ticketId) return t;
+      target = t;
+      return {
+        ...t,
+        // First staff answer automatically moves the ticket into "in progress"
+        status: t.status === 'open' ? 'in_progress' : t.status,
+        assignedTo: t.assignedTo || author,
+        messages: [...t.messages, { id: 'tm' + Date.now() + Math.random().toString(36).slice(2, 5), sender: 'support', author, text: body, createdAt: now }],
+        updatedAt: now,
+      };
+    }));
+    // Notify the customer through the same SMS pipeline used by the order flows
+    setTimeout(() => {
+      if (target) {
+        if (target.customerPhone) pushSmsLog(target.customerPhone, `پاسخ تیکت «${target.subject}» (${target.code}) ثبت شد. برای مشاهده به پنل کاربری خود مراجعه کنید.`);
+        pushAuditLog('پاسخ تیکت', `پاسخ به تیکت ${target.code} – ${target.subject}`, 'پشتیبانی');
+      }
+    }, 0);
+  };
+
+  const updateTicket: AppContextType['updateTicket'] = (id, patch) => {
+    const now = new Date().toISOString();
+    let target: SupportTicket | undefined;
+    setTickets(prev => prev.map(t => {
+      if (t.id !== id) return t;
+      target = t;
+      const next: SupportTicket = { ...t, ...patch, updatedAt: now };
+      if (patch.status === 'resolved' || patch.status === 'closed') next.closedAt = now;
+      if (patch.status === 'open' || patch.status === 'in_progress') next.closedAt = undefined;
+      return next;
+    }));
+    setTimeout(() => {
+      if (target && patch.status && patch.status !== target.status) {
+        pushAuditLog('تغییر وضعیت تیکت', `تیکت ${target.code}: ${TICKET_STATUS_LABELS[target.status]} ← ${TICKET_STATUS_LABELS[patch.status]}`, 'پشتیبانی');
+      }
+    }, 0);
   };
 
   // ---------------------------------------------------------------------------
@@ -3609,7 +3826,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       affiliates, setAffiliates,
       affiliateOrders, setAffiliateOrders,
       affiliateTransactions, setAffiliateTransactions,
-      personas, setPersonas
+      personas, setPersonas,
+      tickets, setTickets, createTicket, replyTicket, reopenTicket, rateTicket, adminReplyTicket, updateTicket
     }}>
       {children}
     </AppContext.Provider>

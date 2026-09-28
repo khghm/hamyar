@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp, ADMIN_PAGE_PERMISSIONS } from '../store';
-import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText, Target, Globe } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText, Target, Globe, LifeBuoy } from 'lucide-react';
 
 export default function AdminLayout() {
   const { darkMode, toggleDarkMode, logout, canAccessPage, currentUser, roles } = useApp();
@@ -44,6 +44,7 @@ export default function AdminLayout() {
     { path: '/admin/campaigns', icon: Percent, label: 'کمپین تخفیف' },
     { path: '/admin/sms', icon: MessageSquare, label: 'پیامک انبوه' },
     { path: '/admin/reviews', icon: Star, label: 'نظرات' },
+    { path: '/admin/tickets', icon: LifeBuoy, label: 'تیکت و پشتیبانی' },
     { path: '/admin/content-team', icon: Video, label: 'تیم تولید محتوا' },
     { path: '/admin/rbac', icon: Shield, label: 'کنترل دسترسی (RBAC)' },
     { path: '/admin/training', icon: BookOpen, label: 'آموزش ادمین' },
