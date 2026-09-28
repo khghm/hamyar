@@ -18,6 +18,7 @@ import Auth from './pages/Auth';
 import Profile from './pages/Profile';
 import ProductDetail from './pages/ProductDetail';
 import MediaDetail from './pages/MediaDetail';
+import ProjectServiceDetail from './pages/ProjectServiceDetail';
 import NewsDetail from './pages/NewsDetail';
 import TrackOrder from './pages/TrackOrder';
 import FAQ from './pages/FAQ';
@@ -75,6 +76,8 @@ function AppRoutes() {
         <Route path="/profile" element={currentUser && currentUser.role === 'customer' ? <Profile /> : <Navigate to="/auth" />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/media/:id" element={<MediaDetail />} />
+        {/* Details/order page for every item of طراحی سایت & تولید محتوا */}
+        <Route path="/project-services/:id" element={<ProjectServiceDetail />} />
         <Route path="/news/:id" element={<NewsDetail />} />
         <Route path="/track" element={<TrackOrder />} />
         <Route path="/faq" element={<FAQ />} />
