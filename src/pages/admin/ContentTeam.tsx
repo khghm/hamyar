@@ -14,7 +14,8 @@ export default function AdminContentTeam() {
   const { 
     darkMode, contentProjects, setContentProjects, contentComments, setContentComments,
     contentAssets, setContentAssets, contentTemplates, setContentTemplates,
-    contentIdeas, setContentIdeas, brandBook, setBrandBook, employees, products, campaigns, currentUser
+    contentIdeas, setContentIdeas, brandBook, setBrandBook, employees, products, campaigns, currentUser,
+    orders, updateOrderStatus
   } = useApp();
   
   const [activeTab, setActiveTab] = useState('projects');
@@ -608,6 +609,22 @@ export default function AdminContentTeam() {
                         <div>
                           <h3 className="font-bold">{project.title}</h3>
                           <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{typeLabels[project.type]}</p>
+                          {project.sourceTrackingCode && (() => {
+                            const srcOrder = orders.find(o => o.id === project.sourceOrderId);
+                            return (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 font-medium" title={srcOrder ? `وضعیت سفارش مرجع: ${srcOrder.status}` : ''}>
+                                  🛒 سفارش آنلاین {project.sourceTrackingCode}
+                                </span>
+                                {srcOrder?.documentStatus === 'pending' && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">مدارک در انتظار بررسی</span>
+                                )}
+                                {srcOrder?.documentStatus === 'rejected' && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">مدارک رد شده</span>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                       <div className="flex gap-1">
@@ -1224,6 +1241,7 @@ export default function AdminContentTeam() {
         if (!project) return null;
         const projectComments = contentComments.filter(c => c.projectId === project.id);
         const projectAssets = contentAssets.filter(a => a.projectId === project.id);
+        const srcOrder = project.sourceOrderId ? orders.find(o => o.id === project.sourceOrderId) : undefined;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSelectedProject(null)}>
             <div className={`w-full max-w-3xl p-6 rounded-2xl max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-slate-800' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
@@ -1231,6 +1249,50 @@ export default function AdminContentTeam() {
                 <h3 className="text-xl font-bold">{project.title}</h3>
                 <button onClick={() => setSelectedProject(null)}><X size={20} /></button>
               </div>
+
+              {/* Linked online order (تیم تولید محتوا ↔ سفارشات) */}
+              {srcOrder && (
+                <div className={`mb-6 p-4 rounded-xl border ${darkMode ? 'bg-purple-900/10 border-purple-700/50' : 'bg-purple-50 border-purple-200'}`}>
+                  <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                    <h4 className="font-bold text-sm text-purple-700 dark:text-purple-300">🛒 متصل به سفارش آنلاین {srcOrder.trackingCode}</h4>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${srcOrder.documentStatus === 'approved' ? 'bg-green-100 text-green-700' : srcOrder.documentStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                      {srcOrder.documentStatus === 'approved' ? 'مدارک تأیید شده' : srcOrder.documentStatus === 'rejected' ? 'مدارک رد شده' : 'مدارک در انتظار بررسی'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mb-3">
+                    <div><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>مشتری:</span> <span className="font-medium">{srcOrder.customerName}</span></div>
+                    <div><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>مبلغ پرداختی:</span> <span className="font-medium">{srcOrder.paid.toLocaleString('fa-IR')} تومان</span></div>
+                    <div><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>روش پرداخت:</span> <span className="font-medium">{srcOrder.paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه بانکی'}</span></div>
+                    <div><span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>وضعیت سفارش:</span> <span className="font-medium">{({ new: 'جدید', processing: 'در حال انجام', ready: 'آماده تحویل', delivered: 'تحویل شده', cancelled: 'لغو شده' } as Record<string, string>)[srcOrder.status]}</span></div>
+                  </div>
+                  {(srcOrder.formData?.fullName || srcOrder.formData?.phone) && (
+                    <p className={`text-xs mb-3 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                      اطلاعات تماس مشتری: {srcOrder.formData.fullName}{srcOrder.formData.phone ? ` • ${srcOrder.formData.phone}` : ''}
+                    </p>
+                  )}
+                  {(srcOrder.documents?.length ?? 0) > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-bold mb-1">مدارک بارگذاری‌شده توسط مشتری:</p>
+                      <div className="space-y-1">
+                        {srcOrder.documents!.map((d, i) => (
+                          <a key={i} href={d.dataUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-blue-600 hover:underline">
+                            <Upload size={12} /> {d.label}: {d.name} ({Math.round(d.size / 1024)}KB)
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-2 flex-wrap">
+                    {srcOrder.status !== 'processing' && srcOrder.status !== 'ready' && srcOrder.status !== 'delivered' && srcOrder.status !== 'cancelled' && (
+                      <button onClick={() => updateOrderStatus(srcOrder.id, 'processing')} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700">آغاز تولید (تغییر سفارش به «در حال انجام»)</button>
+                    )}
+                    {project.status === 'published' && srcOrder.status !== 'delivered' && (
+                      <button onClick={() => updateOrderStatus(srcOrder.id, 'delivered')} className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700">تحویل به مشتری (سفارش → تحویل شده)</button>
+                    )}
+                  </div>
+                  <p className={`text-[10px] mt-2 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>با انتشار این تسک، سفارش مرجع به‌صورت خودکار «تحویل شده» می‌شود و تغییر وضعیت سفارش نیز اینجا اعمال می‌گردد.</p>
+                </div>
+              )}
               
               {/* Approval Workflow */}
               <div className="mb-6">

@@ -5,7 +5,7 @@ import { toJalaliString } from '../../utils/jalali';
 import { PROJECT_FIELD_LABELS, getProjectService } from '../../store';
 
 export default function AdminOrders() {
-  const { darkMode, orders, setOrders, users, updateOrder, projects } = useApp();
+  const { darkMode, orders, setOrders, users, updateOrder, projects, contentProjects } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -432,6 +432,8 @@ export default function AdminOrders() {
         const live = orders.find(o => o.id === detailsOrder.id) || detailsOrder;
         const ps = getProjectService(live.projectServiceId);
         const linkedProject = projects?.find(p => p.id === live.projectId);
+        const linkedContentTask = contentProjects?.find(cp => cp.id === live.contentProjectId);
+        const CONTENT_STATUS_LABELS: Record<string, string> = { planning: 'برنامه‌ریزی', 'in-progress': 'در حال انجام', review: 'بازبینی', completed: 'تکمیل شده', published: 'منتشر شده' };
         const formEntries = Object.entries(live.formData || {});
         const docs = live.documents || [];
         const docStatus = live.documentStatus || 'pending';
@@ -532,6 +534,14 @@ export default function AdminOrders() {
                   {linkedProject ? (
                     <span className="font-medium text-blue-600">{linkedProject.title} ({linkedProject.stage})</span>
                   ) : '—'}
+                </div>
+                <div className="sm:col-span-2">
+                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>تسک تیم تولید محتوا:</span>{' '}
+                  {linkedContentTask ? (
+                    <span className="font-medium text-purple-600 dark:text-purple-400">
+                      {linkedContentTask.title} – وضعیت فعلی: {CONTENT_STATUS_LABELS[linkedContentTask.status] || linkedContentTask.status}
+                    </span>
+                  ) : <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>(سفارش از نوع طراحی سایت است)</span>}
                 </div>
               </div>
 
