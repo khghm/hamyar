@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { useApp, Project } from '../../store';
+import { useApp, Project, visibleProjects } from '../../store';
 import { Plus, X, Edit, Trash2, Kanban, List, Calendar, DollarSign, User, Clock, AlertCircle } from 'lucide-react';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
 import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminProjects() {
   const { darkMode, projects, setProjects } = useApp();
+  // Content-production orders are handled in the «تیم تولید محتوا» section and
+  // must not be listed in the projects board – only web-design projects show.
+  const allProjects = visibleProjects(projects);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -55,6 +58,7 @@ export default function AdminProjects() {
 
   const save = () => {
     if (editId) {
+      // Update in place so hidden (content-order) records stay untouched.
       setProjects(projects.map(p => p.id === editId ? { ...p, ...form } as Project : p));
     } else {
       setProjects([...projects, { ...form, id: 'pr' + Date.now() } as Project]);
@@ -76,8 +80,9 @@ export default function AdminProjects() {
   const handleDrop = (e: React.DragEvent, stage: string) => {
     e.preventDefault();
     const projectId = e.dataTransfer.getData('projectId');
-    const project = projects.find(p => p.id === projectId);
+    const project = allProjects.find(p => p.id === projectId);
     if (project && project.stage !== stage) {
+      // Map over the full list so hidden content-order records are preserved.
       setProjects(projects.map(p => p.id === projectId ? { ...p, stage } : p));
     }
   };
@@ -96,10 +101,10 @@ export default function AdminProjects() {
 
   // Stats
   const stats = {
-    total: projects.length,
-    inProgress: projects.filter(p => !['تحویل', 'تسویه'].includes(p.stage)).length,
-    completed: projects.filter(p => ['تحویل', 'تسویه'].includes(p.stage)).length,
-    overdue: projects.filter(p => isOverdue(p.deadline) && !['تحویل', 'تسویه'].includes(p.stage)).length,
+    total: allProjects.length,
+    inProgress: allProjects.filter(p => !['تحویل', 'تسویه'].includes(p.stage)).length,
+    completed: allProjects.filter(p => ['تحویل', 'تسویه'].includes(p.stage)).length,
+    overdue: allProjects.filter(p => isOverdue(p.deadline) && !['تحویل', 'تسویه'].includes(p.stage)).length,
   };
 
   return (
@@ -171,7 +176,7 @@ export default function AdminProjects() {
                     : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'
                 }`}
               >
-                {stage} ({projects.filter(p => p.stage === stage).length})
+                {stage} ({allProjects.filter(p => p.stage === stage).length})
               </button>
             ))}
           </div>
@@ -188,7 +193,7 @@ export default function AdminProjects() {
           'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
         }`}>
           {filteredStages.map(stage => {
-            const stageProjects = projects.filter(p => p.stage === stage);
+            const stageProjects = allProjects.filter(p => p.stage === stage);
             return (
               <div
                 key={stage}
@@ -311,7 +316,7 @@ export default function AdminProjects() {
                 </tr>
               </thead>
               <tbody>
-                {projects.map(p => (
+                {allProjects.map(p => (
                   <tr key={p.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
                     <td className="p-3 font-medium">{p.title}</td>
                     <td className="p-3">{p.clientName}</td>
@@ -343,7 +348,7 @@ export default function AdminProjects() {
         </div>
       )}
 
-      {projects.length === 0 && (
+      {allProjects.length === 0 && (
         <div className="text-center py-12">
           <Calendar size={48} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
           <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>پروژه‌ای ثبت نشده</p>

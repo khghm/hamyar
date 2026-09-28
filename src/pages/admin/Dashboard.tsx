@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp } from '../../store';
+import { useApp, visibleProjects } from '../../store';
 import { 
   DollarSign, ShoppingCart, Users, Film, Package, Wrench, AlertTriangle, TrendingUp, 
   MessageSquare, Lightbulb, Gift, Truck, Percent, Bell, Shield, FileText, Video,
@@ -39,7 +39,7 @@ export default function AdminDashboard() {
     { label: 'محصولات', value: products.length, icon: Package, color: 'text-blue-600', link: '/admin/products' },
     { label: 'عناوین مدیا', value: mediaItems.length, icon: Film, color: 'text-purple-600', link: '/admin/media' },
     { label: 'خدمات فعال', value: services.filter(s => s.active).length, icon: Wrench, color: 'text-green-600', link: '/admin/services' },
-    { label: 'پروژه‌های طراحی', value: projects.length, icon: FileText, color: 'text-orange-600', link: '/admin/projects' },
+    { label: 'پروژه‌های طراحی', value: visibleProjects(projects).length, icon: FileText, color: 'text-orange-600', link: '/admin/projects' },
     { label: 'پروژه‌های محتوا', value: contentProjects.length, icon: Video, color: 'text-pink-600', link: '/admin/content-team' },
     { label: 'ایده‌های جدید', value: contentIdeas.filter(i => i.status === 'new').length, icon: Lightbulb, color: 'text-yellow-600', link: '/admin/content-team' },
     { label: 'تأمین‌کنندگان', value: suppliers.length, icon: Truck, color: 'text-cyan-600', link: '/admin/suppliers' },

@@ -665,6 +665,25 @@ export interface Project {
   paidAmount: number;
   progress: number;
   description: string;
+  // Content-production orders are managed in the «تیم تولید محتوا» section and
+  // must never appear in the admin Projects board (طراحی سایت). Legacy records
+  // saved before this rule may still exist in localStorage; the helpers below
+  // detect them so they can be filtered out everywhere.
+  hiddenFromProjects?: boolean;
+}
+
+// True when a project record actually belongs to a content-production order
+// (either flagged explicitly or recognised from legacy data by its type/title).
+export function isContentOrderProject(p: Project): boolean {
+  if (p.hiddenFromProjects) return true;
+  if (p.type === 'تولید محتوا') return true;
+  const ps = getProjectService((p.description || '').match(/سفارش آنلاین «([^»]+)»/)?.[1]);
+  return ps?.group === 'content';
+}
+
+// The visible list of the admin Projects board (web-design projects only).
+export function visibleProjects(list: Project[]): Project[] {
+  return list.filter(p => !isContentOrderProject(p));
 }
 
 export interface Note {
@@ -1731,7 +1750,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('hamyar_projects');
-    return saved ? JSON.parse(saved) : [];
+    // Migration: content-production orders must never appear in the admin
+    // Projects board, so any legacy record created before this rule is flagged
+    // as hidden here (it stays available for the order ⇄ project sync).
+    const list: Project[] = saved ? JSON.parse(saved) : [];
+    return list.map(p => (isContentOrderProject(p) && !p.hiddenFromProjects ? { ...p, hiddenFromProjects: true } : p));
   });
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('hamyar_users');
@@ -2572,7 +2595,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       documentStatus: 'pending',
     };
 
-    // Linked project in the admin Projects board (kept in sync via projectId)
+    // Linked project in the admin Projects board (kept in sync via projectId).
+    // Content-production orders are NOT created here – they belong to the
+    // «تیم تولید محتوا» section only and must not show up in بخش پروژه‌ها.
     const projectId = 'pr' + Date.now();
     const domainOrLink = formData.domainName || formData.siteUrl || formData.accountLink || '';
     const newProject: Project = {
@@ -2588,6 +2613,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       progress: 5,
       description: `خودکار از سفارش ${trackingCode}. جزئیات: ${Object.entries(formData).filter(([k]) => !['fullName', 'phone', 'email'].includes(k)).map(([k, v]) => `${PROJECT_FIELD_LABELS[k] || k}: ${v}`).join(' | ')}`,
     };
+    if (projectService.group === 'content') newProject.hiddenFromProjects = true;
     order.projectId = projectId;
 
     // ---- Sync with the admin «تیم تولید محتوا» section ----
