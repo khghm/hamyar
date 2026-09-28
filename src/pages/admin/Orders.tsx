@@ -531,8 +531,11 @@ export default function AdminOrders() {
                 </div>
                 <div>
                   <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>پروژه مرتبط:</span>{' '}
-                  {linkedProject ? (
+                  {linkedProject && !isContentOrder(live) ? (
                     <span className="font-medium text-blue-600">{linkedProject.title} ({linkedProject.stage})</span>
+                  ) : isContentOrder(live) ? (
+                    /* Content-production orders are tracked only in «تیم تولید محتوا», not in بخش پروژه‌ها */
+                    <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>(در بخش تیم تولید محتوا پیگیری می‌شود)</span>
                   ) : '—'}
                 </div>
                 <div className="sm:col-span-2">
