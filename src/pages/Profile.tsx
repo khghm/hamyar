@@ -9,7 +9,10 @@ import {
 import { Link } from 'react-router-dom';
 import { toJalaliString } from '../utils/jalali';
 import TicketForm from '../components/TicketForm';
-import { TICKET_STATUS_LABELS, TICKET_PRIORITY_LABELS, TICKET_CATEGORY_LABELS, SupportTicket } from '../store';
+import {
+  TICKET_STATUS_LABELS, TICKET_PRIORITY_LABELS, TICKET_CATEGORY_LABELS,
+  isTicketOwner, isOrderOwner, SupportTicket,
+} from '../store';
 
 const ticketStatusCls: Record<string, string> = {
   open: 'bg-blue-100 text-blue-700',
