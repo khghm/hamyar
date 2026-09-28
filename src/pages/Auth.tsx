@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
 import { Phone, User, Lock, Gift } from 'lucide-react';
 
+const INVITE_BONUS = 50;
+
 export default function Auth() {
   const { darkMode, login, adminLogin, users, setUsers } = useApp();
   const navigate = useNavigate();
@@ -17,40 +19,68 @@ export default function Auth() {
   const handleCustomerLogin = () => {
     if (!phone || !name) { setError('لطفا تمام فیلدها را پر کنید'); return; }
     if (phone.length < 11) { setError('شماره موبایل باید ۱۱ رقم باشد'); return; }
-    
-    // Check if user already exists
-    const existingUser = users.find(u => u.phone === phone);
-    if (existingUser) {
-      login(phone, name);
-      navigate('/profile');
-      return;
-    }
-    
-    // New user registration with invite code
-    let invitedBy: string | undefined;
+
+    // Resolve the invite code (if any) up front so an invalid code is rejected
+    // before anything is persisted.
+    let inviterId: string | undefined;
     if (inviteCode.trim()) {
       const inviter = users.find(u => u.inviteCode === inviteCode.trim().toUpperCase());
-      if (inviter) {
-        invitedBy = inviter.id;
-        // Update inviter's invited count and loyalty points
+      if (!inviter) {
+        setError('کد دعوت معتبر نیست');
+        return;
+      }
+      inviterId = inviter.id;
+    }
+
+    const existingUser = users.find(u => u.phone === phone);
+
+    if (existingUser) {
+      // Existing customer signing in with an invite code for the first time:
+      // grant the rewards to the INVITER (+1 دعوت و امتیاز) and record the
+      // referrer on the new user — never give the bonus to the wrong account.
+      if (inviterId && !existingUser.invitedBy && existingUser.role === 'customer') {
         const updatedUsers = users.map(u => {
-          if (u.id === inviter.id) {
+          if (u.id === inviterId) {
             return {
               ...u,
               invitedCount: (u.invitedCount || 0) + 1,
-              loyaltyPoints: u.loyaltyPoints + 50
+              loyaltyPoints: (u.loyaltyPoints || 0) + INVITE_BONUS,
             };
+          }
+          if (u.id === existingUser.id) {
+            return { ...u, invitedBy: inviterId };
           }
           return u;
         });
         setUsers(updatedUsers);
+        login(phone, name);
       } else {
-        setError('کد دعوت معتبر نیست');
-        return;
+        login(phone, name);
       }
+      navigate('/profile');
+      return;
     }
-    
-    login(phone, name, invitedBy);
+
+    // New user registration with invite code
+    if (inviterId) {
+      // The referral bonus (50 points + 1 invite) belongs to the person whose
+      // code was used — the INVITER — not to the newly registered user.
+      const updatedUsers = users.map(u => {
+        if (u.id === inviterId) {
+          return {
+            ...u,
+            invitedCount: (u.invitedCount || 0) + 1,
+            loyaltyPoints: (u.loyaltyPoints || 0) + INVITE_BONUS,
+          };
+        }
+        return u;
+      });
+      setUsers(updatedUsers);
+    }
+
+    // login() creates the new user without touching the inviter's record,
+    // so the update above is preserved.
+    login(phone, name, inviterId);
     navigate('/profile');
   };
 
@@ -105,7 +135,7 @@ export default function Auth() {
                 className={`w-full pr-10 pl-4 py-3 rounded-xl border text-left ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`} />
             </div>
             <p className={`text-xs text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              اگر کد دعوت دارید، وارد کنید تا ۵۰ امتیاز دریافت کنید
+              با وارد کردن کد دعوت، {INVITE_BONUS} امتیاز به دعوت‌کننده و {INVITE_BONUS} امتیاز خوش‌آمدگویی به شما تعلق می‌گیرد
             </p>
             <button onClick={handleCustomerLogin} className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all">
               ورود / ثبت‌نام
