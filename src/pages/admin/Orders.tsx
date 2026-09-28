@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useApp, Order } from '../../store';
-import { Plus, Search, Filter, Kanban, List, User, Clock, AlertCircle, DollarSign, Tag, X } from 'lucide-react';
+import { Plus, Search, Filter, Kanban, List, User, Clock, AlertCircle, DollarSign, Tag, X, Eye, CheckCircle, XCircle, Paperclip, ExternalLink } from 'lucide-react';
 import { toJalaliString } from '../../utils/jalali';
+import { PROJECT_FIELD_LABELS, getProjectService } from '../../store';
 
 export default function AdminOrders() {
-  const { darkMode, orders, setOrders, users } = useApp();
+  const { darkMode, orders, setOrders, users, updateOrder, projects } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -270,6 +271,14 @@ export default function AdminOrders() {
 
                         {/* Actions */}
                         <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+                          {(order.formData || order.documents) && (
+                            <button
+                              onClick={() => setDetailsOrder(order)}
+                              className="flex-1 flex items-center justify-center gap-1 text-emerald-600 text-xs py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                            >
+                              <Eye size={12} /> جزئیات
+                            </button>
+                          )}
                           <button 
                             onClick={() => {
                               setNewOrder({
@@ -348,7 +357,14 @@ export default function AdminOrders() {
                     <td className="p-3 font-bold">{o.total.toLocaleString('fa-IR')}</td>
                     <td className="p-3 text-xs">{toJalaliString(o.createdAt)}</td>
                     <td className="p-3">
-                      <button onClick={() => setOrders(orders.filter(x => x.id !== o.id))} className="text-red-500 text-xs hover:underline">حذف</button>
+                      <div className="flex items-center gap-2">
+                        {(o.formData || o.documents) && (
+                          <button onClick={() => setDetailsOrder(o)} className="text-emerald-600 text-xs hover:underline flex items-center gap-1">
+                            <Eye size={12} /> جزئیات
+                          </button>
+                        )}
+                        <button onClick={() => setOrders(orders.filter(x => x.id !== o.id))} className="text-red-500 text-xs hover:underline">حذف</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -408,6 +424,122 @@ export default function AdminOrders() {
           </div>
         </div>
       )}
+
+      {/* Order Details Modal – supplementary info + uploaded documents (approve/reject) */}
+      {detailsOrder && (() => {
+        // Always read the freshest copy of the order from the store so that
+        // document approval instantly reflects everywhere (orders / projects sync).
+        const live = orders.find(o => o.id === detailsOrder.id) || detailsOrder;
+        const ps = getProjectService(live.projectServiceId);
+        const linkedProject = projects?.find(p => p.id === live.projectId);
+        const formEntries = Object.entries(live.formData || {});
+        const docs = live.documents || [];
+        const docStatus = live.documentStatus || 'pending';
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDetailsOrder(null)}>
+            <div className={`w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 rounded-2xl ${darkMode ? 'bg-slate-800 text-white' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold">جزئیات سفارش {live.trackingCode}</h3>
+                  <p className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {ps ? `خدمت پروژه: ${ps.title}` : live.description?.slice(0, 60)} – {orderTypeLabel(live)}
+                  </p>
+                </div>
+                <button onClick={() => setDetailsOrder(null)}><X size={20} /></button>
+              </div>
+
+              {/* Supplementary information entered by the customer (wizard step 1) */}
+              <div className="mb-5">
+                <h4 className="font-bold text-sm mb-2 flex items-center gap-1"><User size={14} /> اطلاعات تکمیلی مشتری</h4>
+                {formEntries.length === 0 ? (
+                  <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>اطلاعاتی ثبت نشده است.</p>
+                ) : (
+                  <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'} p-3 rounded-lg`}>
+                    {formEntries.map(([k, v]) => (
+                      <div key={k} className="flex flex-col">
+                        <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>{PROJECT_FIELD_LABELS[k] || k}</span>
+                        <span className="font-medium break-words">{String(v) || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Uploaded documents (wizard step 2) with admin review */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-sm flex items-center gap-1"><Paperclip size={14} /> مدارک بارگذاری‌شده ({docs.length})</h4>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    docStatus === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                    : docStatus === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                    : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                  }`}>
+                    {docStatus === 'approved' ? 'تأیید شده' : docStatus === 'rejected' ? 'رد شده' : 'در انتظار بررسی'}
+                  </span>
+                </div>
+                {docs.length === 0 ? (
+                  <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>سندی آپلود نشده است.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {docs.map((d, i) => (
+                      <div key={i} className={`flex items-center justify-between gap-2 p-2 rounded-lg border ${darkMode ? 'border-slate-700 bg-slate-700/30' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{d.label || PROJECT_FIELD_LABELS[d.key] || d.key}</p>
+                          <p className={`text-[11px] truncate ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{d.name} – {(d.size / 1024).toFixed(0)} کیلوبایت</p>
+                        </div>
+                        <a href={d.dataUrl} target="_blank" rel="noreferrer"
+                          className="text-blue-600 text-xs flex items-center gap-1 hover:underline flex-shrink-0">
+                          <ExternalLink size={12} /> مشاهده
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {docs.length > 0 && (
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => updateOrder(live.id, { documentStatus: 'approved' })}
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium ${docStatus === 'approved' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300'}`}
+                    >
+                      <CheckCircle size={14} /> تأیید مدارک
+                    </button>
+                    <button
+                      onClick={() => updateOrder(live.id, { documentStatus: 'rejected' })}
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium ${docStatus === 'rejected' ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300'}`}
+                    >
+                      <XCircle size={14} /> رد مدارک
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment information (gateway / wallet) + linked project */}
+              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs p-3 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                <div>
+                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>روش پرداخت:</span>{' '}
+                  <span className="font-medium">{live.paymentMethod === 'wallet' ? 'کیف پول' : live.paymentMethod === 'online' ? 'درگاه بانکی آنلاین' : '—'}</span>
+                </div>
+                <div>
+                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>کد پیگیری بانک:</span>{' '}
+                  <span className="font-mono font-medium">{live.gatewayRef || '—'}</span>
+                </div>
+                <div>
+                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>مبلغ پرداخت‌شده:</span>{' '}
+                  <span className="font-bold text-green-600">{live.paid.toLocaleString('fa-IR')} تومان</span>
+                </div>
+                <div>
+                  <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>پروژه مرتبط:</span>{' '}
+                  {linkedProject ? (
+                    <span className="font-medium text-blue-600">{linkedProject.title} ({linkedProject.stage})</span>
+                  ) : '—'}
+                </div>
+              </div>
+
+              <button onClick={() => setDetailsOrder(null)} className="mt-5 w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">بستن</button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
