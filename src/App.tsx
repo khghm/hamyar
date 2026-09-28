@@ -46,6 +46,7 @@ import AdminOKRKPI from './pages/admin/OKRKPI';
 import AdminDigitalMarketing from './pages/admin/DigitalMarketing';
 import AdminAffiliates from './pages/admin/Affiliates';
 import AdminPersonas from './pages/admin/Personas';
+import AdminTickets from './pages/admin/Tickets';
 import { AdminEmployees } from './pages/admin/Employees';
 import { AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup } from './pages/admin/Management';
 
@@ -114,6 +115,7 @@ function AppRoutes() {
         <Route path="rbac" element={<Guarded path="/admin/rbac"><AdminRBAC /></Guarded>} />
         <Route path="training" element={<Guarded path="/admin/training"><AdminTraining /></Guarded>} />
         <Route path="invoices" element={<Guarded path="/admin/invoices"><AdminInvoices /></Guarded>} />
+        <Route path="tickets" element={<Guarded path="/admin/tickets"><AdminTickets /></Guarded>} />
       </Route>
     </Routes>
   );

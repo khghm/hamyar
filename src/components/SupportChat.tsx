@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../store';
 import { track } from '../utils/analytics';
-import { MessageCircle, X, Send, Minimize2 } from 'lucide-react';
+import { MessageCircle, X, Send, Minimize2, LifeBuoy } from 'lucide-react';
+import TicketForm from './TicketForm';
 
 interface Message {
   id: string;
@@ -13,10 +14,27 @@ interface Message {
 export default function SupportChat() {
   const { darkMode, currentUser } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [showTicketForm, setShowTicketForm] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { id: '1', text: 'سلام! به پشتیبانی کافی نت همیار خوش آمدید. چطور می‌توانم کمکتان کنم؟', sender: 'support', time: new Date().toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }) }
   ]);
   const [input, setInput] = useState('');
+
+  // If the visitor is a logged-in customer, offer converting the chat into a
+  // formal support ticket (the conversation transcript is carried over as the
+  // ticket description so the support team gets the full context).
+  const convertToTicket = () => {
+    if (!currentUser) return;
+    const transcript = messages
+      .map(m => `${m.sender === 'user' ? 'مشتری' : 'چت خودکار'}: ${m.text}`)
+      .join('\n');
+    const lastUserMsg = [...messages].reverse().find(m => m.sender === 'user');
+    const subject = (lastUserMsg?.text || 'درخواست پشتیبانی').slice(0, 60);
+    setShowTicketForm(true);
+    track('chat_converted_to_ticket');
+    // Pre-fill via sessionStorage so TicketForm can pick it up on mount
+    sessionStorage.setItem('hamyar_ticket_prefill', JSON.stringify({ subject, description: `تبدیل گفتگوی چت به تیکت:\n\n${transcript}` }));
+  };
 
   const autoReplies: Record<string, string> = {
     'سلام': 'سلام! خوش آمدید. چطور می‌توانم کمکتان کنم؟',
@@ -132,7 +150,20 @@ export default function SupportChat() {
         <p className={`text-xs mt-2 text-center ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
           پاسخ‌دهی خودکار • برای پشتیبانی کامل: 09913911880
         </p>
+        {currentUser && currentUser.role === 'customer' && (
+          <button
+            onClick={convertToTicket}
+            className={`mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              darkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-gray-300 text-slate-600 hover:bg-gray-50'
+            }`}
+          >
+            <LifeBuoy size={15} className="text-blue-500" />
+            ثبت تیکت پشتیبانی (تبدیل گفتگو)
+          </button>
+        )}
       </div>
+
+      {showTicketForm && <TicketForm onClose={() => setShowTicketForm(false)} />}
     </div>
   );
 }

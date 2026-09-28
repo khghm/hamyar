@@ -3,17 +3,179 @@ import { useApp } from '../store';
 import { 
   Heart, Star, Gift, Users, Copy, Film, Award, ChevronLeft, ShoppingCart, 
   Package, Eye, Clock, CheckCircle, TrendingUp, DollarSign, Calendar,
-  User, Phone, Mail, Upload, Wallet, Trophy, Zap, CalendarCheck, History as LoyaltyHistory
+  User, Phone, Mail, Upload, Wallet, Trophy, Zap, CalendarCheck, History as LoyaltyHistory,
+  LifeBuoy, Plus, Send, RotateCcw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toJalaliString } from '../utils/jalali';
+import TicketForm from '../components/TicketForm';
+import { TICKET_STATUS_LABELS, TICKET_PRIORITY_LABELS, TICKET_CATEGORY_LABELS, SupportTicket } from '../store';
+
+const ticketStatusCls: Record<string, string> = {
+  open: 'bg-blue-100 text-blue-700',
+  in_progress: 'bg-yellow-100 text-yellow-700',
+  resolved: 'bg-green-100 text-green-700',
+  closed: 'bg-gray-100 text-gray-600',
+};
+
+// Customer-side ticket thread: list of my tickets + inline reply / reopen / rating
+function MyTickets({ darkMode }: { darkMode: boolean }) {
+  const { currentUser, tickets, replyTicket, reopenTicket, rateTicket } = useApp();
+  const [openForm, setOpenForm] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+
+  if (!currentUser) return null;
+  const myTickets = tickets
+    .filter(t => t.customerId === currentUser.id)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  const cardCls = `rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`;
+
+  const sendReply = (t: SupportTicket) => {
+    const text = replyText.trim();
+    if (!text) return;
+    if (t.status === 'resolved' || t.status === 'closed') reopenTicket(t.id, text);
+    else replyTicket(t.id, text);
+    setReplyText('');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header + new-ticket button */}
+      <div className={`${cardCls} p-6`}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <LifeBuoy size={20} className="text-blue-500" />
+            <h3 className="font-bold text-lg">تیکت‌های پشتیبانی من</h3>
+          </div>
+          <button
+            onClick={() => setOpenForm(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+          >
+            <Plus size={16} /> ثبت تیکت جدید
+          </button>
+        </div>
+
+        {myTickets.length === 0 ? (
+          <div className="py-10 text-center">
+            <LifeBuoy size={48} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
+            <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>هنوز تیکتی ثبت نکرده‌اید</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {myTickets.map(t => {
+              const isOpen = expandedId === t.id;
+              const canReply = t.status !== 'closed' || true; // customers can always follow up (reopens the ticket)
+              return (
+                <div key={t.id} className={`rounded-xl border ${darkMode ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                  {/* Row header */}
+                  <button
+                    onClick={() => { setExpandedId(isOpen ? null : t.id); setReplyText(''); }}
+                    className="w-full p-4 flex items-center justify-between gap-3 text-right"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold truncate">{t.subject}</p>
+                      <p className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        <span className="font-mono text-blue-600">{t.code}</span>
+                        {' · '}{TICKET_CATEGORY_LABELS[t.category]}
+                        {' · '}به‌روزرسانی: {toJalaliString(t.updatedAt)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-xs px-2 py-1 rounded ${ticketStatusCls[t.status]}`}>{TICKET_STATUS_LABELS[t.status]}</span>
+                      <span className={`text-xs px-2 py-1 rounded ${t.priority === 'urgent' ? 'bg-red-100 text-red-700' : t.priority === 'high' ? 'bg-orange-100 text-orange-700' : darkMode ? 'bg-slate-600 text-slate-200' : 'bg-gray-200 text-gray-600'}`}>
+                        {TICKET_PRIORITY_LABELS[t.priority]}
+                      </span>
+                      <ChevronLeft size={16} className={`transition-transform ${isOpen ? '-rotate-90' : ''}`} />
+                    </div>
+                  </button>
+
+                  {/* Thread */}
+                  {isOpen && (
+                    <div className={`px-4 pb-4 space-y-3 ${darkMode ? 'border-t border-slate-600' : 'border-t border-gray-200'}`}>
+                      <div className="pt-4 space-y-2">
+                        {t.messages.map(m => (
+                          <div key={m.id} className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm ${
+                            m.sender === 'support'
+                              ? 'ms-auto bg-blue-600 text-white'
+                              : darkMode ? 'bg-slate-600 text-white' : 'bg-white border border-gray-200'
+                          }`}>
+                            <p className={`text-[11px] mb-1 ${m.sender === 'support' ? 'text-blue-100' : darkMode ? 'text-slate-300' : 'text-slate-500'}`}>
+                              {m.author} · {toJalaliString(m.createdAt)}
+                            </p>
+                            <p className="whitespace-pre-wrap leading-6">{m.text}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Rating after resolution */}
+                      {t.status === 'resolved' && (
+                        <div className={`p-3 rounded-lg border ${darkMode ? 'bg-slate-800 border-slate-600' : 'bg-green-50 border-green-200'}`}>
+                          {t.rating ? (
+                            <div className="flex items-center gap-1 text-sm">
+                              <Star size={14} className="text-amber-500 fill-amber-500" />
+                              <span className={darkMode ? 'text-slate-300' : 'text-slate-600'}>
+                                امتیاز شما به این پشتیبانی: {t.rating.toLocaleString('fa-IR')} از ۵ — سپاسگزاریم!
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>نظر شما درباره کیفیت پاسخ پشتیبانی:</span>
+                              {[1, 2, 3, 4, 5].map(n => (
+                                <button key={n} onClick={() => rateTicket(t.id, n)} title={`${n} ستاره`}>
+                                  <Star size={18} className="text-amber-400 hover:fill-amber-400" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Reply box */}
+                      {canReply && (
+                        <div className="flex gap-2">
+                          <input
+                            value={replyText}
+                            onChange={e => setReplyText(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && sendReply(t)}
+                            placeholder={(t.status === 'resolved' || t.status === 'closed') ? 'برای بازگشایی تیکت، پیام خود را بنویسید…' : 'پاسخ یا پیام تکمیلی…'}
+                            className={`flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-gray-300'
+                            }`}
+                          />
+                          <button
+                            onClick={() => sendReply(t)}
+                            disabled={!replyText.trim()}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors ${
+                              replyText.trim() ? 'bg-blue-600 text-white hover:bg-blue-700' : darkMode ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {(t.status === 'resolved' || t.status === 'closed') ? <RotateCcw size={15} /> : <Send size={15} />}
+                            {(t.status === 'resolved' || t.status === 'closed') ? 'بازگشایی و ارسال' : 'ارسال'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {openForm && <TicketForm onClose={() => setOpenForm(false)} />}
+    </div>
+  );
+}
 
 export default function Profile() {
   const {
     darkMode, currentUser, mediaItems, orders, products, addToFavorites, selectMedia, updateAvatar, chargeWallet,
     updateCustomerProfile, gamificationConfig, redeemLoyaltyReward, getEarnedBadges, loyaltyTx,
   } = useApp();
-  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'loyalty' | 'wallet'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'tickets' | 'loyalty' | 'wallet'>('overview');
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [chargeAmount, setChargeAmount] = useState(0);
   const [birthDateDraft, setBirthDateDraft] = useState(currentUser?.birthDate?.slice(0, 10) || '');
@@ -126,13 +288,14 @@ export default function Profile() {
 
       {/* Tabs */}
       <div className={`p-2 rounded-xl border mb-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
           {[
             { id: 'overview', label: 'نمای کلی', icon: User },
             { id: 'wallet', label: 'کیف پول', icon: Wallet },
             { id: 'media', label: 'فیلم‌ها', icon: Film },
             { id: 'products', label: 'سبد خرید', icon: Package },
             { id: 'orders', label: 'سفارشات', icon: ShoppingCart },
+            { id: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
             { id: 'loyalty', label: 'باشگاه مشتریان', icon: Award },
           ].map(tab => {
             const Icon = tab.icon;
@@ -463,6 +626,8 @@ export default function Profile() {
           )}
         </div>
       )}
+
+      {activeTab === 'tickets' && <MyTickets darkMode={darkMode} />}
 
       {activeTab === 'loyalty' && (() => {
         const cfg = gamificationConfig;

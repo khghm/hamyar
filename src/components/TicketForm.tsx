@@ -19,6 +19,18 @@ export default function TicketForm({ onClose }: TicketFormProps) {
   const [error, setError] = useState('');
   const [createdCode, setCreatedCode] = useState('');
 
+  // Pre-fill from a chat→ticket conversion (see SupportChat widget)
+  React.useEffect(() => {
+    const raw = sessionStorage.getItem('hamyar_ticket_prefill');
+    if (!raw) return;
+    sessionStorage.removeItem('hamyar_ticket_prefill');
+    try {
+      const p = JSON.parse(raw);
+      if (p.subject) setSubject(p.subject);
+      if (p.description) setDescription(p.description);
+    } catch { /* ignore malformed prefill */ }
+  }, []);
+
   const inputCls = `w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
     darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-slate-800'
   }`;
