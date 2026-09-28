@@ -35,6 +35,11 @@ export interface User {
   cart?: CartItem[]; // Shopping cart items
   avatar?: string; // User avatar image URL
   walletBalance?: number; // Wallet balance in Tomans
+  birthDate?: string; // ISO date — used by the gamification birthday bonus
+  // Last time the one-time profile-completion bonus was credited (ISO).
+  lastProfileBonusDate?: string;
+  // Last time the birthday bonus was credited (ISO) — once per year.
+  lastBirthdayBonusDate?: string;
   createdAt: string;
 }
 
@@ -1539,6 +1544,7 @@ interface AppContextType {
   clearCart: () => void;
   cartItems: CartItem[];
   updateAvatar: (avatarUrl: string) => void;
+  updateCustomerProfile: (patch: Partial<Pick<User, 'name' | 'phone' | 'birthDate'>>) => void;
   chargeWallet: (amount: number) => void;
   deductWallet: (amount: number) => boolean;
   aboutContent: AboutContent;
@@ -2705,26 +2711,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // Daily-login streak bonus: credited at most once per calendar day per user.
+  // Also evaluates the other passive gamification rewards on every login:
+  //  - profile completion one-time bonus (name + username set)
+  //  - birthday bonus (once per Gregorian year, if today is the user's birthday)
   const applyLoginStreak = (user: User): User => {
     const cfg = configRef.current;
-    if (!cfg.enabled || cfg.dailyLoginBonus <= 0 || user.role !== 'customer') return user;
+    if (!cfg.enabled || user.role !== 'customer') return user;
+    let updated: User = user;
+
+    // --- profile completion one-time bonus ---
+    if (cfg.profileCompletionBonus > 0 && !updated.lastProfileBonusDate) {
+      const profileComplete = !!updated.name?.trim() && !!updated.username?.trim();
+      if (profileComplete) {
+        const total = (updated.totalEarnedPoints ?? updated.loyaltyPoints ?? 0) + cfg.profileCompletionBonus;
+        updated = {
+          ...updated,
+          lastProfileBonusDate: new Date().toISOString(),
+          loyaltyPoints: (updated.loyaltyPoints || 0) + cfg.profileCompletionBonus,
+          totalEarnedPoints: total,
+          level: computeLevelFromPoints(total, cfg.tiers),
+        };
+        pushLoyaltyTx({ userId: updated.id, points: cfg.profileCompletionBonus, reason: 'پاداش تکمیل پروفایل 👤', category: 'profile' });
+      }
+    }
+
+    // --- birthday bonus (once per year) ---
+    if (cfg.birthdayBonus > 0 && updated.birthDate) {
+      const bd = new Date(updated.birthDate);
+      const now = new Date();
+      const isBirthday = bd.getMonth() === now.getMonth() && bd.getDate() === now.getDate();
+      const thisYearJan1 = `${now.getFullYear()}-01-01`;
+      if (isBirthday && !(updated.lastBirthdayBonusDate && updated.lastBirthdayBonusDate >= thisYearJan1)) {
+        const vip = updated.level === 'vip';
+        const pts = vip ? cfg.birthdayBonus * 2 : cfg.birthdayBonus; // VIP perk: double birthday gift
+        const total = (updated.totalEarnedPoints ?? updated.loyaltyPoints ?? 0) + pts;
+        updated = {
+          ...updated,
+          lastBirthdayBonusDate: now.toISOString(),
+          loyaltyPoints: (updated.loyaltyPoints || 0) + pts,
+          totalEarnedPoints: total,
+          level: computeLevelFromPoints(total, cfg.tiers),
+        };
+        pushLoyaltyTx({ userId: updated.id, points: pts, reason: `هدیه تولد 🎁${vip ? ' (VIP دوچندان)' : ''}`, category: 'birthday' });
+      }
+    }
+
+    if (!cfg.dailyLoginBonus || cfg.dailyLoginBonus <= 0) return updated;
     const today = new Date().toISOString().slice(0, 10);
-    if (user.lastLoginStreakDate === today) return user;
+    if (updated.lastLoginStreakDate === today) return updated;
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const streak = user.lastLoginStreakDate === yesterday ? (user.loginStreak || 0) + 1 : 1;
+    const streak = updated.lastLoginStreakDate === yesterday ? (updated.loginStreak || 0) + 1 : 1;
     const cappedDay = Math.min(streak, cfg.streakMaxDays || 7);
     const bonus = Math.round(cfg.dailyLoginBonus * cappedDay * (cfg.streakDayMultiplier || 1));
-    const nextTotal = (user.totalEarnedPoints ?? user.loyaltyPoints ?? 0) + bonus;
-    const updated: User = {
-      ...user,
+    const nextTotal = (updated.totalEarnedPoints ?? updated.loyaltyPoints ?? 0) + bonus;
+    updated = {
+      ...updated,
       loginStreak: streak,
       lastLoginStreakDate: today,
-      loyaltyPoints: (user.loyaltyPoints || 0) + bonus,
+      loyaltyPoints: (updated.loyaltyPoints || 0) + bonus,
       totalEarnedPoints: nextTotal,
       level: computeLevelFromPoints(nextTotal, cfg.tiers),
     };
-    setUsers(usersRef.current.map(u => u.id === user.id ? updated : u));
-    pushLoyaltyTx({ userId: user.id, points: bonus, reason: `ورود روزانه — روز ${streak} از استریک 🔥`, category: 'login_streak' });
+    setUsers(usersRef.current.map(u => u.id === updated.id ? updated : u));
+    pushLoyaltyTx({ userId: updated.id, points: bonus, reason: `ورود روزانه — روز ${streak} از استریک 🔥`, category: 'login_streak' });
     return updated;
   };
 
@@ -3498,6 +3547,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUsers(users.map(u => u.id === updated.id ? updated : u));
   };
 
+  // Customer club: lets the user edit basic profile fields (birthDate feeds the birthday bonus).
+  const updateCustomerProfile = (patch: Partial<Pick<User, 'name' | 'phone' | 'birthDate'>>) => {
+    if (!currentUser) return;
+    const updated = { ...currentUser, ...patch };
+    setCurrentUser(updated);
+    setUsers(usersRef.current.map(u => u.id === updated.id ? updated : u));
+  };
+
   const chargeWallet = (amount: number) => {
     if (!currentUser) return;
     const currentBalance = currentUser.walletBalance || 0;
@@ -3522,7 +3579,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       products, setProducts, mediaItems, setMediaItems, services, setServices,
       orders, setOrders, updateOrder, updateOrderStatus, createServiceOrder, createProjectOrder, news, setNews, portfolio, setPortfolio,
       expenses, setExpenses, projects, setProjects, users, setUsers,
-      addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, cartItems, updateAvatar, chargeWallet, deductWallet, aboutContent, setAboutContent,
+      addToFavorites, selectMedia, addToCart, removeFromCart, updateCartQuantity, clearCart, cartItems, updateAvatar, updateCustomerProfile, chargeWallet, deductWallet, aboutContent, setAboutContent,
       notes, setNotes,
       reviews, setReviews,
       suppliers, setSuppliers,

@@ -3,16 +3,20 @@ import { useApp } from '../store';
 import { 
   Heart, Star, Gift, Users, Copy, Film, Award, ChevronLeft, ShoppingCart, 
   Package, Eye, Clock, CheckCircle, TrendingUp, DollarSign, Calendar,
-  User, Phone, Mail, Upload, Wallet
+  User, Phone, Mail, Upload, Wallet, Trophy, Zap, CalendarCheck, History as LoyaltyHistory
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toJalaliString } from '../utils/jalali';
 
 export default function Profile() {
-  const { darkMode, currentUser, mediaItems, orders, products, addToFavorites, selectMedia, updateAvatar, chargeWallet } = useApp();
+  const {
+    darkMode, currentUser, mediaItems, orders, products, addToFavorites, selectMedia, updateAvatar, chargeWallet,
+    updateCustomerProfile, gamificationConfig, redeemLoyaltyReward, getEarnedBadges, loyaltyTx,
+  } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'loyalty' | 'wallet'>('overview');
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [chargeAmount, setChargeAmount] = useState(0);
+  const [birthDateDraft, setBirthDateDraft] = useState(currentUser?.birthDate?.slice(0, 10) || '');
 
   if (!currentUser) return null;
 
@@ -460,52 +464,200 @@ export default function Profile() {
         </div>
       )}
 
-      {activeTab === 'loyalty' && (
+      {activeTab === 'loyalty' && (() => {
+        const cfg = gamificationConfig;
+        const total = currentUser.totalEarnedPoints ?? currentUser.loyaltyPoints ?? 0;
+        const sortedTiers = [...cfg.tiers].sort((a, b) => a.minPoints - b.minPoints);
+        const currentTier = [...sortedTiers].reverse().find(t => t.minPoints <= total) || sortedTiers[0];
+        const nextTier = sortedTiers.find(t => t.minPoints > total);
+        const prevMin = currentTier?.minPoints ?? 0;
+        const progress = nextTier ? Math.min(100, Math.round(((total - prevMin) / Math.max(1, nextTier.minPoints - prevMin)) * 100)) : 100;
+        const badges = getEarnedBadges(currentUser);
+        const earnedBadges = badges.filter(b => b.earned);
+        const enabledRewards = cfg.rewards.filter(r => r.enabled);
+        const myTx = loyaltyTx.filter(t => t.userId === currentUser.id).slice(0, 12);
+        const rules = [
+          { icon: '🛒', text: `به ازای هر ${cfg.pointsPerToman.toLocaleString('fa-IR')} تومان خرید: ۱ امتیاز${currentTier && currentTier.multiplier !== 1 ? ` (سطح شما: ×${currentTier.multiplier})` : ''}` },
+          { icon: '🤝', text: `دعوت دوست: شما +${cfg.inviteBonus} و دوستتان +${cfg.invitedUserBonus} امتیاز` },
+          { icon: '🔥', text: `ورود روزانه: ${cfg.dailyLoginBonus} × روز متوالی (تا ${cfg.streakMaxDays} روز)` },
+          { icon: '✍️', text: `ثبت نظر: +${cfg.reviewBonus} امتیاز` },
+          { icon: '👤', text: `تکمیل پروفایل: +${cfg.profileCompletionBonus} امتیاز` },
+          { icon: '🎁', text: `هدیه تولد: +${cfg.birthdayBonus}${currentUser.level === 'vip' ? ' (VIP: دوچندان)' : ''} امتیاز — تاریخ تولد خود را در «پروفایل باشگاه» وارد کنید` },
+        ];
+        return (
         <div className="space-y-6">
+          {!cfg.enabled && (
+            <div className={`p-4 rounded-xl text-sm flex items-center gap-2 ${darkMode ? 'bg-red-900/30 text-red-300' : 'bg-red-50 text-red-700'}`}>
+              ⚠️ باشگاه مشتریان در حال حاضر توسط مدیر غیرفعال شده است.
+            </div>
+          )}
+
+          {/* Balance hero */}
           <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-purple-800' : 'bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200'}`}>
             <div className="flex items-center gap-3 mb-4">
               <Award size={24} className="text-yellow-500" />
               <h3 className="font-bold text-lg">باشگاه مشتریان</h3>
+              {currentTier && (
+                <span className={`mr-auto px-3 py-1 rounded-full text-xs font-bold ${
+                  currentUser.level === 'vip' ? 'bg-purple-600 text-white' :
+                  currentUser.level === 'gold' ? 'bg-yellow-400 text-black' :
+                  currentUser.level === 'silver' ? 'bg-gray-300 text-gray-800' : 'bg-gray-200 text-gray-700 dark:bg-slate-600 dark:text-slate-200'}`}>
+                  {currentTier.label}
+                </span>
+              )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              {[
-                { level: 'normal', label: 'عادی', min: 0, color: 'bg-gray-400', desc: 'شروع مسیر' },
-                { level: 'silver', label: 'نقره‌ای', min: 100, color: 'bg-gray-300', desc: '۵٪ تخفیف' },
-                { level: 'gold', label: 'طلایی', min: 500, color: 'bg-yellow-400', desc: '۱۰٪ تخفیف' },
-                { level: 'vip', label: 'VIP', min: 1000, color: 'bg-purple-500', desc: '۱۵٪ تخفیف + اولویت' },
-              ].map((l, i) => (
-                <div 
-                  key={i} 
-                  className={`p-4 rounded-xl text-center ${
-                    currentUser.level === l.level 
-                      ? 'ring-2 ring-blue-500 shadow-lg' 
-                      : ''
-                  } ${darkMode ? 'bg-slate-800/50' : 'bg-white/50'}`}
-                >
-                  <div className={`w-12 h-12 mx-auto rounded-full ${l.color} mb-2 flex items-center justify-center`}>
-                    {i === 3 && <Star size={20} className="text-white" fill="white" />}
-                  </div>
-                  <div className="font-bold text-lg">{l.label}</div>
-                  <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{l.desc}</div>
-                  <div className={`text-xs mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>از {l.min} امتیاز</div>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800/60' : 'bg-white/70'}`}>
+                <div className="text-2xl font-bold text-green-600">{(currentUser.loyaltyPoints || 0).toLocaleString('fa-IR')}</div>
+                <div className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>موجودی قابل خرج</div>
+              </div>
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800/60' : 'bg-white/70'}`}>
+                <div className="text-2xl font-bold">{total.toLocaleString('fa-IR')}</div>
+                <div className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>امتیاز کل کسب‌شده</div>
+              </div>
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800/60' : 'bg-white/70'}`}>
+                <div className="text-2xl font-bold text-orange-500">{currentUser.loginStreak || 0} 🔥</div>
+                <div className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>روز ورود متوالی</div>
+              </div>
+              <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-800/60' : 'bg-white/70'}`}>
+                <div className="text-2xl font-bold text-purple-600">{currentUser.invitedCount || 0}</div>
+                <div className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>دعوت موفق</div>
+              </div>
             </div>
             <div className="mt-6">
               <div className="flex justify-between text-sm mb-2">
-                <span>پیشرفت به سطح بعدی:</span>
-                <span className="font-bold">{currentUser.loyaltyPoints} امتیاز</span>
+                <span>{nextTier ? `پیشرفت به سطح «${nextTier.label}» (${nextTier.minPoints.toLocaleString('fa-IR')} امتیاز)` : 'بالاترین سطح را دارید 🎉'}</span>
+                <span className="font-bold">{progress}%</span>
               </div>
               <div className={`h-3 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
-                <div 
-                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all"
-                  style={{ width: `${Math.min((currentUser.loyaltyPoints / 1000) * 100, 100)}%` }}
-                ></div>
+                <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all" style={{ width: `${progress}%` }}></div>
               </div>
             </div>
           </div>
+
+          {/* Tiers (from admin settings) */}
+          <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <h4 className="font-bold mb-4 flex items-center gap-2"><Star size={18} className="text-yellow-500" /> سطوح عضویت</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {sortedTiers.map(t => (
+                <div key={t.level} className={`p-4 rounded-xl text-center ${currentUser.level === t.level ? 'ring-2 ring-blue-500 shadow-lg' : ''} ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                  <div className={`w-12 h-12 mx-auto rounded-full mb-2 flex items-center justify-center ${
+                    t.level === 'vip' ? 'bg-purple-500' : t.level === 'gold' ? 'bg-yellow-400' : t.level === 'silver' ? 'bg-gray-300' : 'bg-gray-400'}`}>
+                    {t.level === 'vip' && <Star size={20} className="text-white" fill="white" />}
+                  </div>
+                  <div className="font-bold">{t.label}</div>
+                  <div className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>از {t.minPoints.toLocaleString('fa-IR')} امتیاز</div>
+                  {t.discountPercent > 0 && <div className="text-xs mt-1 text-green-600 font-medium">{t.discountPercent}٪ تخفیف عضویت</div>}
+                  {t.perks.length > 0 && <div className={`text-[11px] mt-2 leading-5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{t.perks.join(' • ')}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Rewards shop */}
+          {enabledRewards.length > 0 && (
+            <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <h4 className="font-bold mb-4 flex items-center gap-2"><Gift size={18} className="text-purple-600" /> فروشگاه پاداش‌ها</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {enabledRewards.map(r => {
+                  const canAfford = (currentUser.loyaltyPoints || 0) >= r.cost;
+                  return (
+                    <div key={r.id} className={`p-4 rounded-xl border flex flex-col gap-2 ${darkMode ? 'border-slate-700 bg-slate-700/40' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className="text-3xl">{r.icon}</div>
+                      <div className="font-bold text-sm">{r.title}</div>
+                      {r.description && <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{r.description}</div>}
+                      <div className="mt-auto flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-purple-600">{r.cost.toLocaleString('fa-IR')} امتیاز</span>
+                        <button
+                          disabled={!canAfford}
+                          onClick={() => {
+                            const res = redeemLoyaltyReward(currentUser.id, r.id);
+                            alert(res.ok ? `🎉 پاداش «${r.title}» با موفقیت ثبت شد و ${r.cost.toLocaleString('fa-IR')} امتیاز از موجودی شما کسر گردید.` : res.error);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${canAfford ? 'bg-purple-600 text-white hover:bg-purple-700' : 'bg-gray-200 text-gray-400 dark:bg-slate-700 dark:text-slate-500 cursor-not-allowed'}`}>
+                          {canAfford ? 'خرج امتیاز' : 'امتیاز ناکافی'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Badges */}
+          {badges.length > 0 && (
+            <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <h4 className="font-bold mb-1 flex items-center gap-2"><Trophy size={18} className="text-yellow-500" /> نشان‌های من ({earnedBadges.length}/{badges.length})</h4>
+              <p className={`text-xs mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>با رسیدن هر کاربر به آستانه، نشان به‌صورت خودکار فعال می‌شود.</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {badges.map(b => (
+                  <div key={b.def.id} title={b.def.description}
+                    className={`p-4 rounded-xl text-center border ${b.earned
+                      ? (darkMode ? 'border-yellow-700 bg-yellow-900/20' : 'border-yellow-300 bg-yellow-50')
+                      : (darkMode ? 'border-slate-700 bg-slate-700/30 opacity-60' : 'border-gray-200 bg-gray-50 opacity-60')}`}>
+                    <div className="text-3xl" style={b.earned ? undefined : { filter: 'grayscale(1)', opacity: 0.5 }}>{b.def.icon}</div>
+                    <div className="font-bold text-sm mt-1">{b.def.name}</div>
+                    <div className={`text-[11px] mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{b.def.description}</div>
+                    {!b.earned && (
+                      <div className={`h-1.5 rounded-full mt-2 ${darkMode ? 'bg-slate-600' : 'bg-gray-200'}`}>
+                        <div className="h-full rounded-full bg-blue-500" style={{ width: `${b.progress}%` }}></div>
+                      </div>
+                    )}
+                    {b.earned && <div className="text-[11px] text-green-600 font-bold mt-1">✓ کسب شد</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rules — live from admin gamification settings */}
+          <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <h4 className="font-bold mb-4 flex items-center gap-2"><Zap size={18} className="text-amber-500" /> قوانین کسب امتیاز</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {rules.map((r, i) => (
+                <div key={i} className={`flex items-center gap-3 p-3 rounded-lg text-sm ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                  <span className="text-xl">{r.icon}</span><span>{r.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Club profile fields (birthDate drives the birthday bonus) */}
+          <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+            <h4 className="font-bold mb-4 flex items-center gap-2"><CalendarCheck size={18} className="text-pink-500" /> پروفایل باشگاه</h4>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className={`block text-xs font-medium mb-1 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>تاریخ تولد (میلادی)</label>
+                <input type="date" value={birthDateDraft} onChange={e => setBirthDateDraft(e.target.value)}
+                  className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+              </div>
+              <button
+                onClick={() => { updateCustomerProfile({ birthDate: birthDateDraft || undefined }); alert(birthDateDraft ? 'تاریخ تولد ذخیره شد 🎂 در روز تولد، پاداش تولد هنگام ورود به حساب به‌صورت خودکار اعطا می‌شود.' : 'تاریخ تولد حذف شد.'); }}
+                className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700">ذخیره</button>
+            </div>
+          </div>
+
+          {/* Recent transactions */}
+          {myTx.length > 0 && (
+            <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+              <h4 className="font-bold mb-4 flex items-center gap-2"><LoyaltyHistory size={18} className="text-blue-500" /> آخرین تراکنش‌های امتیاز</h4>
+              <div className="space-y-2">
+                {myTx.map(t => (
+                  <div key={t.id} className={`flex items-center justify-between p-3 rounded-lg text-sm ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                    <div>
+                      <p>{t.reason}</p>
+                      <p className={`text-[11px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{toJalaliString(t.createdAt)}</p>
+                    </div>
+                    <span className={`font-bold ${t.points > 0 ? 'text-green-600' : 'text-red-500'}`}>{t.points > 0 ? '+' : ''}{t.points.toLocaleString('fa-IR')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Charge Wallet Modal */}
       {showChargeModal && (
