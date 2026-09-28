@@ -2,15 +2,16 @@ import React from 'react';
 import { useApp } from '../store';
 import { Phone, MapPin, Clock, MessageCircle } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
+import { track } from '../utils/analytics';
 
 export default function Contact() {
   const { darkMode } = useApp();
   const banner = useBanner('contact');
 
   const contactInfo = [
-    { icon: Phone, title: 'تلفن ثابت', value: '02136432665', link: 'tel:02136432665' },
-    { icon: Phone, title: 'موبایل ۱', value: '09913911880', link: 'tel:09913911880' },
-    { icon: Phone, title: 'موبایل ۲', value: '09204767001', link: 'tel:09204767001' },
+    { icon: Phone, title: 'تلفن ثابت', value: '02136432665', link: 'tel:02136432665', track: () => track('call_now', { label: 'تلفن ثابت' }) },
+    { icon: Phone, title: 'موبایل ۱', value: '09913911880', link: 'tel:09913911880', track: () => track('call_now', { label: 'موبایل ۱' }) },
+    { icon: Phone, title: 'موبایل ۲', value: '09204767001', link: 'tel:09204767001', track: () => track('call_now', { label: 'موبایل ۲' }) },
   ];
 
   const socialChannels = [
@@ -59,7 +60,7 @@ export default function Contact() {
             {contactInfo.map((item, i) => {
               const Icon = item.icon;
               return (
-                <a key={i} href={item.link} className={`flex items-center gap-4 p-4 rounded-xl transition-all ${darkMode ? 'bg-slate-700/50 hover:bg-slate-700' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                <a key={i} href={item.link} onClick={() => (item as any).track?.()} className={`flex items-center gap-4 p-4 rounded-xl transition-all ${darkMode ? 'bg-slate-700/50 hover:bg-slate-700' : 'bg-gray-50 hover:bg-gray-100'}`}>
                   <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                     <Icon size={20} className="text-blue-600" />
                   </div>
@@ -111,7 +112,7 @@ export default function Contact() {
                 }
               };
               return (
-                <a key={i} href={ch.link} target="_blank" rel="noopener noreferrer"
+                <a key={i} href={ch.link} onClick={() => track('social_icon', { network: ch.name })} target="_blank" rel="noopener noreferrer"
                   className={`flex items-center justify-between p-4 rounded-xl transition-all ${darkMode ? 'bg-slate-700/50 hover:bg-slate-700' : 'bg-gray-50 hover:bg-gray-100'}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getColor()}`}>

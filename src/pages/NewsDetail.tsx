@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Calendar, ArrowRight, Share2 } from 'lucide-react';
+import { track } from '../utils/analytics';
 
 export default function NewsDetail() {
   const { id } = useParams();

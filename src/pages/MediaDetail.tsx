@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
 import { Star, Heart, Eye, Calendar, Globe, Film, Clock } from 'lucide-react';
+import { track } from '../utils/analytics';
 
 export default function MediaDetail() {
   const { id } = useParams();
@@ -95,7 +96,7 @@ export default function MediaDetail() {
                   {currentUser.favorites.includes(media.id) ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}
                 </button>
                 <button 
-                  onClick={() => selectMedia(media.id)}
+                  onClick={() => { selectMedia(media.id); track('media_select', { mediaId: media.id, title: media.title }); }}
                   className={`flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
                     currentUser.selectedMedia.includes(media.id)
                       ? 'bg-green-500 text-white hover:bg-green-600'

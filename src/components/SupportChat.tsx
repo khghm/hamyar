@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../store';
+import { track } from '../utils/analytics';
 import { MessageCircle, X, Send, Minimize2 } from 'lucide-react';
 
 interface Message {
@@ -61,7 +62,7 @@ export default function SupportChat() {
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => { setIsOpen(true); track('chat_open'); }}
         className="fixed bottom-6 left-6 z-50 w-14 h-14 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center hover:scale-110"
         title="چت پشتیبانی"
       >

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Search, Filter, Star, Heart, Eye, ChevronDown, X, SlidersHorizontal } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
+import { track } from '../utils/analytics';
 
 export default function MediaCatalog() {
   const { darkMode, mediaItems, currentUser, addToFavorites, selectMedia } = useApp();
@@ -76,7 +77,7 @@ export default function MediaCatalog() {
               type="text"
               placeholder="جستجوی عنوان فیلم، سریال..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); if (e.target.value.length >= 3) track('internal_search', { q: e.target.value, area: 'media' }); }}
               className={`w-full pr-10 pl-4 py-3 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`}
             />
           </div>

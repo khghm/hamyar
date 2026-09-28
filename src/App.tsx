@@ -24,6 +24,7 @@ import TrackOrder from './pages/TrackOrder';
 import FAQ from './pages/FAQ';
 import Cart from './pages/Cart';
 import SupportChat from './components/SupportChat';
+import { usePageTracking, useBehaviorTracking } from './utils/analytics';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminOrders from './pages/admin/Orders';
 import AdminCustomers from './pages/admin/Customers';
@@ -122,9 +123,17 @@ export default function App() {
   return (
     <AppProvider>
       <BrowserRouter>
+        <AnalyticsBootstrap />
         <AppRoutes />
         <SupportChat />
       </BrowserRouter>
     </AppProvider>
   );
+}
+
+// فاز ۱: فعال‌سازی پایشگر داخلی (ثبت بازدید صفحات + رفتار کاربر) در کل سایت
+function AnalyticsBootstrap() {
+  usePageTracking();
+  useBehaviorTracking();
+  return null;
 }
