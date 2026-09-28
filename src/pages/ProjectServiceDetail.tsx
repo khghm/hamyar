@@ -6,7 +6,7 @@ import {
 import {
   ShoppingCart, CheckCircle2, ArrowLeft, ArrowRight, CreditCard, FileText, HardDrive,
   Loader2, Lock, ShieldCheck, Wallet, X, Zap, Globe, Smartphone, Bot, MessageSquare,
-  PenTool, Instagram, Video, Search,
+  User, PenTool, Instagram, Video, Search,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ interface UploadedDoc {
 }
 
 const ICONS: Record<string, any> = {
-  ShoppingCart, Globe, Smartphone, Bot, MessageSquare, PenTool, Instagram, Video, Search,
+  ShoppingCart, Globe, Smartphone, Bot, MessageSquare, User, PenTool, Instagram, Video, Search,
 };
 
 export default function ProjectServiceDetail() {

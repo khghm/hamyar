@@ -1,5 +1,6 @@
 import React from 'react';
-import { useApp } from '../store';
+import { Link } from 'react-router-dom';
+import { useApp, PROJECT_SERVICES } from '../store';
 import { PenTool, Instagram, Video, Search, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 
@@ -7,12 +8,12 @@ export default function ContentMarketing() {
   const { darkMode } = useApp();
   const banner = useBanner('content');
 
-  const services = [
-    { icon: PenTool, title: 'تولید محتوای متنی', desc: 'نوشتن مقاله، متن تبلیغاتی و محتوای سئو شده برای سایت و شبکه‌های اجتماعی', features: ['مقالات سئو شده', 'کپی‌رایتینگ تبلیغاتی', 'تولید محتوای بلاگ'] },
-    { icon: Instagram, title: 'مدیریت شبکه‌های اجتماعی', desc: 'مدیریت و ادمین اینستاگرام، تلگرام و لینکدین با تقویم محتوایی منظم', features: ['تقویم محتوایی', 'پست و استوری روزانه', 'گزارش عملکرد ماهانه'] },
-    { icon: Video, title: 'تولید محتوای تصویری و ویدیویی', desc: 'طراحی پوستر، بنر، موشن‌گرافیک و ساخت ریلز و تیزرهای کوتاه', features: ['طراحی گرافیک', 'موشن‌گرافیک', 'ریلز و تیزر ویدیویی'] },
-    { icon: Search, title: 'سئو و بهینه‌سازی', desc: 'بهبود رتبه سایت در گوگل از طریق سئوی داخلی، لینک‌سازی و تحقیق کلمات کلیدی', features: ['تحقیق کلمات کلیدی', 'سئوی داخلی و تکنیکال', 'لینک‌سازی استاندارد'] },
-  ];
+  // The four service cards are selectable items taken from the shared
+  // PROJECT_SERVICES catalogue (group «content»), so this page, the details
+  // wizard (/project-services/:id) and the admin panel sections that track the
+  // generated order code all reference exactly the same data.
+  const services = PROJECT_SERVICES.filter(s => s.group === 'content');
+  const iconOf: Record<string, any> = { PenTool, Instagram, Video, Search };
 
   return (
     <div className="fade-in">
@@ -45,35 +46,51 @@ export default function ContentMarketing() {
         </div>
       </section>
 
-      {/* Services */}
+      {/* Services – each card is selectable and opens its exact details/order page */}
       <section className="py-16 max-w-7xl mx-auto px-4">
         <h2 className="text-2xl font-bold text-center mb-4">خدمات تولید محتوا</h2>
-        <p className={`text-center mb-12 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>محتوای جذاب، کلید رشد کسب‌وکار شما در دنیای دیجیتال</p>
+        <p className={`text-center mb-12 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>محتوای جذاب، کلید رشد کسب‌وکار شما در دنیای دیجیتال – روی هر خدمت «انتخاب و ثبت سفارش» را بزنید</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {services.map((s, i) => {
-            const Icon = s.icon;
+          {services.map(s => {
+            const Icon = iconOf[s.icon] || PenTool;
             return (
-              <div key={i} className={`p-6 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-                <div className="w-12 h-12 rounded-xl bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center mb-4">
-                  <Icon size={24} className="text-pink-600" />
+              <div key={s.id} className={`p-6 rounded-2xl border transition-all hover:shadow-lg cursor-pointer ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-pink-500' : 'bg-white border-gray-200 hover:border-pink-300'}`}>
+                <Link to={`/project-services/${s.id}`} className="block">
+                  <div className="w-12 h-12 rounded-xl bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center mb-4">
+                    <Icon size={24} className="text-pink-600" />
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">{s.title}</h3>
+                  <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.desc}</p>
+                  <ul className="space-y-2 mb-4">
+                    {s.features.map((f, j) => (
+                      <li key={j} className={`text-sm flex items-center gap-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                        <CheckCircle2 size={16} className="text-pink-600 shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </Link>
+                {/* Selectable item: opens the exact details + order wizard page */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-slate-700">
+                  <div>
+                    <span className="text-pink-600 font-bold text-sm">{s.basePrice.toLocaleString('fa-IR')} تومان</span>
+                    <span className={`text-xs mr-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>/ {s.unit}</span>
+                  </div>
+                  <Link
+                    to={`/project-services/${s.id}`}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-pink-600 text-white text-sm font-medium hover:bg-pink-700 transition-all shadow-sm hover:shadow-md"
+                  >
+                    انتخاب و ثبت سفارش
+                    <ArrowLeft size={16} />
+                  </Link>
                 </div>
-                <h3 className="font-bold text-lg mb-2">{s.title}</h3>
-                <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.desc}</p>
-                <ul className="space-y-2">
-                  {s.features.map((f, j) => (
-                    <li key={j} className={`text-sm flex items-center gap-2 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                      <CheckCircle2 size={16} className="text-pink-600 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
               </div>
             );
           })}
         </div>
       </section>
 
-      {/* Packages */}
+      {/* Packages – each package links to the social-media service wizard */}
       <section className={`py-16 ${darkMode ? 'bg-slate-800/50' : 'bg-gray-50'}`}>
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-2xl font-bold text-center mb-12">پکیج‌های ماهانه</h2>
@@ -88,9 +105,9 @@ export default function ContentMarketing() {
                 <h3 className="font-bold text-xl mb-2">{p.name}</h3>
                 <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{p.posts}</p>
                 <div className="text-pink-600 font-black text-lg mb-4">{p.price}</div>
-                <a href="tel:09913911880" className={`block px-4 py-2 rounded-xl font-medium text-sm transition-all ${p.popular ? 'bg-pink-600 text-white hover:bg-pink-700' : 'border-2 border-pink-500 text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/20'}`}>
+                <Link to="/project-services/ps-ct-social" className={`block px-4 py-2 rounded-xl font-medium text-sm transition-all ${p.popular ? 'bg-pink-600 text-white hover:bg-pink-700' : 'border-2 border-pink-500 text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/20'}`}>
                   سفارش پکیج
-                </a>
+                </Link>
               </div>
             ))}
           </div>
@@ -103,7 +120,10 @@ export default function ContentMarketing() {
           <h2 className="text-2xl font-bold text-white mb-4">می‌خواهید دیده شوید؟</h2>
           <p className="text-white/90 mb-6">همین حالا محتوای کسب‌وکار خود را به تیم ما بسپارید و نتیجه را ببینید</p>
           <div className="flex flex-wrap justify-center gap-4">
-            <a href="tel:09913911880" className="px-6 py-3 rounded-xl font-medium bg-white text-pink-600 hover:opacity-90">
+            <Link to="/project-services/ps-ct-text" className="px-6 py-3 rounded-xl font-medium bg-white text-pink-600 hover:opacity-90">
+              ثبت سفارش آنلاین
+            </Link>
+            <a href="tel:09913911880" className="px-6 py-3 rounded-xl font-medium border-2 border-white text-white hover:bg-white/10">
               تماس: 09913911880
             </a>
             <a href="tel:09204767001" className="px-6 py-3 rounded-xl font-medium border-2 border-white text-white hover:bg-white/10">
