@@ -127,6 +127,15 @@ const PROJECT_CONTACT_FIELDS: ServiceFormField[] = [
   { key: 'email', label: 'ایمیل کاری (اختیاری)', type: 'email', required: false },
 ];
 
+// Maps each online content-marketing service to the matching task type used by
+// the admin "تیم تولید محتوا" section, so orders flow into the content pipeline.
+export const CONTENT_SERVICE_TYPE_MAP: Record<string, ContentProject['type']> = {
+  'ps-ct-text': 'article',
+  'ps-ct-social': 'social',
+  'ps-ct-video': 'video',
+  'ps-ct-seo': 'article',
+};
+
 export const PROJECT_SERVICES: ProjectService[] = [
   // ------------------------- طراحی سایت، اپلیکیشن و ربات -------------------------
   {
@@ -376,6 +385,7 @@ export interface Order {
   gatewayRef?: string; // bank/gateway reference id for online payments
   documentStatus?: 'pending' | 'approved' | 'rejected'; // admin review of uploads
   projectId?: string; // admin project created from this order (kept in sync)
+  contentProjectId?: string; // admin «تیم تولید محتوا» task created from this order (kept in sync)
 }
 
 // Shared Persian labels for order statuses (used by admin orders + public tracking)
@@ -1176,6 +1186,10 @@ export interface ContentProject {
   approvalStage: 'draft' | 'content-manager' | 'ceo' | 'client' | 'approved';
   versions: { version: number; date: string; notes: string; data: any }[];
   createdAt: string;
+  // Set automatically when the task is created from an online content order
+  sourceOrderId?: string;
+  sourceTrackingCode?: string;
+  customerName?: string;
 }
 
 export interface ContentComment {
@@ -2575,6 +2589,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
       description: `خودکار از سفارش ${trackingCode}. جزئیات: ${Object.entries(formData).filter(([k]) => !['fullName', 'phone', 'email'].includes(k)).map(([k, v]) => `${PROJECT_FIELD_LABELS[k] || k}: ${v}`).join(' | ')}`,
     };
     order.projectId = projectId;
+
+    // ---- Sync with the admin «تیم تولید محتوا» section ----
+    // Every paid online content order automatically becomes a production task
+    // in the content team pipeline, carrying the customer's details (formData),
+    // deadline and budget, and is linked back to the order via trackingCode.
+    if (projectService.group === 'content') {
+      const contentTaskId = 'cp' + Date.now();
+      const docSummary = documents.length > 0
+        ? `\n\nمدارک دریافتی از مشتری:\n- ${documents.map(d => d.label).join('\n- ')}`
+        : '\n\nهنوز مدرکی بارگذاری نشده است.';
+      const newContentTask: ContentProject = {
+        id: contentTaskId,
+        title: `${projectService.title} – سفارش ${trackingCode}`,
+        type: CONTENT_SERVICE_TYPE_MAP[projectService.id] || 'article',
+        scenario: `سفارش آنلاین «${projectService.title}» از سمت مشتری ${order.customerName}${urgent ? ' (فوری)' : ''}.\n\nاطلاعات تکمیلی مشتری:\n${Object.entries(formData).map(([k, v]) => `- ${PROJECT_FIELD_LABELS[k] || k}: ${v}`).join('\n')}${docSummary}`,
+        equipment: [],
+        contentPlan: `تحویل خروجی طبق بریف مشتری و مدارک بارگذاری‌شده در سفارش ${trackingCode}.`,
+        assignedTo: [],
+        startDate: now.toISOString().split('T')[0],
+        deadline: formData.deadline || '',
+        status: 'planning',
+        priority: urgent ? 'urgent' : 'medium',
+        notes: `این تسک به‌صورت خودکار از سفارش آنلاین ${trackingCode} ایجاد شده و با آن همگام است.`,
+        tags: ['سفارش آنلاین', groupLabel],
+        relatedProducts: [],
+        relatedCampaigns: [],
+        budget: total,
+        actualCost: 0,
+        qualityScore: 0,
+        qualityChecklist: [],
+        approvalStage: 'draft',
+        versions: [],
+        createdAt: now.toISOString(),
+        sourceOrderId: orderId,
+        sourceTrackingCode: trackingCode,
+        customerName: order.customerName,
+      };
+      order.contentProjectId = contentTaskId;
+      setContentProjects([newContentTask, ...contentProjects]);
+    }
+
     setOrders([...ordersRef.current, order]);
     setProjects([...projects, newProject]);
 
@@ -2603,10 +2658,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOrders(cur => cur.map(o => o.id === orderId ? { ...o, receiptInvoiceId: invoice.id } : o));
 
     pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${projectService.title}» (${groupLabel}) با کد رهگیری ${trackingCode} ثبت و پرداخت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان. پروژه مربوطه در پنل مدیریت ایجاد شد.`);
-    pushAuditLog('ثبت سفارش آنلاین پروژه', `سفارش ${trackingCode} برای «${projectService.title}» (${groupLabel}) به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''} و پروژه مرتبط آن در بخش پروژه‌ها ایجاد گردید`, 'سفارشات');
+    pushAuditLog('ثبت سفارش آنلاین پروژه', `سفارش ${trackingCode} برای «${projectService.title}» (${groupLabel}) به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''} و پروژه مرتبط آن در بخش پروژه‌ها ایجاد گردید${projectService.group === 'content' ? '؛ همچنین تسک تولید محتوای آن در بخش «تیم تولید محتوا» ایجاد شد' : ''}`, 'سفارشات');
 
     return { ok: true, order };
   };
+
+  // ---- Sync order status with the admin «تیم تولید محتوا» task ----
+  const prevOrdersForContentSync = useRef<Order[]>(orders);
+  useEffect(() => {
+    const prev = prevOrdersForContentSync.current;
+    prevOrdersForContentSync.current = orders;
+
+    const changed = orders.filter(o => {
+      const old = prev.find(p => p.id === o.id);
+      return old && (old.status !== o.status || old.documentStatus !== o.documentStatus);
+    });
+    const linked = changed.filter(o => o.contentProjectId);
+    if (linked.length === 0) return;
+
+    // Order status -> content team pipeline stage
+    const nextStatus: Record<OrderStatus, ContentProject['status']> = {
+      new: 'planning', processing: 'in-progress', ready: 'review', delivered: 'published', cancelled: 'completed',
+    };
+    setContentProjects(cur => cur.map(cp => {
+      const o = linked.find(x => x.contentProjectId === cp.id);
+      if (!o) return cp;
+      if (o.status === 'cancelled') {
+        return { ...cp, status: 'completed' as const, notes: `${cp.notes}\n⛔ سفارش مرجع ${o.trackingCode} لغو شد.` };
+      }
+      const oldO = prev.find(p => p.id === o.id);
+      const docsNote = o.documentStatus === 'rejected' && oldO?.documentStatus !== 'rejected'
+        ? `\n⚠️ مدارک سفارش ${o.trackingCode} توسط مدیر رد شد؛ مشتری باید مدارک را دوباره بارگذاری کند.`
+        : o.documentStatus === 'approved' && oldO?.documentStatus !== 'approved'
+          ? `\n✅ مدارک سفارش ${o.trackingCode} تأیید شد؛ تولید را آغاز کنید.`
+          : '';
+      return {
+        ...cp,
+        status: nextStatus[o.status],
+        budget: o.total,
+        deadline: o.formData?.deadline || cp.deadline,
+        notes: cp.notes + docsNote,
+      };
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
+
+  // Reverse direction: when the content team publishes a linked task, the source
+  // order automatically moves to «تحویل شده» in the Orders section.
+  const prevContentForOrderSync = useRef<ContentProject[]>(contentProjects);
+  useEffect(() => {
+    const prev = prevContentForOrderSync.current;
+    prevContentForOrderSync.current = contentProjects;
+
+    const published = contentProjects.filter(cp => {
+      const old = prev.find(p => p.id === cp.id);
+      return old && old.status !== 'published' && cp.status === 'published' && cp.sourceOrderId;
+    });
+    if (published.length === 0) return;
+    published.forEach(cp => {
+      const o = ordersRef.current.find(x => x.id === cp.sourceOrderId);
+      if (o && o.status !== 'delivered') updateOrderStatus(o.id, 'delivered');
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentProjects]);
 
   // Keep the admin Projects board synchronized with its source order:
   // when the order status changes, the linked project's stage/progress moves;
