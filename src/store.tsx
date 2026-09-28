@@ -152,6 +152,35 @@ export function computeLevelFromPoints(points: number, tiers: LoyaltyTierRule[])
   return 'normal';
 }
 
+// ---------------------------------------------------------------------------
+// Hard-coded loyalty cleanup — the customer club is now 100% config-driven
+// (managed from the admin «کدهای دعوت» section). Any balances / transactions
+// produced by the old hard-coded rules are wiped once on startup so every point
+// from now on comes from the gamification engine & admin settings.
+// ---------------------------------------------------------------------------
+const GAMIFICATION_RESET_KEY = 'hamyar_gamification_reset_v1';
+
+function stripLegacyLoyalty(users: User[]): User[] {
+  let touched = false;
+  const next = users.map(u => {
+    if (u.role !== 'customer') return u;
+    const hadBalance = (u.loyaltyPoints || 0) !== 0;
+    const hadTotal = (u.totalEarnedPoints ?? 0) !== 0;
+    const hadStreak = !!u.lastLoginStreakDate || (u.loginStreak || 0) > 0;
+    if (!hadBalance && !hadTotal && !hadStreak) return u;
+    touched = true;
+    return {
+      ...u,
+      loyaltyPoints: 0,
+      totalEarnedPoints: 0,
+      lastLoginStreakDate: undefined,
+      loginStreak: undefined,
+      level: 'normal' as const,
+    };
+  });
+  return touched ? next : users;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -1536,6 +1565,8 @@ interface AppContextType {
   loyaltyTx: LoyaltyTransaction[];
   gamificationConfig: GamificationConfig;
   setGamificationConfig: (c: GamificationConfig) => void;
+  // Wipe every hard-coded point balance/transaction and restart the club from zero.
+  resetLoyaltyData: () => void;
   // Award points to any user (admin manual credit, event bonuses…). Never negative.
   awardLoyaltyPoints: (userId: string, points: number, reason: string, opts?: { category?: LoyaltyCategory; autoLevelUp?: boolean }) => void;
   // Remove points from a user's spendable balance (admin correction).
@@ -1546,6 +1577,8 @@ interface AppContextType {
   redeemLoyaltyReward: (userId: string, rewardId: string) => { ok: boolean; error?: string };
   // Manually set a user's tier from the admin panel.
   setUserLevel: (userId: string, level: User['level']) => void;
+  // Badges earned by a user, evaluated live against the admin badge definitions.
+  getEarnedBadges: (user: User) => { def: GamificationBadgeDef; earned: boolean; progress: number }[];
   contentProjects: ContentProject[];
   setContentProjects: (p: ContentProject[]) => void;
   contentComments: ContentComment[];
@@ -1838,7 +1871,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('hamyar_user');
-    return saved ? JSON.parse(saved) : null;
+    const parsed: User | null = saved ? JSON.parse(saved) : null;
+    // Strip legacy hard-coded points from the live session as well (one-time).
+    if (!parsed || localStorage.getItem(GAMIFICATION_RESET_KEY)) return parsed;
+    if (parsed.role !== 'customer') return parsed;
+    if (!(parsed.loyaltyPoints || 0) && !(parsed.totalEarnedPoints || 0) && !parsed.loginStreak && !parsed.lastLoginStreakDate) return parsed;
+    return { ...parsed, loyaltyPoints: 0, totalEarnedPoints: 0, loginStreak: undefined, lastLoginStreakDate: undefined, level: 'normal' };
   });
   // Cart is stored separately in localStorage so it persists across reloads
   // and cannot be overwritten by stale user data (fixes duplicate/leftover carts).
@@ -1892,7 +1930,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('hamyar_users');
-    return saved ? JSON.parse(saved) : [];
+    const parsed: User[] = saved ? JSON.parse(saved) : [];
+    // One-time cleanup of the old hard-coded loyalty balances (see stripLegacyLoyalty).
+    return localStorage.getItem(GAMIFICATION_RESET_KEY) ? parsed : stripLegacyLoyalty(parsed);
   });
   // Staff accounts created in the RBAC section are stored as admin users here so
   // they share the same customer/admin data model (orders, logs, profile, ...).
@@ -2544,6 +2584,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setGamificationConfig = (c: GamificationConfig) => setGamificationConfigState(c);
 
+  // Wipe every hard-coded / legacy point balance and transaction, then restart the
+  // club from zero. From now on all points come exclusively from the settings in
+  // the admin «کدهای دعوت» section.
+  const resetLoyaltyData = () => {
+    localStorage.setItem(GAMIFICATION_RESET_KEY, new Date().toISOString());
+    setUsers(usersRef.current.map(u => u.role === 'customer' ? {
+      ...u,
+      loyaltyPoints: 0,
+      totalEarnedPoints: 0,
+      lastLoginStreakDate: undefined,
+      loginStreak: undefined,
+      level: 'normal' as const,
+    } : u));
+    setLoyaltyTx([]);
+    // Also zero the logged-in customer's live session copy (it re-syncs to storage).
+    if (currentUser && currentUser.role === 'customer') {
+      setCurrentUser({ ...currentUser, loyaltyPoints: 0, totalEarnedPoints: 0, loginStreak: undefined, lastLoginStreakDate: undefined, level: 'normal' });
+    }
+    pushAuditLog('پاکسازی امتیازها', 'تمام امتیازهای هاردکور/قدیمی باشگاه مشتریان حذف و از صفر شروع شد', 'دعوت‌ها');
+  };
+
+  // Evaluate a user's badges live against the (admin-editable) badge definitions.
+  const getEarnedBadges = (user: User) => {
+    const cfg = configRef.current;
+    const ordersCount = ordersRef.current.filter(o => o.customerId === user.id && o.status !== 'cancelled').length;
+    const reviewsCount = reviews.filter(r => r.customerName === user.name).length;
+    const metrics: Record<GamificationBadgeDef['metric'], number> = {
+      invitedCount: user.invitedCount || 0,
+      totalEarnedPoints: user.totalEarnedPoints ?? user.loyaltyPoints ?? 0,
+      ordersCount,
+      reviewsCount,
+      loginStreak: user.loginStreak || 0,
+    };
+    return cfg.badges.map(def => {
+      const value = metrics[def.metric] ?? 0;
+      const threshold = Math.max(1, def.threshold || 1);
+      return { def, earned: value >= threshold, progress: Math.min(100, Math.round((value / threshold) * 100)) };
+    });
+  };
+
   const pushLoyaltyTx = (tx: Omit<LoyaltyTransaction, 'id' | 'createdAt'>) => {
     setLoyaltyTx(prev => [{
       ...tx,
@@ -3144,14 +3224,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         inviteCode: 'INV' + Math.random().toString(36).substr(2, 6).toUpperCase(),
         invitedBy,
         invitedCount: 0,
-        loyaltyPoints: invitedBy ? cfg.invitedUserBonus : 0, // New user gets welcome bonus if invited
-        totalEarnedPoints: invitedBy ? cfg.invitedUserBonus : 0,
+        loyaltyPoints: 0,
+        totalEarnedPoints: 0,
         level: 'normal',
         favorites: [],
         selectedMedia: [],
         createdAt: new Date().toISOString()
       };
       setUsers([...baseUsers, user]);
+      // Welcome bonus for a newly invited user — amount comes from the admin
+      // gamification settings (config-driven, no hard-coded values).
+      if (invitedBy && cfg.enabled && cfg.invitedUserBonus > 0) {
+        awardLoyaltyPoints(user.id, cfg.invitedUserBonus, 'امتیاز خوش‌آمدگویی (کاربر دعوت‌شده)', { category: 'invite' });
+        user = usersRef.current.find(u => u.id === user!.id) || user;
+      }
     } else {
       // Existing customer signing in with an invite code for the first time:
       // record the referral and grant the rewards instead of silently ignoring it.
@@ -3160,14 +3246,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const updatedUser: User = { ...user, invitedBy };
         const nextUsers = baseUsers.map(u => {
           if (u.id === inviter.id) {
-            const inviterTotal = (u.totalEarnedPoints ?? u.loyaltyPoints ?? 0) + cfg.inviteBonus;
-            return {
-              ...u,
-              invitedCount: (u.invitedCount || 0) + 1,
-              loyaltyPoints: (u.loyaltyPoints || 0) + cfg.inviteBonus,
-              totalEarnedPoints: inviterTotal,
-              level: computeLevelFromPoints(inviterTotal, cfg.tiers),
-            };
+            return { ...u, invitedCount: (u.invitedCount || 0) + 1 };
           }
           if (u.id === user!.id) return updatedUser;
           return u;
@@ -3176,6 +3255,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Keep the local reference in sync with the latest saved record so the
         // streak logic below never writes a stale copy over the new referral data.
         user = usersRef.current.find(u => u.id === user!.id) || updatedUser;
+        // Inviter bonus — amount comes from the admin gamification settings.
+        if (cfg.enabled && cfg.inviteBonus > 0) {
+          awardLoyaltyPoints(inviter.id, cfg.inviteBonus, `پاداش دعوت دوست با کد ${inviter.inviteCode || ''}`, { category: 'invite' });
+        }
       }
     }
     // Daily-login streak bonus (at most once per calendar day).
@@ -3449,6 +3532,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       auditLogs, setAuditLogs,
       faqs, setFaqs,
       invoices, setInvoices,
+      loyaltyTx, gamificationConfig, setGamificationConfig, resetLoyaltyData,
+      awardLoyaltyPoints, deductLoyaltyPointsForAdmin, awardReviewPoints,
+      redeemLoyaltyReward, setUserLevel, getEarnedBadges,
       contentProjects, setContentProjects,
       contentComments, setContentComments,
       contentAssets, setContentAssets,
