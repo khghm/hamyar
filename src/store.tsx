@@ -2266,6 +2266,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem('hamyar_personas', JSON.stringify(personas)); }, [personas]);
   useEffect(() => { localStorage.setItem('hamyar_digital_marketing', JSON.stringify(digitalMarketingData)); }, [digitalMarketingData]);
   useEffect(() => { localStorage.setItem('hamyar_users', JSON.stringify(users)); }, [users]);
+  // Consistency guard: an inviter's `invitedCount` must always equal the number of
+  // customers whose `invitedBy` points to them. This fixes legacy records created
+  // by the old bug (invite counter / bonus attached to the wrong user), so the
+  // «دعوت‌ها» column in the admin Invites section is always accurate.
+  useEffect(() => {
+    if (!users.some(u => u.invitedBy)) return;
+    const actual = new Map<string, number>();
+    users.forEach(u => {
+      if (u.invitedBy) actual.set(u.invitedBy, (actual.get(u.invitedBy) || 0) + 1);
+    });
+    const needsFix = users.some(u => (u.invitedCount || 0) !== (actual.get(u.id) || 0));
+    if (!needsFix) return;
+    setUsers(users.map(u => {
+      const n = actual.get(u.id) || 0;
+      return (u.invitedCount || 0) === n ? u : { ...u, invitedCount: n };
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users]);
   useEffect(() => { localStorage.setItem('hamyar_about', JSON.stringify(aboutContent)); }, [aboutContent]);
 
   const toggleDarkMode = () => setDarkMode(!darkMode);
@@ -2841,7 +2859,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [orders]);
 
   const login = (phone: string, name: string, invitedBy?: string) => {
-    let user = users.find(u => u.phone === phone);
+    // Always work from the latest users list so reward updates made right before
+    // login (e.g. the inviter's bonus in Auth.tsx) are not overwritten.
+    const baseUsers = usersRef.current;
+    let user = baseUsers.find(u => u.phone === phone);
     if (!user) {
       user = {
         id: 'u' + Date.now(),
@@ -2859,7 +2880,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
         selectedMedia: [],
         createdAt: new Date().toISOString()
       };
-      setUsers([...users, user]);
+      setUsers([...baseUsers, user]);
+    } else {
+      // Existing customer signing in with an invite code for the first time:
+      // record the referral and grant the rewards instead of silently ignoring it.
+      const inviter = baseUsers.find(u => u.id === invitedBy);
+      if (inviter && !user.invitedBy && user.role === 'customer') {
+        const updatedUser: User = { ...user, invitedBy };
+        const nextUsers = baseUsers.map(u => {
+          if (u.id === inviter.id) {
+            return {
+              ...u,
+              invitedCount: (u.invitedCount || 0) + 1,
+              loyaltyPoints: (u.loyaltyPoints || 0) + 50,
+            };
+          }
+          if (u.id === user!.id) return updatedUser;
+          return u;
+        });
+        setUsers(nextUsers);
+        user = updatedUser;
+      }
     }
     setCurrentUser(user);
   };
