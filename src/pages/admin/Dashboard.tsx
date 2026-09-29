@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp, visibleProjects, NOTIFICATION_TYPE_META } from '../../store';
+import { useApp, visibleProjects } from '../../store';
 import { 
   DollarSign, ShoppingCart, Users, Film, Package, Wrench, AlertTriangle, TrendingUp, 
   MessageSquare, Lightbulb, Gift, Truck, Percent, Bell, Shield, FileText, Video,
@@ -14,7 +14,7 @@ export default function AdminDashboard() {
     darkMode, orders, products, users, mediaItems, services, projects, expenses,
     notes, reviews, suppliers, employees, campaigns, smsLogs, contentProjects, 
     contentIdeas, faqs, systemUsers, roles,
-    notifications, unreadNotificationsCount, markNotificationRead,
+    notifications, unreadNotificationsCount, markNotificationRead, getNotificationMeta,
   } = useApp();
 
   // محاسبات اصلی
@@ -278,7 +278,7 @@ export default function AdminDashboard() {
         {recentNotifications.length > 0 ? (
           <div className="space-y-2">
             {recentNotifications.map(n => {
-              const meta = NOTIFICATION_TYPE_META[n.type];
+              const meta = getNotificationMeta(n.type);
               return (
                 <div
                   key={n.id}
@@ -292,7 +292,7 @@ export default function AdminDashboard() {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[11px] px-2 py-0.5 rounded ${meta.badge}`}>{meta.label}</span>
+                      <span className="text-[11px] px-2 py-0.5 rounded font-medium" style={meta.badgeStyle}>{meta.icon} {meta.label}</span>
                       <span className={`font-medium text-sm truncate ${n.read ? (darkMode ? 'text-slate-400' : 'text-slate-500') : ''}`}>{n.title}</span>
                     </div>
                     <p className={`text-xs mt-1 line-clamp-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{n.message}</p>
