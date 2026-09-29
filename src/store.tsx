@@ -1922,7 +1922,61 @@ interface AppContextType {
   setAffiliateTransactions: (t: AffiliateTransaction[]) => void;
   personas: Persona[];
   setPersonas: (p: Persona[]) => void;
+  // ---- Admin notifications (سیستم اعلان پنل مدیریت) ----
+  // Every notification has its own type and each type renders with its own color.
+  notifications: AdminNotification[];
+  setNotifications: (n: AdminNotification[]) => void;
+  unreadNotificationsCount: number;
+  // Push a colored notification into the bell / list (deduped by `key`).
+  pushNotification: (input: { type: NotificationType; title: string; message: string; link?: string; priority?: NotificationPriority; key?: string }) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  deleteNotification: (id: string) => void;
+  clearReadNotifications: () => void;
 }
+
+// ---------------------------------------------------------------------------
+// Admin panel notification system (سیستم اعلان پنل مدیریت)
+// Every notification carries a `type`, and each type has its OWN dedicated
+// color (badge background + text color + dot). The mapping below is the single
+// source of truth used by the bell dropdown, the /admin/notifications page and
+// the dashboard widget, so colors stay consistent everywhere in the panel.
+// ---------------------------------------------------------------------------
+export type NotificationType = 'order' | 'ticket' | 'payment' | 'review' | 'stock' | 'user' | 'system' | 'note';
+export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface AdminNotification {
+  id: string;
+  type: NotificationType;      // decides the notification's own color
+  priority: NotificationPriority;
+  title: string;
+  message: string;
+  link?: string;               // in-app route the notification points to
+  read: boolean;
+  createdAt: string;
+}
+
+export const NOTIFICATION_TYPE_META: Record<NotificationType, {
+  label: string;
+  color: string;   // hex color – used for the colored dot
+  badge: string;   // full tailwind classes (light + dark) – the type's own color
+}> = {
+  order:    { label: 'سفارش جدید',       color: '#2563eb', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+  ticket:   { label: 'تیکت پشتیبانی',    color: '#d946ef', badge: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' },
+  payment:  { label: 'پرداخت و مالی',    color: '#16a34a', badge: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
+  review:   { label: 'نظر مشتری',        color: '#ca8a04', badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' },
+  stock:    { label: 'موجودی انبار',     color: '#dc2626', badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+  user:     { label: 'کاربر جدید',       color: '#ea580c', badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' },
+  system:   { label: 'سیستمی',           color: '#0891b2', badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300' },
+  note:     { label: 'یادداشت کاری',     color: '#7c3aed', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
+};
+
+export const NOTIFICATION_PRIORITY_META: Record<NotificationPriority, { label: string; badge: string }> = {
+  low:    { label: 'کم',    badge: 'bg-gray-100 text-gray-600 dark:bg-slate-700/60 dark:text-slate-300' },
+  normal: { label: 'عادی',  badge: 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-300' },
+  high:   { label: 'مهم',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+  urgent: { label: 'فوری',  badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+};
 
 export interface SocialMedia {
   id: string;
@@ -3032,6 +3086,91 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // ---------------------------------------------------------------------------
+  // Admin notification system (سیستم اعلان پنل مدیریت).
+  // Notifications are persisted like the other collections and every type has
+  // its own dedicated color (see NOTIFICATION_TYPE_META). Business events all
+  // over the panel (new orders, tickets, payments, low stock, new customers…)
+  // push their colored notification through `pushNotification`.
+  // ---------------------------------------------------------------------------
+  const [notifications, setNotifications] = useState<AdminNotification[]>(() => {
+    try {
+      const saved = localStorage.getItem('hamyar_notifications');
+      return saved ? (JSON.parse(saved) as AdminNotification[]) : [];
+    } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('hamyar_notifications', JSON.stringify(notifications)); }, [notifications]);
+
+  const notificationsRef = useRef(notifications);
+  useEffect(() => { notificationsRef.current = notifications; }, [notifications]);
+
+  const pushNotification: AppContextType['pushNotification'] = ({ type, title, message, link, priority = 'normal', key }) => {
+    // Dedupe: the same event key is only announced once per session of data
+    if (key && notificationsRef.current.some(n => (n as AdminNotification & { dedupeKey?: string }).dedupeKey === key)) return;
+    const now = new Date().toISOString();
+    const n: AdminNotification & { dedupeKey?: string } = {
+      id: 'ntf' + Date.now() + Math.random().toString(36).slice(2, 6),
+      type,
+      priority,
+      title,
+      message,
+      link,
+      read: false,
+      createdAt: now,
+      dedupeKey: key,
+    };
+    setNotifications(prev => [n, ...prev].slice(0, 200)); // keep the last 200
+  };
+
+  const markNotificationRead = (id: string) =>
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+
+  const markAllNotificationsRead = () =>
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+
+  const deleteNotification = (id: string) =>
+    setNotifications(prev => prev.filter(n => n.id !== id));
+
+  const clearReadNotifications = () =>
+    setNotifications(prev => prev.filter(n => !n.read));
+
+  const unreadNotificationsCount = notifications.reduce((c, n) => c + (n.read ? 0 : 1), 0);
+
+  // Bootstrap: on the very first run (empty storage) seed one sample per type
+  // so the admin immediately sees that each notification renders with its own
+  // color. These seeds are marked with a special dedupe key and disappear once
+  // the admin deletes them (they are never re-added while others remain).
+  useEffect(() => {
+    if (notificationsRef.current.length > 0) return;
+    try {
+      if (localStorage.getItem('hamyar_notifications')) return;
+    } catch { /* ignore */ }
+    const now = Date.now();
+    const seed: { type: NotificationType; title: string; message: string; link?: string; priority: NotificationPriority; agoMin: number }[] = [
+      { type: 'order',   title: 'سفارش جدید ثبت شد',        message: 'سفارش HMY-8F2K1 با وضعیت «جدید» در انتظار بررسی است.', link: '/admin/orders', priority: 'high', agoMin: 12 },
+      { type: 'ticket',  title: 'تیکت پشتیبانی فوری',       message: 'مشتری «علی رضایی» تیکت فوری «مشکل در پرداخت» باز کرد.', link: '/admin/tickets', priority: 'urgent', agoMin: 25 },
+      { type: 'payment', title: 'پرداخت آنلاین موفق',       message: 'مبلغ ۲٬۵۰۰٬۰۰۰ تومان از طریق درگاه پرداخت شد و رسید صادر گردید.', link: '/admin/invoices', priority: 'normal', agoMin: 47 },
+      { type: 'review',  title: 'نظر جدید در انتظار تایید', message: 'یک نظر ۵ ستاره برای محصول «روتر TP-Link» ثبت شد.', link: '/admin/reviews', priority: 'low', agoMin: 95 },
+      { type: 'stock',   title: 'هشدار موجودی انبار',       message: 'موجودی «ماوس گیمینگ Razer» به زیر ۱۰ عدد رسید.', link: '/admin/products', priority: 'high', agoMin: 130 },
+      { type: 'user',    title: 'کاربر جدید عضو شد',        message: 'مشتری جدید با شماره ۰۹۱۲۳۴۵۶۷۸۹ از طریق کد دعوت ثبت‌نام کرد.', link: '/admin/customers', priority: 'normal', agoMin: 190 },
+      { type: 'system',  title: 'پشتیبان‌گیری خودکار انجام شد', message: 'نسخه پشتیبان پایگاه داده با موفقیت ذخیره شد.', link: '/admin/backup', priority: 'low', agoMin: 260 },
+      { type: 'note',    title: 'یادداشت کاری جدید',        message: 'یادداشت «تماس با تأمین‌کننده کابل شبکه» با اولویت بالا ایجاد شد.', link: '/admin/notes', priority: 'normal', agoMin: 320 },
+    ];
+    const seeded: (AdminNotification & { dedupeKey?: string })[] = seed.map((s, i) => ({
+      id: 'ntfseed' + i,
+      type: s.type,
+      priority: s.priority,
+      title: s.title,
+      message: s.message,
+      link: s.link,
+      read: false,
+      createdAt: new Date(now - s.agoMin * 60000).toISOString(),
+      dedupeKey: 'seed-' + s.type,
+    }));
+    setNotifications(seeded);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Support ticket workflow. Customers open threads from their profile page;
   // the staff answers them from the admin «تیکت و پشتیبانی» board. Every admin
   // action is mirrored into the SMS log and the audit log so the ticketing
@@ -3070,6 +3209,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     setTickets(prev => [ticket, ...prev]);
     track('ticket_created', { category: ticket.category, priority: ticket.priority });
+    // رنگ مخصوص خود اعلان: تیکت‌ها با پالت سرخابی (fuchsia) نمایش داده می‌شوند
+    pushNotification({
+      type: 'ticket',
+      title: `تیکت جدید: ${ticket.subject}`,
+      message: `${ticket.customerName} تیکت «${ticket.subject}» (${TICKET_CATEGORY_LABELS[ticket.category]}) با اولویت ${TICKET_PRIORITY_LABELS[ticket.priority]} باز کرد.`,
+      link: '/admin/tickets',
+      priority: ticket.priority === 'urgent' ? 'urgent' : ticket.priority === 'high' ? 'high' : 'normal',
+      key: 'ticket-' + ticket.id,
+    });
     return { ok: true, ticket };
   };
 
@@ -3392,6 +3540,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setInvoices(prev => [invoice, ...prev]);
     setOrders(prev => prev.map(o => o.id === order.id ? { ...o, receiptInvoiceId: invoice.id } : o));
     pushAuditLog('صدور رسید', `رسید «${invoice.invoiceNumber}» برای سفارش ${order.trackingCode} صادر شد`, 'فاکتورها');
+    // اعلان مالی – رنگ سبز مخصوص خود
+    pushNotification({ type: 'payment', title: 'رسید تحویل صادر شد', message: `رسید «${invoice.invoiceNumber}» برای سفارش ${order.trackingCode} به مبلغ ${order.total.toLocaleString('fa-IR')} تومان صادر شد.`, link: '/admin/invoices', priority: 'normal', key: 'rcpt-' + invoice.id });
   };
 
   // Apply product-order stock deduction at delivery time (single source of truth)
@@ -3529,6 +3679,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${service.name}» با کد رهگیری ${trackingCode} ثبت و پرداخت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان.`);
     pushAuditLog('ثبت سفارش آنلاین خدمات', `سفارش ${trackingCode} برای خدمت «${service.name}» به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''}`, 'سفارشات');
+    // هر نوع اعلان رنگ مخصوص خود را دارد: سفارش = آبی، پرداخت = سبز
+    pushNotification({ type: 'order', title: 'سفارش جدید', message: `سفارش «${service.name}» با کد ${trackingCode} و مبلغ ${total.toLocaleString('fa-IR')} تومان ثبت شد.`, link: '/admin/orders', priority: urgent ? 'urgent' : 'high', key: 'order-' + orderId });
+    pushNotification({ type: 'payment', title: 'پرداخت آنلاین موفق', message: `مبلغ ${total.toLocaleString('fa-IR')} تومان بابت سفارش ${trackingCode} از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد.`, link: '/admin/invoices', priority: 'normal', key: 'pay-' + orderId });
 
     return { ok: true, order };
   };
@@ -3683,6 +3836,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${projectService.title}» (${groupLabel}) با کد رهگیری ${trackingCode} ثبت و پرداخت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان. پروژه مربوطه در پنل مدیریت ایجاد شد.`);
     pushAuditLog('ثبت سفارش آنلاین پروژه', `سفارش ${trackingCode} برای «${projectService.title}» (${groupLabel}) به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''} و پروژه مرتبط آن در بخش پروژه‌ها ایجاد گردید${projectService.group === 'content' ? '؛ همچنین تسک تولید محتوای آن در بخش «تیم تولید محتوا» ایجاد شد' : ''}`, 'سفارشات');
+    // هر نوع اعلان رنگ مخصوص خود را دارد: سفارش = آبی، پرداخت = سبز
+    pushNotification({ type: 'order', title: 'سفارش جدید', message: `سفارش «${projectService.title}» (${groupLabel}) با کد ${trackingCode} و مبلغ ${total.toLocaleString('fa-IR')} تومان ثبت شد.`, link: '/admin/orders', priority: urgent ? 'urgent' : 'high', key: 'order-' + orderId });
+    pushNotification({ type: 'payment', title: 'پرداخت آنلاین موفق', message: `مبلغ ${total.toLocaleString('fa-IR')} تومان بابت سفارش ${trackingCode} از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد.`, link: '/admin/invoices', priority: 'normal', key: 'pay-' + orderId });
 
     return { ok: true, order };
   };
