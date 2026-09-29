@@ -7,10 +7,12 @@ import {
 import {
   useApp, NOTIFICATION_PRIORITY_META, DEFAULT_NOTIFICATION_TYPES,
   NotificationType, NotificationTypeDef, NotificationPriority, AdminNotification,
+  NotificationSettings,
 } from '../../store';
 import { timeAgoFa } from '../../utils/notificationTime';
 import { toJalaliString } from '../../utils/jalali';
 import { normalizeHex, rgba } from '../../utils/color';
+import NotificationSettingsTab from './NotificationSettingsTab';
 
 // ---------------------------------------------------------------------------
 // AdminNotifications – full notification center of the admin panel
@@ -34,7 +36,7 @@ export default function AdminNotifications() {
     markNotificationRead, markAllNotificationsRead, deleteNotification, clearReadNotifications,
     notificationSettings, updateNotificationSettings, saveNotificationType,
     deleteNotificationType, resetNotificationTypes, sendSystemNotification,
-    systemUsers, currentUser, logAdminAction,
+    systemUsers, currentUser, pushAuditLog,
   } = app;
 
   const [tab, setTab] = useState<'list' | 'settings'>('list');
@@ -90,7 +92,7 @@ export default function AdminNotifications() {
 
       {tab === 'list'
         ? <NotificationsListTab {...{ card, inputCls, darkMode, notifications, unreadNotificationsCount, getNotificationMeta, visibleTypes, markNotificationRead, markAllNotificationsRead, deleteNotification, clearReadNotifications }} />
-        : <NotificationSettingsTab {...{ card, inputCls, darkMode, notificationSettings, updateNotificationSettings, saveNotificationType, deleteNotificationType, resetNotificationTypes, sendSystemNotification, systemUsers, currentUser, logAdminAction, getNotificationMeta }} />}
+        : <NotificationSettingsTab {...{ card, inputCls, darkMode, notificationSettings, updateNotificationSettings, saveNotificationType, deleteNotificationType, resetNotificationTypes, sendSystemNotification, systemUsers, currentUser, pushAuditLog, getNotificationMeta }} />}
 
       <p className="text-xs opacity-50 text-center">
         حداکثر {notificationSettings.maxItems.toLocaleString('fa-IR')} اعلان اخیر نگهداری می‌شود (قابل تغییر از تب تنظیمات) · اعلان‌ها به‌صورت خودکار با ثبت سفارش، تیکت، پرداخت، نظر، کمبود موجودی و عضویت کاربر جدید ایجاد می‌شوند.
