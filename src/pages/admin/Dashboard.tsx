@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp, visibleProjects } from '../../store';
+import { useApp, visibleProjects, NOTIFICATION_TYPE_META } from '../../store';
 import { 
   DollarSign, ShoppingCart, Users, Film, Package, Wrench, AlertTriangle, TrendingUp, 
   MessageSquare, Lightbulb, Gift, Truck, Percent, Bell, Shield, FileText, Video,
@@ -7,12 +7,14 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatJalali, getJalaliDayName, toJalaliString } from '../../utils/jalali';
+import { timeAgoFa } from '../../utils/notificationTime';
 
 export default function AdminDashboard() {
   const { 
     darkMode, orders, products, users, mediaItems, services, projects, expenses,
     notes, reviews, suppliers, employees, campaigns, smsLogs, contentProjects, 
-    contentIdeas, faqs, systemUsers, roles
+    contentIdeas, faqs, systemUsers, roles,
+    notifications, unreadNotificationsCount, markNotificationRead,
   } = useApp();
 
   // محاسبات اصلی
