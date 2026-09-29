@@ -1991,6 +1991,8 @@ export interface NotificationTypeDef {
   builtin: boolean;            // wired to automatic business events
   deletable: boolean;          // built-in types can be disabled but not removed
   eventLabel?: string;         // which automatic events feed this type (settings hint)
+  sectionPath?: string;        // admin-panel section this type belongs to – also
+                               // used as the default destination link of its notifications
 }
 
 // Global notification behavior — also editable from the settings UI.
@@ -2004,15 +2006,62 @@ export interface NotificationSettings {
   types: NotificationTypeDef[];     // the admin-managed type/color registry
 }
 
+// ---------------------------------------------------------------------------
+// Sections of the admin panel a notification type can be bound to.
+// When an admin creates a new type in «تنظیمات ← افزودن نوع جدید» they must
+// pick the exact section (بخش) the notifications of that type belong to – the
+// chosen section provides the default internal link («مقصد») the bell and the
+// notification center point to, and is shown as «بخش مربوطه» in the registry.
+// The list mirrors the sidebar routes of AdminLayout / App.tsx.
+// ---------------------------------------------------------------------------
+export interface NotificationSectionDef {
+  path: string;      // in-app route used as the notification's destination
+  label: string;     // Persian section name (sidebar label)
+}
+
+export const NOTIFICATION_SECTIONS: NotificationSectionDef[] = [
+  { path: '/admin',                 label: 'داشبورد' },
+  { path: '/admin/analytics',       label: 'تحلیل و گزارش' },
+  { path: '/admin/digital-marketing', label: 'دیجیتال مارکتینگ' },
+  { path: '/admin/affiliates',      label: 'همکاران' },
+  { path: '/admin/personas',        label: 'پرسونای مخاطب' },
+  { path: '/admin/orders',          label: 'سفارش‌ها' },
+  { path: '/admin/notes',           label: 'یادداشت‌ها' },
+  { path: '/admin/customers',       label: 'مشتریان' },
+  { path: '/admin/invites',         label: 'کدهای دعوت' },
+  { path: '/admin/products',        label: 'محصولات' },
+  { path: '/admin/media',           label: 'کالکشن مدیا' },
+  { path: '/admin/services',        label: 'خدمات' },
+  { path: '/admin/projects',        label: 'پروژه‌ها' },
+  { path: '/admin/finance',         label: 'حسابداری' },
+  { path: '/admin/invoices',        label: 'فاکتورها' },
+  { path: '/admin/employees',       label: 'کارمندان' },
+  { path: '/admin/okr-kpi',         label: 'OKR و KPI' },
+  { path: '/admin/suppliers',       label: 'تأمین‌کنندگان' },
+  { path: '/admin/campaigns',       label: 'کمپین تخفیف' },
+  { path: '/admin/sms',             label: 'پیامک انبوه' },
+  { path: '/admin/reviews',         label: 'نظرات' },
+  { path: '/admin/tickets',         label: 'تیکت و پشتیبانی' },
+  { path: '/admin/notifications',   label: 'اعلان‌ها' },
+  { path: '/admin/content-team',    label: 'تیم تولید محتوا' },
+  { path: '/admin/rbac',            label: 'کنترل دسترسی (RBAC)' },
+  { path: '/admin/training',        label: 'آموزش ادمین' },
+  { path: '/admin/audit',           label: 'لاگ فعالیت' },
+  { path: '/admin/backup',          label: 'پشتیبان‌گیری' },
+  { path: '/admin/settings',        label: 'تنظیمات' },
+];
+
+// Built-in types keep their original hard-coded destinations (the automatic
+// business events still pass an explicit `link` when pushing).
 export const DEFAULT_NOTIFICATION_TYPES: NotificationTypeDef[] = [
-  { id: 'order',   label: 'سفارش جدید',    color: '#2563eb', icon: '🛒', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ثبت سفارش خدمات و پروژه‌ها' },
-  { id: 'ticket',  label: 'تیکت پشتیبانی', color: '#d946ef', icon: '🎫', enabled: true,  builtin: true,  deletable: false, eventLabel: 'باز شدن تیکت جدید توسط مشتری' },
-  { id: 'payment', label: 'پرداخت و مالی', color: '#16a34a', icon: '💳', enabled: true,  builtin: true,  deletable: false, eventLabel: 'پرداخت آنلاین موفق و صدور رسید' },
-  { id: 'review',  label: 'نظر مشتری',     color: '#ca8a04', icon: '⭐', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ثبت نظر جدید در انتظار تایید' },
-  { id: 'stock',   label: 'موجودی انبار',  color: '#dc2626', icon: '📦', enabled: true,  builtin: true,  deletable: false, eventLabel: 'رسیدن موجودی محصول به آستانه هشدار' },
-  { id: 'user',    label: 'کاربر جدید',    color: '#ea580c', icon: '👤', enabled: true,  builtin: true,  deletable: false, eventLabel: 'عضویت مشتری جدید' },
-  { id: 'system',  label: 'سیستمی',        color: '#0891b2', icon: '⚙️', enabled: true,  builtin: true,  deletable: false, eventLabel: 'پشتیبان‌گیری خودکار و اطلاع‌رسانی دستی مدیر' },
-  { id: 'note',    label: 'یادداشت کاری',  color: '#7c3aed', icon: '📝', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ایجاد یادداشت کاری جدید' },
+  { id: 'order',   label: 'سفارش جدید',    color: '#2563eb', icon: '🛒', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ثبت سفارش خدمات و پروژه‌ها', sectionPath: '/admin/orders' },
+  { id: 'ticket',  label: 'تیکت پشتیبانی', color: '#d946ef', icon: '🎫', enabled: true,  builtin: true,  deletable: false, eventLabel: 'باز شدن تیکت جدید توسط مشتری', sectionPath: '/admin/tickets' },
+  { id: 'payment', label: 'پرداخت و مالی', color: '#16a34a', icon: '💳', enabled: true,  builtin: true,  deletable: false, eventLabel: 'پرداخت آنلاین موفق و صدور رسید', sectionPath: '/admin/invoices' },
+  { id: 'review',  label: 'نظر مشتری',     color: '#ca8a04', icon: '⭐', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ثبت نظر جدید در انتظار تایید', sectionPath: '/admin/reviews' },
+  { id: 'stock',   label: 'موجودی انبار',  color: '#dc2626', icon: '📦', enabled: true,  builtin: true,  deletable: false, eventLabel: 'رسیدن موجودی محصول به آستانه هشدار', sectionPath: '/admin/products' },
+  { id: 'user',    label: 'کاربر جدید',    color: '#ea580c', icon: '👤', enabled: true,  builtin: true,  deletable: false, eventLabel: 'عضویت مشتری جدید', sectionPath: '/admin/customers' },
+  { id: 'system',  label: 'سیستمی',        color: '#0891b2', icon: '⚙️', enabled: true,  builtin: true,  deletable: false, eventLabel: 'پشتیبان‌گیری خودکار و اطلاع‌رسانی دستی مدیر', sectionPath: '/admin/backup' },
+  { id: 'note',    label: 'یادداشت کاری',  color: '#7c3aed', icon: '📝', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ایجاد یادداشت کاری جدید', sectionPath: '/admin/notes' },
 ];
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -2046,6 +2095,8 @@ export interface ResolvedNotificationMeta {
   builtin: boolean;
   deletable: boolean;
   eventLabel?: string;
+  sectionPath?: string;   // admin section this type is bound to (settings registry)
+  sectionLabel?: string;  // Persian name of that section ('' when not bound)
   badgeStyle: { backgroundColor: string; color: string };
 }
 
@@ -2056,6 +2107,7 @@ export function resolveNotificationMeta(
 ): ResolvedNotificationMeta {
   const def = types.find(t => t.id === type);
   const color = normalizeHex(def?.color || '#64748b');
+  const section = def?.sectionPath ? NOTIFICATION_SECTIONS.find(s => s.path === def.sectionPath) : undefined;
   return {
     id: def?.id ?? type,
     label: def?.label ?? 'اعلان',
@@ -2065,6 +2117,8 @@ export function resolveNotificationMeta(
     builtin: def?.builtin ?? false,
     deletable: def?.deletable ?? true,
     eventLabel: def?.eventLabel,
+    sectionPath: def?.sectionPath,
+    sectionLabel: section?.label ?? '',
     badgeStyle: badgeStyle(color, darkMode),
   };
 }
@@ -3272,13 +3326,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Dedupe: the same event key is only announced once per session of data
     if (key && notificationsRef.current.some(n => (n as AdminNotification & { dedupeKey?: string }).dedupeKey === key)) return;
     const now = new Date().toISOString();
+    // Destination: an explicit link always wins; otherwise fall back to the
+    // admin section the type is bound to («بخش مربوطه» in the settings tab).
     const n: AdminNotification & { dedupeKey?: string } = {
       id: 'ntf' + Date.now() + Math.random().toString(36).slice(2, 6),
       type,
       priority: priority ?? settings.defaultPriority,
       title,
       message,
-      link,
+      link: link ?? def?.sectionPath,
       read: false,
       createdAt: now,
       dedupeKey: key,
@@ -3320,6 +3376,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         builtin: false,
         deletable: true,
         eventLabel: input.eventLabel,
+        sectionPath: input.sectionPath,
       };
       return { ...prev, types: [...prev.types, created] };
     });
@@ -3344,6 +3401,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const message = input.message.trim();
     if (!title || !message) return;
     const typeId = input.typeId || 'system';
+    // No explicit link → fall back to the section bound to the chosen type.
+    const typeDef = settingsRef.current.types.find(t => t.id === typeId);
+    const link = input.link ?? typeDef?.sectionPath;
     const recipientIds = input.audience === 'all' ? undefined : input.audience;
     const now = new Date().toISOString();
     const items: AdminNotification[] =
@@ -3351,12 +3411,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ? recipientIds.map((rid, i) => ({
             id: 'ntf' + Date.now() + 'a' + i + Math.random().toString(36).slice(2, 5),
             type: typeId, priority: input.priority ?? settingsRef.current.defaultPriority,
-            title, message, link: input.link, read: false, createdAt: now, recipientIds,
+            title, message, link, read: false, createdAt: now, recipientIds,
           }))
         : [{
             id: 'ntf' + Date.now() + 'b' + Math.random().toString(36).slice(2, 5),
             type: typeId, priority: input.priority ?? settingsRef.current.defaultPriority,
-            title, message, link: input.link, read: false, createdAt: now,
+            title, message, link, read: false, createdAt: now,
           }];
     setNotifications(prev => [...items, ...prev].slice(0, settingsRef.current.maxItems));
     if (settingsRef.current.showPopups) {
