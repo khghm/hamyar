@@ -1991,8 +1991,9 @@ export interface NotificationTypeDef {
   builtin: boolean;            // wired to automatic business events
   deletable: boolean;          // built-in types can be disabled but not removed
   eventLabel?: string;         // which automatic events feed this type (settings hint)
-  sectionPath?: string;        // admin-panel section this type belongs to – also
-                               // used as the default destination link of its notifications
+  sectionPath?: string;        // site section (admin panel or public page) this
+                               // type belongs to – also used as the default
+                               // destination link of its notifications
 }
 
 // Global notification behavior — also editable from the settings UI.
@@ -2007,49 +2008,97 @@ export interface NotificationSettings {
 }
 
 // ---------------------------------------------------------------------------
-// Sections of the admin panel a notification type can be bound to.
+// Sections of the site a notification type can be bound to.
 // When an admin creates a new type in «تنظیمات ← افزودن نوع جدید» they must
 // pick the exact section (بخش) the notifications of that type belong to – the
 // chosen section provides the default internal link («مقصد») the bell and the
 // notification center point to, and is shown as «بخش مربوطه» in the registry.
-// The list mirrors the sidebar routes of AdminLayout / App.tsx.
+// Two scopes are supported:
+//   • «admin»  → panels of the admin dashboard (sidebar routes of AdminLayout)
+//   • «public» → general pages of the public-facing site (routes of App.tsx
+//                rendered inside PublicLayout). A public destination lets the
+//                customer bell / profile center deep-link into that page.
 // ---------------------------------------------------------------------------
+export type NotificationSectionScope = 'admin' | 'public';
+
 export interface NotificationSectionDef {
-  path: string;      // in-app route used as the notification's destination
-  label: string;     // Persian section name (sidebar label)
+  path: string;               // in-app route used as the notification's destination
+  label: string;              // Persian section name (sidebar / nav label)
+  scope: NotificationSectionScope;
 }
 
-export const NOTIFICATION_SECTIONS: NotificationSectionDef[] = [
-  { path: '/admin',                 label: 'داشبورد' },
-  { path: '/admin/analytics',       label: 'تحلیل و گزارش' },
-  { path: '/admin/digital-marketing', label: 'دیجیتال مارکتینگ' },
-  { path: '/admin/affiliates',      label: 'همکاران' },
-  { path: '/admin/personas',        label: 'پرسونای مخاطب' },
-  { path: '/admin/orders',          label: 'سفارش‌ها' },
-  { path: '/admin/notes',           label: 'یادداشت‌ها' },
-  { path: '/admin/customers',       label: 'مشتریان' },
-  { path: '/admin/invites',         label: 'کدهای دعوت' },
-  { path: '/admin/products',        label: 'محصولات' },
-  { path: '/admin/media',           label: 'کالکشن مدیا' },
-  { path: '/admin/services',        label: 'خدمات' },
-  { path: '/admin/projects',        label: 'پروژه‌ها' },
-  { path: '/admin/finance',         label: 'حسابداری' },
-  { path: '/admin/invoices',        label: 'فاکتورها' },
-  { path: '/admin/employees',       label: 'کارمندان' },
-  { path: '/admin/okr-kpi',         label: 'OKR و KPI' },
-  { path: '/admin/suppliers',       label: 'تأمین‌کنندگان' },
-  { path: '/admin/campaigns',       label: 'کمپین تخفیف' },
-  { path: '/admin/sms',             label: 'پیامک انبوه' },
-  { path: '/admin/reviews',         label: 'نظرات' },
-  { path: '/admin/tickets',         label: 'تیکت و پشتیبانی' },
-  { path: '/admin/notifications',   label: 'اعلان‌ها' },
-  { path: '/admin/content-team',    label: 'تیم تولید محتوا' },
-  { path: '/admin/rbac',            label: 'کنترل دسترسی (RBAC)' },
-  { path: '/admin/training',        label: 'آموزش ادمین' },
-  { path: '/admin/audit',           label: 'لاگ فعالیت' },
-  { path: '/admin/backup',          label: 'پشتیبان‌گیری' },
-  { path: '/admin/settings',        label: 'تنظیمات' },
+export const NOTIFICATION_SECTION_SCOPE_LABEL: Record<NotificationSectionScope, string> = {
+  admin: 'پنل مدیریت',
+  public: 'بخش عمومی سایت',
+};
+
+// General (customer-facing) pages of the site — mirrors the public routes of App.tsx.
+const PUBLIC_NOTIFICATION_SECTIONS: NotificationSectionDef[] = [
+  { path: '/',                    label: 'صفحه اصلی',            scope: 'public' },
+  { path: '/services',            label: 'خدمات',                scope: 'public' },
+  { path: '/store',               label: 'فروشگاه',              scope: 'public' },
+  { path: '/media',               label: 'کالکشن مدیا',          scope: 'public' },
+  { path: '/webdesign',           label: 'طراحی سایت',           scope: 'public' },
+  { path: '/content',             label: 'تولید محتوا',          scope: 'public' },
+  { path: '/asiatech',            label: 'آسیاتک',               scope: 'public' },
+  { path: '/news',                label: 'اخبار و مقالات',       scope: 'public' },
+  { path: '/about',               label: 'درباره ما',            scope: 'public' },
+  { path: '/contact',             label: 'تماس با ما',           scope: 'public' },
+  { path: '/faq',                 label: 'سوالات متداول',        scope: 'public' },
+  { path: '/track',               label: 'پیگیری سفارش',         scope: 'public' },
+  { path: '/cart',                label: 'سبد خرید',             scope: 'public' },
+  { path: '/profile',             label: 'حساب کاربری مشتری',    scope: 'public' },
+  { path: '/auth',                label: 'ورود / ثبت‌نام',       scope: 'public' },
 ];
+
+// Panels of the admin dashboard — mirrors the sidebar routes of AdminLayout / App.tsx.
+const ADMIN_NOTIFICATION_SECTIONS: NotificationSectionDef[] = [
+  { path: '/admin',                 label: 'داشبورد',                 scope: 'admin' },
+  { path: '/admin/analytics',       label: 'تحلیل و گزارش',           scope: 'admin' },
+  { path: '/admin/digital-marketing', label: 'دیجیتال مارکتینگ',      scope: 'admin' },
+  { path: '/admin/affiliates',      label: 'همکاران',                 scope: 'admin' },
+  { path: '/admin/personas',        label: 'پرسونای مخاطب',           scope: 'admin' },
+  { path: '/admin/orders',          label: 'سفارش‌ها',                 scope: 'admin' },
+  { path: '/admin/notes',           label: 'یادداشت‌ها',               scope: 'admin' },
+  { path: '/admin/customers',       label: 'مشتریان',                 scope: 'admin' },
+  { path: '/admin/invites',         label: 'کدهای دعوت',              scope: 'admin' },
+  { path: '/admin/products',        label: 'محصولات',                 scope: 'admin' },
+  { path: '/admin/media',           label: 'کالکشن مدیا',             scope: 'admin' },
+  { path: '/admin/services',        label: 'خدمات',                   scope: 'admin' },
+  { path: '/admin/projects',        label: 'پروژه‌ها',                scope: 'admin' },
+  { path: '/admin/finance',         label: 'حسابداری',                scope: 'admin' },
+  { path: '/admin/invoices',        label: 'فاکتورها',                scope: 'admin' },
+  { path: '/admin/employees',       label: 'کارمندان',                scope: 'admin' },
+  { path: '/admin/okr-kpi',         label: 'OKR و KPI',               scope: 'admin' },
+  { path: '/admin/suppliers',       label: 'تأمین‌کنندگان',           scope: 'admin' },
+  { path: '/admin/campaigns',       label: 'کمپین تخفیف',             scope: 'admin' },
+  { path: '/admin/sms',             label: 'پیامک انبوه',             scope: 'admin' },
+  { path: '/admin/reviews',         label: 'نظرات',                   scope: 'admin' },
+  { path: '/admin/tickets',         label: 'تیکت و پشتیبانی',         scope: 'admin' },
+  { path: '/admin/notifications',   label: 'اعلان‌ها',                scope: 'admin' },
+  { path: '/admin/content-team',    label: 'تیم تولید محتوا',         scope: 'admin' },
+  { path: '/admin/rbac',            label: 'کنترل دسترسی (RBAC)',     scope: 'admin' },
+  { path: '/admin/training',        label: 'آموزش ادمین',             scope: 'admin' },
+  { path: '/admin/audit',           label: 'لاگ فعالیت',              scope: 'admin' },
+  { path: '/admin/backup',          label: 'پشتیبان‌گیری',            scope: 'admin' },
+  { path: '/admin/settings',        label: 'تنظیمات',                 scope: 'admin' },
+];
+
+// Public sections first, then admin ones — grouped in <select> elements via
+// NOTIFICATION_SECTIONS_BY_SCOPE below.
+export const NOTIFICATION_SECTIONS: NotificationSectionDef[] = [
+  ...PUBLIC_NOTIFICATION_SECTIONS,
+  ...ADMIN_NOTIFICATION_SECTIONS,
+];
+
+export const NOTIFICATION_SECTIONS_BY_SCOPE: Record<NotificationSectionScope, NotificationSectionDef[]> = {
+  public: PUBLIC_NOTIFICATION_SECTIONS,
+  admin: ADMIN_NOTIFICATION_SECTIONS,
+};
+
+export function findNotificationSection(path?: string): NotificationSectionDef | undefined {
+  return path ? NOTIFICATION_SECTIONS.find(s => s.path === path) : undefined;
+}
 
 // Built-in types keep their original hard-coded destinations (the automatic
 // business events still pass an explicit `link` when pushing).
@@ -2095,8 +2144,9 @@ export interface ResolvedNotificationMeta {
   builtin: boolean;
   deletable: boolean;
   eventLabel?: string;
-  sectionPath?: string;   // admin section this type is bound to (settings registry)
+  sectionPath?: string;   // site section this type is bound to (settings registry)
   sectionLabel?: string;  // Persian name of that section ('' when not bound)
+  sectionScope?: NotificationSectionScope; // 'admin' panel or 'public' site page
   badgeStyle: { backgroundColor: string; color: string };
 }
 
@@ -2107,7 +2157,7 @@ export function resolveNotificationMeta(
 ): ResolvedNotificationMeta {
   const def = types.find(t => t.id === type);
   const color = normalizeHex(def?.color || '#64748b');
-  const section = def?.sectionPath ? NOTIFICATION_SECTIONS.find(s => s.path === def.sectionPath) : undefined;
+  const section = findNotificationSection(def?.sectionPath);
   return {
     id: def?.id ?? type,
     label: def?.label ?? 'اعلان',
@@ -2119,6 +2169,7 @@ export function resolveNotificationMeta(
     eventLabel: def?.eventLabel,
     sectionPath: def?.sectionPath,
     sectionLabel: section?.label ?? '',
+    sectionScope: section?.scope,
     badgeStyle: badgeStyle(color, darkMode),
   };
 }
