@@ -62,6 +62,8 @@ export default function AdminDashboard() {
 
   const recentOrders = orders.slice(-5).reverse();
   const recentContentProjects = contentProjects.slice(-3).reverse();
+  // آخرین اعلان‌های سیستم اعلان پنل مدیریت (برای ویجت داشبورد)
+  const recentNotifications = notifications.slice(0, 6);
   const pendingReviewList = reviews.filter(r => !r.approved).slice(0, 5);
   const urgentProjects = contentProjects.filter(p => p.priority === 'urgent' && p.status !== 'completed').slice(0, 3);
 
@@ -257,6 +259,52 @@ export default function AdminDashboard() {
             <p className={`text-sm text-center py-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>پروژه‌ای ثبت نشده</p>
           )}
         </div>
+      </div>
+
+      {/* Recent Orders */}
+      <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold flex items-center gap-2">
+            <Bell size={18} className="text-amber-500" />
+            اعلان‌های اخیر
+            {unreadNotificationsCount > 0 && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                {unreadNotificationsCount.toLocaleString('fa-IR')} خوانده‌نشده
+              </span>
+            )}
+          </h3>
+          <Link to="/admin/notifications" className="text-blue-600 text-xs hover:underline">مشاهده همه</Link>
+        </div>
+        {recentNotifications.length > 0 ? (
+          <div className="space-y-2">
+            {recentNotifications.map(n => {
+              const meta = NOTIFICATION_TYPE_META[n.type];
+              return (
+                <div
+                  key={n.id}
+                  className={`p-3 rounded-lg flex items-start gap-3 cursor-pointer transition-colors ${darkMode ? 'bg-slate-700/50 hover:bg-slate-700' : 'bg-gray-50 hover:bg-gray-100'}`}
+                  onClick={() => { if (!n.read) markNotificationRead(n.id); }}
+                >
+                  {/* رنگ اختصاصی هر نوع اعلان */}
+                  <span
+                    className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${n.read ? 'opacity-40' : 'animate-pulse'}`}
+                    style={{ backgroundColor: meta.color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[11px] px-2 py-0.5 rounded ${meta.badge}`}>{meta.label}</span>
+                      <span className={`font-medium text-sm truncate ${n.read ? (darkMode ? 'text-slate-400' : 'text-slate-500') : ''}`}>{n.title}</span>
+                    </div>
+                    <p className={`text-xs mt-1 line-clamp-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{n.message}</p>
+                  </div>
+                  <span className={`text-[11px] shrink-0 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{timeAgoFa(n.createdAt)}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className={`text-sm text-center py-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>اعلانی ثبت نشده</p>
+        )}
       </div>
 
       {/* Recent Orders */}
