@@ -4,7 +4,7 @@ import {
   ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import {
-  useApp, NOTIFICATION_PRIORITY_META,
+  useApp, NOTIFICATION_PRIORITY_META, NOTIFICATION_SECTIONS,
   NotificationType, NotificationTypeDef, NotificationPriority, NotificationSettings,
 } from '../../store';
 import { normalizeHex } from '../../utils/color';
@@ -53,6 +53,21 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
   const [editing, setEditing] = useState<NotificationTypeDef | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+
+  // «بخش مربوطه» – section of the admin panel each notification type is bound
+  // to. Changing it rewrites the default destination («مقصد») used by every
+  // future automatic/manual notification of that type (pushNotification and
+  // sendSystemNotification fall back to `sectionPath` when no explicit link
+  // is given), so the binding takes effect immediately.
+  const changeTypeSection = (t: NotificationTypeDef, path: string) => {
+    saveNotificationType({ ...t, sectionPath: path || undefined });
+    const label = NOTIFICATION_SECTIONS.find(s => s.path === path)?.label;
+    pushAuditLog(
+      'تغییر بخش نوع اعلان',
+      `نوع «${t.label}» (${t.id}) به بخش «${label || 'بدون مقصد'}» متصل شد`,
+      'تنظیمات اعلان‌ها',
+    );
+  };
 
   // ---- Manual broadcast form state -----------------------------------------
   const [bTitle, setBTitle] = useState('');
@@ -241,6 +256,7 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
             <thead>
               <tr className={`text-xs ${darkMode ? 'text-slate-400 border-slate-700' : 'text-slate-500 border-gray-200'} border-b`}>
                 <th className="text-right py-2 px-2 font-medium">نوع اعلان</th>
+                <th className="text-right py-2 px-2 font-medium">بخش مربوطه (مقصد اعلان)</th>
                 <th className="text-right py-2 px-2 font-medium">رنگ اختصاصی</th>
                 <th className="text-right py-2 px-2 font-medium">رویدادهای خودکار</th>
                 <th className="text-center py-2 px-2 font-medium">وضعیت تولید</th>
@@ -259,6 +275,29 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300 font-mono" dir="ltr">{t.id}</span>
                         {t.builtin && <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">سیستمی</span>}
                       </span>
+                    </td>
+                    <td className="py-2.5 px-2">
+                      {/* Binding the type to an admin-panel section – the chosen
+                          section becomes the default destination of every
+                          notification created with this type. */}
+                      <select
+                        value={t.sectionPath || ''}
+                        onChange={e => changeTypeSection(t, e.target.value)}
+                        title="بخشی از پنل مدیریت که اعلان‌های این نوع به آن متصل‌اند (مقصد پیش‌فرض کلیک روی اعلان)"
+                        className={`px-2 py-1.5 rounded-lg border text-xs max-w-[190px] focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-slate-700'
+                        } ${!t.sectionPath ? 'border-amber-400 text-amber-600 font-medium' : ''}`}
+                      >
+                        <option value="">— انتخاب بخش —</option>
+                        {NOTIFICATION_SECTIONS.map(s => (
+                          <option key={s.path} value={s.path}>{s.label}</option>
+                        ))}
+                      </select>
+                      {t.sectionPath ? (
+                        <div className="text-[10px] opacity-50 mt-1 font-mono" dir="ltr">{t.sectionPath}</div>
+                      ) : (
+                        <div className="text-[10px] text-amber-600 mt-1">اعلان‌های این نوع مقصد مشخصی ندارند</div>
+                      )}
                     </td>
                     <td className="py-2.5 px-2">
                       <span className="inline-flex items-center gap-1.5 text-xs font-mono" dir="ltr">
@@ -311,7 +350,7 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
           </table>
         </div>
         <p className="text-[11px] opacity-50 mt-2">
-          تغییر رنگ بلافاصله در لیست اعلان‌ها، زنگوله بالای پنل و داشبورد اعمال و به‌صورت محلی ذخیره می‌شود.
+          تغییر رنگ بلافاصله در لیست اعلان‌ها، زنگوله بالای پنل و داشبورد اعمال و به‌صورت محلی ذخیره می‌شود. ستون «بخش مربوطه» مشخص می‌کند اعلان‌های هر نوع به کدام بخش از پنل مدیریت متصل‌اند؛ این بخش، مقصد پیش‌فرض دکمه «مشاهده جزئیات» آن اعلان است.
         </p>
       </div>
 
@@ -355,6 +394,19 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
           <label className="block">
             <span className="text-xs font-medium opacity-70 block mb-1">لینک داخلی (اختیاری)</span>
             <input value={bLink} onChange={e => setBLink(e.target.value)} placeholder="/admin/orders" dir="ltr" className={`${inputCls} w-full font-mono text-xs`} />
+            {/* Destination hint – shows the section bound to the selected type
+                so the admin knows exactly where the notification will point. */}
+            <span className="text-[11px] opacity-60 block mt-1 leading-5">
+              {(() => {
+                const def = notificationSettings.types.find(t => t.id === bTypeId);
+                const sec = NOTIFICATION_SECTIONS.find(s => s.path === def?.sectionPath);
+                return bLink.trim()
+                  ? <>مقصد این اعلان: <code className="font-mono text-blue-600" dir="ltr">{bLink.trim()}</code> (دستی)</>
+                  : sec
+                    ? <>بدون لینک دستی، مقصد پیش‌فرض بخش «{sec.label}» است: <code className="font-mono text-blue-600" dir="ltr">{sec.path}</code></>
+                    : <span className="text-amber-600">نوع انتخابی به بخشی متصل نیست؛ برای مشخص شدن مقصد، لینک داخلی را وارد کنید یا در جدول بالا «بخش مربوطه» آن را تعیین کنید.</span>;
+              })()}
+            </span>
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -397,7 +449,12 @@ function TypeEditorModal(props: {
   onClose: () => void; onSave: (def: NotificationTypeDef) => void;
 }) {
   const { darkMode, card, inputCls, isNew, editing, types, onClose, onSave } = props;
-  const [form, setForm] = useState<NotificationTypeDef>({ ...editing });
+  const [form, setForm] = useState<NotificationTypeDef>(() => ({
+    ...editing,
+    // Ensure the field exists on brand-new types so React treats it as a
+    // controlled input and the admin must pick a section explicitly.
+    sectionPath: editing.sectionPath ?? '',
+  }));
   const [error, setError] = useState('');
 
   const submit = () => {
@@ -406,6 +463,9 @@ function TypeEditorModal(props: {
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(id)) { setError('شناسه باید با حرف انگلیسی شروع شود (بدون فاصله).'); return; }
     if (!form.label.trim()) { setError('نام فارسی نوع الزامی است.'); return; }
     if (isNew && types.some(t => t.id === id)) { setError('این شناسه قبلاً ثبت شده است.'); return; }
+    // A type must be bound to an exact admin-panel section, otherwise its
+    // notifications would have no destination («مقصد») to point at.
+    if (!form.sectionPath) { setError('انتخاب «بخش مربوطه» الزامی است؛ مشخص کنید اعلان‌های این نوع به کدام بخش از پنل مدیریت می‌روند.'); return; }
     onSave({ ...form, id, label: form.label.trim(), color: normalizeHex(form.color) });
   };
 
@@ -464,6 +524,27 @@ function TypeEditorModal(props: {
                 title={c}
               />
             ))}
+          </span>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium opacity-70 block mb-1">بخش مربوطه در پنل مدیریت * </span>
+          <select
+            value={form.sectionPath || ''}
+            onChange={e => setForm(f => ({ ...f, sectionPath: e.target.value || undefined }))}
+            className={`${inputCls} w-full ${!form.sectionPath ? 'border-amber-400' : ''}`}
+          >
+            <option value="">— انتخاب بخش مقصد —</option>
+            {NOTIFICATION_SECTIONS.map(s => (
+              <option key={s.path} value={s.path}>{s.label}</option>
+            ))}
+          </select>
+          <span className="text-[11px] opacity-60 block mt-1 leading-5">
+            مشخص می‌کند اعلان‌های این نوع به کدام بخش از پنل مربوط باشند؛ مسیر{' '}
+            {form.sectionPath
+              ? <code className="font-mono text-blue-600" dir="ltr">{form.sectionPath}</code>
+              : <span className="text-amber-600">«مشخص نشده»</span>}{' '}
+            مقصد پیش‌فرض دکمه «مشاهده جزئیات» هر اعلان از این نوع خواهد بود.
           </span>
         </label>
 
