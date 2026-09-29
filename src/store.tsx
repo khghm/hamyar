@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { logActivity } from './utils/auditLog';
 import { track } from './utils/analytics';
+import { normalizeHex, badgeStyle } from './utils/color';
 
 // Types
 export interface CartItem {
@@ -1933,16 +1934,39 @@ interface AppContextType {
   markAllNotificationsRead: () => void;
   deleteNotification: (id: string) => void;
   clearReadNotifications: () => void;
+  // Presentation of a notification type resolved from the admin-managed
+  // settings (label / color / icon / derived badge colors). Falls back to a
+  // neutral slate style for types that were removed from the registry.
+  getNotificationMeta: (type: NotificationType) => ResolvedNotificationMeta;
+  // Live toast previews of freshly pushed notifications (settings-driven).
+  notificationToasts: AdminNotification[];
+  dismissNotificationToast: (id: string) => void;
+  // ---- Notification settings (تنظیمات بخش اعلان) ----
+  // Fully admin-manageable: add / edit / delete notification types, change each
+  // type's dedicated color & icon, enable/disable per-type generation, adjust
+  // global behavior (max kept, popup preview…) and broadcast manual notices.
+  notificationSettings: NotificationSettings;
+  updateNotificationSettings: (patch: Partial<NotificationSettings>) => void;
+  saveNotificationType: (input: Partial<NotificationTypeDef> & { id: string }) => void;
+  deleteNotificationType: (id: string) => void;
+  resetNotificationTypes: () => void;
+  sendSystemNotification: (input: { title: string; message: string; typeId?: string; priority?: NotificationPriority; link?: string; audience: 'all' | string[] }) => void;
+  // Audit trail helper exposed to admin pages (used by the notification
+  // settings tab to log every management change).
+  pushAuditLog: (action: string, details: string, module: string) => void;
 }
 
 // ---------------------------------------------------------------------------
 // Admin panel notification system (سیستم اعلان پنل مدیریت)
 // Every notification carries a `type`, and each type has its OWN dedicated
-// color (badge background + text color + dot). The mapping below is the single
-// source of truth used by the bell dropdown, the /admin/notifications page and
-// the dashboard widget, so colors stay consistent everywhere in the panel.
+// color. The palette is NO LONGER hard-coded: it lives inside
+// `notificationSettings` (persisted in localStorage) and the admin can add,
+// edit or delete types and pick their colors from the «تنظیمات» tab of the
+// notifications page. `resolveNotificationMeta` below is the single source of
+// truth used by the bell dropdown, the /admin/notifications page and the
+// dashboard widget, so colors stay consistent everywhere in the panel.
 // ---------------------------------------------------------------------------
-export type NotificationType = 'order' | 'ticket' | 'payment' | 'review' | 'stock' | 'user' | 'system' | 'note';
+export type NotificationType = string; // built-ins + custom ids managed via settings
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export interface AdminNotification {
@@ -1954,21 +1978,51 @@ export interface AdminNotification {
   link?: string;               // in-app route the notification points to
   read: boolean;
   createdAt: string;
+  recipientIds?: string[];     // audience restriction (system broadcasts); undefined = everyone
 }
 
-export const NOTIFICATION_TYPE_META: Record<NotificationType, {
-  label: string;
-  color: string;   // hex color – used for the colored dot
-  badge: string;   // full tailwind classes (light + dark) – the type's own color
-}> = {
-  order:    { label: 'سفارش جدید',       color: '#2563eb', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
-  ticket:   { label: 'تیکت پشتیبانی',    color: '#d946ef', badge: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' },
-  payment:  { label: 'پرداخت و مالی',    color: '#16a34a', badge: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
-  review:   { label: 'نظر مشتری',        color: '#ca8a04', badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' },
-  stock:    { label: 'موجودی انبار',     color: '#dc2626', badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
-  user:     { label: 'کاربر جدید',       color: '#ea580c', badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' },
-  system:   { label: 'سیستمی',           color: '#0891b2', badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300' },
-  note:     { label: 'یادداشت کاری',     color: '#7c3aed', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
+// A notification type definition — editable from the admin settings UI.
+export interface NotificationTypeDef {
+  id: string;                  // stable key stored on every notification ('order', 'ticket', …)
+  label: string;               // Persian display name
+  color: string;               // hex – the type's OWN dedicated color
+  icon: string;                // emoji shown next to the type
+  enabled: boolean;            // when false, automatic events of this type are muted
+  builtin: boolean;            // wired to automatic business events
+  deletable: boolean;          // built-in types can be disabled but not removed
+  eventLabel?: string;         // which automatic events feed this type (settings hint)
+}
+
+// Global notification behavior — also editable from the settings UI.
+export interface NotificationSettings {
+  enabled: boolean;                 // master switch for the whole notification system
+  maxItems: number;                 // how many recent notifications are kept
+  showPopups: boolean;              // temporary toast previews for new notifications
+  popupSeconds: number;             // toast lifetime in seconds
+  soundEnabled: boolean;            // audible ping on new notifications
+  defaultPriority: NotificationPriority;
+  types: NotificationTypeDef[];     // the admin-managed type/color registry
+}
+
+export const DEFAULT_NOTIFICATION_TYPES: NotificationTypeDef[] = [
+  { id: 'order',   label: 'سفارش جدید',    color: '#2563eb', icon: '🛒', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ثبت سفارش خدمات و پروژه‌ها' },
+  { id: 'ticket',  label: 'تیکت پشتیبانی', color: '#d946ef', icon: '🎫', enabled: true,  builtin: true,  deletable: false, eventLabel: 'باز شدن تیکت جدید توسط مشتری' },
+  { id: 'payment', label: 'پرداخت و مالی', color: '#16a34a', icon: '💳', enabled: true,  builtin: true,  deletable: false, eventLabel: 'پرداخت آنلاین موفق و صدور رسید' },
+  { id: 'review',  label: 'نظر مشتری',     color: '#ca8a04', icon: '⭐', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ثبت نظر جدید در انتظار تایید' },
+  { id: 'stock',   label: 'موجودی انبار',  color: '#dc2626', icon: '📦', enabled: true,  builtin: true,  deletable: false, eventLabel: 'رسیدن موجودی محصول به آستانه هشدار' },
+  { id: 'user',    label: 'کاربر جدید',    color: '#ea580c', icon: '👤', enabled: true,  builtin: true,  deletable: false, eventLabel: 'عضویت مشتری جدید' },
+  { id: 'system',  label: 'سیستمی',        color: '#0891b2', icon: '⚙️', enabled: true,  builtin: true,  deletable: false, eventLabel: 'پشتیبان‌گیری خودکار و اطلاع‌رسانی دستی مدیر' },
+  { id: 'note',    label: 'یادداشت کاری',  color: '#7c3aed', icon: '📝', enabled: true,  builtin: true,  deletable: false, eventLabel: 'ایجاد یادداشت کاری جدید' },
+];
+
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  enabled: true,
+  maxItems: 200,
+  showPopups: true,
+  popupSeconds: 6,
+  soundEnabled: false,
+  defaultPriority: 'normal',
+  types: DEFAULT_NOTIFICATION_TYPES,
 };
 
 export const NOTIFICATION_PRIORITY_META: Record<NotificationPriority, { label: string; badge: string }> = {
@@ -1977,6 +2031,43 @@ export const NOTIFICATION_PRIORITY_META: Record<NotificationPriority, { label: s
   high:   { label: 'مهم',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
   urgent: { label: 'فوری',  badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
 };
+
+// Resolved presentation of a notification type (label + color + derived badge
+// colors). Returned by `getNotificationMeta` from the store so every consumer
+// renders the admin-configured colors instead of hard-coded ones. `badgeStyle`
+// is the inline style pair (bg + text) computed from the type's own hex and
+// the current theme — consumers apply it via `style={meta.badgeStyle}`.
+export interface ResolvedNotificationMeta {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  enabled: boolean;
+  builtin: boolean;
+  deletable: boolean;
+  eventLabel?: string;
+  badgeStyle: { backgroundColor: string; color: string };
+}
+
+export function resolveNotificationMeta(
+  type: NotificationType,
+  types: NotificationTypeDef[],
+  darkMode: boolean,
+): ResolvedNotificationMeta {
+  const def = types.find(t => t.id === type);
+  const color = normalizeHex(def?.color || '#64748b');
+  return {
+    id: def?.id ?? type,
+    label: def?.label ?? 'اعلان',
+    icon: def?.icon ?? '🔔',
+    color,
+    enabled: def ? def.enabled : true,
+    builtin: def?.builtin ?? false,
+    deletable: def?.deletable ?? true,
+    eventLabel: def?.eventLabel,
+    badgeStyle: badgeStyle(color, darkMode),
+  };
+}
 
 export interface SocialMedia {
   id: string;
@@ -3103,14 +3194,88 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const notificationsRef = useRef(notifications);
   useEffect(() => { notificationsRef.current = notifications; }, [notifications]);
 
-  const pushNotification: AppContextType['pushNotification'] = ({ type, title, message, link, priority = 'normal', key }) => {
+  // ---- Notification settings (تنظیمات بخش اعلان) ----------------------------
+  // The type/color registry and the global behavior live here and are editable
+  // from the «تنظیمات» tab of the notifications page. Persisted like the rest
+  // of the collections; legacy localStorage values are merged with defaults so
+  // new built-in types never disappear after an upgrade.
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => {
+    try {
+      const saved = localStorage.getItem('hamyar_notification_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<NotificationSettings>;
+        const savedTypes = Array.isArray(parsed.types) ? parsed.types : [];
+        const byId = new Map<string, NotificationTypeDef>();
+        DEFAULT_NOTIFICATION_TYPES.forEach(t => byId.set(t.id, t));
+        savedTypes.forEach(t => { if (t && typeof t.id === 'string') byId.set(t.id, t); });
+        return {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          ...parsed,
+          maxItems: Math.min(500, Math.max(20, Number(parsed.maxItems) || 200)),
+          popupSeconds: Math.min(30, Math.max(2, Number(parsed.popupSeconds) || 6)),
+          types: [...byId.values()],
+        };
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_NOTIFICATION_SETTINGS;
+  });
+  useEffect(() => {
+    localStorage.setItem('hamyar_notification_settings', JSON.stringify(notificationSettings));
+  }, [notificationSettings]);
+
+  const settingsRef = useRef(notificationSettings);
+  useEffect(() => { settingsRef.current = notificationSettings; }, [notificationSettings]);
+
+  const darkModeRef = useRef(darkMode);
+  useEffect(() => { darkModeRef.current = darkMode; }, [darkMode]);
+
+  // Audit-log helper for admin pages that need to record a management action
+  // right from the UI (e.g. every change made in the notification settings).
+  const logAudit = (action: string, details: string, module: string) => pushAuditLog(action, details, module);
+
+  const getNotificationMeta: AppContextType['getNotificationMeta'] = (type) =>
+    resolveNotificationMeta(type, settingsRef.current.types, darkMode);
+
+  // ---- Live toast previews ---------------------------------------------------
+  const [notificationToasts, setNotificationToasts] = useState<AdminNotification[]>([]);
+
+  const dismissNotificationToast = (id: string) =>
+    setNotificationToasts(prev => prev.filter(t => t.id !== id));
+
+  const playNotificationPing = () => {
+    try {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+      osc.onended = () => ctx.close().catch(() => {});
+    } catch { /* audio not available – ignore */ }
+  };
+
+  const pushNotification: AppContextType['pushNotification'] = ({ type, title, message, link, priority, key }) => {
+    const settings = settingsRef.current;
+    // Master switch: while the notification system is disabled no event creates
+    // a notification at all (existing ones stay untouched in the list).
+    if (!settings.enabled) return;
+    // Per-type switch managed from the settings tab – muted types are skipped.
+    const def = settings.types.find(t => t.id === type);
+    if (def && !def.enabled) return;
     // Dedupe: the same event key is only announced once per session of data
     if (key && notificationsRef.current.some(n => (n as AdminNotification & { dedupeKey?: string }).dedupeKey === key)) return;
     const now = new Date().toISOString();
     const n: AdminNotification & { dedupeKey?: string } = {
       id: 'ntf' + Date.now() + Math.random().toString(36).slice(2, 6),
       type,
-      priority,
+      priority: priority ?? settings.defaultPriority,
       title,
       message,
       link,
@@ -3118,7 +3283,88 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdAt: now,
       dedupeKey: key,
     };
-    setNotifications(prev => [n, ...prev].slice(0, 200)); // keep the last 200
+    setNotifications(prev => [n, ...prev].slice(0, settings.maxItems));
+    // Temporary preview popups (can be turned off / timed from the settings)
+    if (settings.showPopups) {
+      setNotificationToasts(prev => [...prev.slice(-2), n]);
+      window.setTimeout(() => dismissNotificationToast(n.id), Math.max(2, settings.popupSeconds) * 1000);
+    }
+    if (settings.soundEnabled) playNotificationPing();
+  };
+
+  const updateNotificationSettings: AppContextType['updateNotificationSettings'] = (patch) => {
+    setNotificationSettings(prev => ({ ...prev, ...patch }));
+    // When the retention cap shrinks, trim the stored list right away.
+    if (typeof patch.maxItems === 'number') {
+      setNotifications(prev => prev.slice(0, patch.maxItems!));
+    }
+  };
+
+  const saveNotificationType: AppContextType['saveNotificationType'] = (input) => {
+    const id = input.id.trim();
+    if (!id) return;
+    setNotificationSettings(prev => {
+      const exists = prev.types.some(t => t.id === id);
+      if (exists) {
+        return {
+          ...prev,
+          types: prev.types.map(t => t.id === id ? { ...t, ...input, id, color: normalizeHex(input.color || t.color) } : t),
+        };
+      }
+      const created: NotificationTypeDef = {
+        id,
+        label: input.label || 'اعلان جدید',
+        color: normalizeHex(input.color || '#0ea5e9'),
+        icon: input.icon || '🔔',
+        enabled: input.enabled ?? true,
+        builtin: false,
+        deletable: true,
+        eventLabel: input.eventLabel,
+      };
+      return { ...prev, types: [...prev.types, created] };
+    });
+  };
+
+  const deleteNotificationType: AppContextType['deleteNotificationType'] = (id) => {
+    setNotificationSettings(prev => {
+      const target = prev.types.find(t => t.id === id);
+      if (!target || !target.deletable) return prev;
+      return { ...prev, types: prev.types.filter(t => t.id !== id) };
+    });
+    // Existing notifications of the removed type fall back to the neutral
+    // slate style (resolveNotificationMeta) instead of breaking the UI.
+  };
+
+  const resetNotificationTypes: AppContextType['resetNotificationTypes'] = () => {
+    setNotificationSettings(prev => ({ ...prev, types: DEFAULT_NOTIFICATION_TYPES.map(t => ({ ...t })) }));
+  };
+
+  const sendSystemNotification: AppContextType['sendSystemNotification'] = (input) => {
+    const title = input.title.trim();
+    const message = input.message.trim();
+    if (!title || !message) return;
+    const typeId = input.typeId || 'system';
+    const recipientIds = input.audience === 'all' ? undefined : input.audience;
+    const now = new Date().toISOString();
+    const items: AdminNotification[] =
+      recipientIds && recipientIds.length > 0
+        ? recipientIds.map((rid, i) => ({
+            id: 'ntf' + Date.now() + 'a' + i + Math.random().toString(36).slice(2, 5),
+            type: typeId, priority: input.priority ?? settingsRef.current.defaultPriority,
+            title, message, link: input.link, read: false, createdAt: now, recipientIds,
+          }))
+        : [{
+            id: 'ntf' + Date.now() + 'b' + Math.random().toString(36).slice(2, 5),
+            type: typeId, priority: input.priority ?? settingsRef.current.defaultPriority,
+            title, message, link: input.link, read: false, createdAt: now,
+          }];
+    setNotifications(prev => [...items, ...prev].slice(0, settingsRef.current.maxItems));
+    if (settingsRef.current.showPopups) {
+      const first = items[0];
+      setNotificationToasts(prev => [...prev.slice(-2), first]);
+      window.setTimeout(() => dismissNotificationToast(first.id), Math.max(2, settingsRef.current.popupSeconds) * 1000);
+    }
+    logActivity(currentUser?.name || 'مدیر سیستم', 'ارسال اعلان دستی', `عنوان: ${title} · مخاطب: ${recipientIds ? `${recipientIds.length} نفر` : 'همه کارکنان'}`, 'اعلان‌ها');
   };
 
   const markNotificationRead = (id: string) =>
@@ -3218,7 +3464,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createdAt: new Date(now - s.agoMin * 60000).toISOString(),
       dedupeKey: 'seed-' + s.type,
     }));
-    setNotifications(seeded);
+    setNotifications(seeded.slice(0, settingsRef.current.maxItems));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -4434,7 +4680,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       personas, setPersonas,
       tickets, setTickets, createTicket, replyTicket, reopenTicket, rateTicket, adminReplyTicket, updateTicket,
       notifications, setNotifications, unreadNotificationsCount, pushNotification,
-      markNotificationRead, markAllNotificationsRead, deleteNotification, clearReadNotifications
+      markNotificationRead, markAllNotificationsRead, deleteNotification, clearReadNotifications,
+      getNotificationMeta, notificationToasts, dismissNotificationToast,
+      notificationSettings, updateNotificationSettings, saveNotificationType,
+      deleteNotificationType, resetNotificationTypes, sendSystemNotification,
+      pushAuditLog
     }}>
       {children}
     </AppContext.Provider>

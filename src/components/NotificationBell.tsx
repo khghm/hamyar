@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Bell, CheckCheck, Trash2, X } from 'lucide-react';
-import { useApp, NOTIFICATION_TYPE_META, NOTIFICATION_PRIORITY_META } from '../store';
+import { useApp, NOTIFICATION_PRIORITY_META } from '../store';
 import { timeAgoFa } from '../utils/notificationTime';
 
 // ---------------------------------------------------------------------------
 // NotificationBell – header bell of the admin panel (سیستم اعلان پنل مدیریت)
-// Every notification is rendered with its type's OWN dedicated color:
-// a colored dot + a colored badge taken from NOTIFICATION_TYPE_META, so an
-// order (blue), a ticket (fuchsia), a payment (green)… are instantly
-// distinguishable by color alone.
+// Every notification is rendered with its type's OWN dedicated color. The
+// colors/labels/icons come from the admin-managed settings registry via
+// `getNotificationMeta`, so changing a type's color in «تنظیمات اعلان» is
+// reflected here instantly.
 // ---------------------------------------------------------------------------
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 
 export default function NotificationBell({ onNavigate }: Props) {
   const {
-    darkMode, notifications, unreadNotificationsCount,
+    darkMode, notifications, unreadNotificationsCount, getNotificationMeta,
     markNotificationRead, markAllNotificationsRead, deleteNotification, clearReadNotifications,
   } = useApp();
   const [open, setOpen] = useState(false);
@@ -92,8 +92,8 @@ export default function NotificationBell({ onNavigate }: Props) {
               <div className="py-10 text-center text-sm opacity-60">اعلانی وجود ندارد</div>
             )}
             {recent.map(n => {
-              // رنگ مخصوص خود نوع اعلان – از نگاشت مرکزی NOTIFICATION_TYPE_META
-              const meta = NOTIFICATION_TYPE_META[n.type];
+              // رنگ مخصوص خود نوع اعلان – از رجیستری قابل‌ویرایش تنظیمات (getNotificationMeta)
+              const meta = getNotificationMeta(n.type);
               const prio = NOTIFICATION_PRIORITY_META[n.priority];
               const inner = (
                 <>
@@ -103,7 +103,12 @@ export default function NotificationBell({ onNavigate }: Props) {
                   />
                   <span className="flex-1 min-w-0">
                     <span className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${meta.badge}`}>{meta.label}</span>
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
+                        style={meta.badgeStyle}
+                      >
+                        {meta.icon} {meta.label}
+                      </span>
                       {(n.priority === 'high' || n.priority === 'urgent') && (
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${prio.badge}`}>{prio.label}</span>
                       )}
