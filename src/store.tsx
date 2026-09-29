@@ -3135,6 +3135,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const unreadNotificationsCount = notifications.reduce((c, n) => c + (n.read ? 0 : 1), 0);
 
+  // ---- Automatic notifications from business events ------------------------
+  // کمبود موجودی انبار: هر محصولی که به زیر آستانه هشدار (alertThreshold،
+  // پیش‌فرض ۱۰) برسد یک اعلان با رنگ قرمز مخصوص خودش ایجاد می‌کند.
+  useEffect(() => {
+    products.forEach(p => {
+      const threshold = p.alertThreshold ?? 10;
+      if (p.stock <= threshold) {
+        pushNotification({
+          type: 'stock',
+          title: 'هشدار موجودی انبار',
+          message: `موجودی «${p.name}» به ${p.stock.toLocaleString('fa-IR')} عدد رسید (آستانه هشدار: ${threshold.toLocaleString('fa-IR')}).`,
+          link: '/admin/products',
+          priority: p.stock === 0 ? 'urgent' : 'high',
+          key: `stock-${p.id}-${p.stock}`,
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products]);
+
+  // نظر جدید مشتری: هر نظری که هنوز تایید نشده یک اعلان با رنگ زرد مخصوص
+  // خودش برای بخش «نظرات» پنل ایجاد می‌کند.
+  useEffect(() => {
+    reviews.filter(r => !r.approved).forEach(r => {
+      const pname = products.find(p => p.id === r.productId)?.name || 'محصول';
+      pushNotification({
+        type: 'review',
+        title: 'نظر جدید در انتظار تایید',
+        message: `${r.customerName} نظری ${r.rating} ستاره برای «${pname}» ثبت کرد.`,
+        link: '/admin/reviews',
+        priority: 'low',
+        key: 'review-' + r.id,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reviews]);
+
+  // یادداشت کاری: هر یادداشت جدید یک اعلان با رنگ بنفش (violet) مخصوص خودش.
+  useEffect(() => {
+    notes.forEach(nt => {
+      pushNotification({
+        type: 'note',
+        title: 'یادداشت کاری جدید',
+        message: `یادداشت «${nt.title || nt.task}»${nt.customerName ? ` برای مشتری «${nt.customerName}»` : ''} ایجاد شد.`,
+        link: '/admin/notes',
+        priority: nt.priority === 'urgent' ? 'urgent' : nt.priority === 'high' ? 'high' : 'normal',
+        key: 'note-' + nt.id,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notes]);
+
   // Bootstrap: on the very first run (empty storage) seed one sample per type
   // so the admin immediately sees that each notification renders with its own
   // color. These seeds are marked with a special dedupe key and disappear once
@@ -4032,6 +4084,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString()
       };
       setUsers([...baseUsers, user]);
+      // اعلان کاربر جدید – رنگ نارنجی مخصوص خود
+      if (user.role === 'customer') {
+        pushNotification({
+          type: 'user',
+          title: 'کاربر جدید عضو شد',
+          message: `مشتری جدید «${user.name}» با شماره ${user.phone}${invitedBy ? ' از طریق کد دعوت' : ''} ثبت‌نام کرد.`,
+          link: '/admin/customers',
+          priority: 'normal',
+          key: 'user-' + user.id,
+        });
+      }
       // Welcome bonus for a newly invited user — amount comes from the admin
       // gamification settings (config-driven, no hard-coded values).
       if (invitedBy && cfg.enabled && cfg.invitedUserBonus > 0) {
@@ -4369,7 +4432,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       affiliateOrders, setAffiliateOrders,
       affiliateTransactions, setAffiliateTransactions,
       personas, setPersonas,
-      tickets, setTickets, createTicket, replyTicket, reopenTicket, rateTicket, adminReplyTicket, updateTicket
+      tickets, setTickets, createTicket, replyTicket, reopenTicket, rateTicket, adminReplyTicket, updateTicket,
+      notifications, setNotifications, unreadNotificationsCount, pushNotification,
+      markNotificationRead, markAllNotificationsRead, deleteNotification, clearReadNotifications
     }}>
       {children}
     </AppContext.Provider>

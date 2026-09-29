@@ -47,6 +47,7 @@ import AdminDigitalMarketing from './pages/admin/DigitalMarketing';
 import AdminAffiliates from './pages/admin/Affiliates';
 import AdminPersonas from './pages/admin/Personas';
 import AdminTickets from './pages/admin/Tickets';
+import AdminNotifications from './pages/admin/Notifications';
 import { AdminEmployees } from './pages/admin/Employees';
 import { AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup } from './pages/admin/Management';
 
@@ -116,6 +117,7 @@ function AppRoutes() {
         <Route path="training" element={<Guarded path="/admin/training"><AdminTraining /></Guarded>} />
         <Route path="invoices" element={<Guarded path="/admin/invoices"><AdminInvoices /></Guarded>} />
         <Route path="tickets" element={<Guarded path="/admin/tickets"><AdminTickets /></Guarded>} />
+        <Route path="notifications" element={<AdminNotifications />} />
       </Route>
     </Routes>
   );

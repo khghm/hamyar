@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp, ADMIN_PAGE_PERMISSIONS } from '../store';
-import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText, Target, Globe, LifeBuoy } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText, Target, Globe, LifeBuoy, Bell } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 export default function AdminLayout() {
-  const { darkMode, toggleDarkMode, logout, canAccessPage, currentUser, roles } = useApp();
+  const { darkMode, toggleDarkMode, logout, canAccessPage, currentUser, roles, unreadNotificationsCount } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const location = useLocation();
   const navigate = useNavigate();
@@ -45,6 +46,8 @@ export default function AdminLayout() {
     { path: '/admin/sms', icon: MessageSquare, label: 'پیامک انبوه' },
     { path: '/admin/reviews', icon: Star, label: 'نظرات' },
     { path: '/admin/tickets', icon: LifeBuoy, label: 'تیکت و پشتیبانی' },
+    // مرکز اعلان‌ها – همیشه برای همه حساب‌های مدیریتی قابل مشاهده است
+    { path: '/admin/notifications', icon: Bell, label: 'اعلان‌ها', badge: unreadNotificationsCount },
     { path: '/admin/content-team', icon: Video, label: 'تیم تولید محتوا' },
     { path: '/admin/rbac', icon: Shield, label: 'کنترل دسترسی (RBAC)' },
     { path: '/admin/training', icon: BookOpen, label: 'آموزش ادمین' },
@@ -123,6 +126,11 @@ export default function AdminLayout() {
                 >
                   <Icon size={18} className="flex-shrink-0" />
                   <span className="truncate">{item.label}</span>
+                  {'badge' in item && (item as { badge?: number }).badge ? (
+                    <span className="mr-auto min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                      {(item as { badge: number }).badge > 99 ? '۹۹+' : (item as { badge: number }).badge.toLocaleString('fa-IR')}
+                    </span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -162,6 +170,8 @@ export default function AdminLayout() {
             <h1 className="font-bold text-xs sm:text-sm truncate">کافی نت همیار - پنل مدیریت</h1>
           </div>
           <div className="flex items-center gap-2 min-w-0">
+            {/* زنگوله اعلان‌ها – هر اعلان با رنگ مخصوص نوع خودش */}
+            <NotificationBell />
             {currentUser && (
               <span className={`hidden md:inline-block text-xs px-2.5 py-1 rounded-full truncate max-w-[220px] ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-600'}`}>
                 👤 {currentUser.name} · نقش: {roleName}
