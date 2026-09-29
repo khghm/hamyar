@@ -4,8 +4,10 @@ import {
   ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import {
-  useApp, NOTIFICATION_PRIORITY_META, NOTIFICATION_SECTIONS,
+  useApp, NOTIFICATION_PRIORITY_META,
+  NOTIFICATION_SECTIONS_BY_SCOPE, NOTIFICATION_SECTION_SCOPE_LABEL, findNotificationSection,
   NotificationType, NotificationTypeDef, NotificationPriority, NotificationSettings,
+  NotificationSectionScope,
 } from '../../store';
 import { normalizeHex } from '../../utils/color';
 
@@ -43,6 +45,34 @@ const AUDIENCE_OPTIONS: { value: 'all' | 'active' | 'admins'; label: string }[] 
   { value: 'admins', label: 'فقط مدیران' },
 ];
 
+// ---------------------------------------------------------------------------
+// «بخش مربوطه» selector — lists both scopes of the site so a notification type
+// can be bound to an admin-panel section («پنل مدیریت») or to one of the
+// general public pages of the site («بخش‌های عمومی سایت»). Rendered as grouped
+// <optgroup>s; reused by the table's inline editor and the add/edit modal.
+// ---------------------------------------------------------------------------
+function SectionSelect(props: {
+  value: string;
+  onChange: (path: string) => void;
+  className: string;
+  title?: string;
+}) {
+  const { value, onChange, className, title } = props;
+  const scopes: NotificationSectionScope[] = ['public', 'admin'];
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)} className={className} title={title}>
+      <option value="">— انتخاب بخش مقصد —</option>
+      {scopes.map(scope => (
+        <optgroup key={scope} label={NOTIFICATION_SECTION_SCOPE_LABEL[scope]}>
+          {NOTIFICATION_SECTIONS_BY_SCOPE[scope].map(s => (
+            <option key={s.path} value={s.path}>{s.label}</option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
+
 export default function NotificationSettingsTab(props: SettingsTabProps) {
   const {
     card, inputCls, darkMode, notificationSettings, updateNotificationSettings,
@@ -54,17 +84,17 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
   const [isNew, setIsNew] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
-  // «بخش مربوطه» – section of the admin panel each notification type is bound
-  // to. Changing it rewrites the default destination («مقصد») used by every
-  // future automatic/manual notification of that type (pushNotification and
-  // sendSystemNotification fall back to `sectionPath` when no explicit link
-  // is given), so the binding takes effect immediately.
+  // «بخش مربوطه» – section of the site (admin panel or public page) each
+  // notification type is bound to. Changing it rewrites the default destination
+  // («مقصد») used by every future automatic/manual notification of that type
+  // (pushNotification and sendSystemNotification fall back to `sectionPath`
+  // when no explicit link is given), so the binding takes effect immediately.
   const changeTypeSection = (t: NotificationTypeDef, path: string) => {
     saveNotificationType({ ...t, sectionPath: path || undefined });
-    const label = NOTIFICATION_SECTIONS.find(s => s.path === path)?.label;
+    const sec = findNotificationSection(path);
     pushAuditLog(
       'تغییر بخش نوع اعلان',
-      `نوع «${t.label}» (${t.id}) به بخش «${label || 'بدون مقصد'}» متصل شد`,
+      `نوع «${t.label}» (${t.id}) به ${sec ? `«${NOTIFICATION_SECTION_SCOPE_LABEL[sec.scope]} → ${sec.label}»` : 'بدون مقصد'} متصل شد`,
       'تنظیمات اعلان‌ها',
     );
   };
@@ -277,27 +307,34 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
                       </span>
                     </td>
                     <td className="py-2.5 px-2">
-                      {/* Binding the type to an admin-panel section – the chosen
-                          section becomes the default destination of every
-                          notification created with this type. */}
-                      <select
+                      {/* Binding the type to a site section – either an admin-panel
+                          page or one of the general (public) pages of the site.
+                          The chosen section becomes the default destination of
+                          every notification created with this type. */}
+                      <SectionSelect
                         value={t.sectionPath || ''}
-                        onChange={e => changeTypeSection(t, e.target.value)}
-                        title="بخشی از پنل مدیریت که اعلان‌های این نوع به آن متصل‌اند (مقصد پیش‌فرض کلیک روی اعلان)"
-                        className={`px-2 py-1.5 rounded-lg border text-xs max-w-[190px] focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        onChange={path => changeTypeSection(t, path)}
+                        title="بخشی از سایت (پنل مدیریت یا صفحات عمومی) که اعلان‌های این نوع به آن متصل‌اند (مقصد پیش‌فرض کلیک روی اعلان)"
+                        className={`px-2 py-1.5 rounded-lg border text-xs max-w-[210px] focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                           darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-300 text-slate-700'
                         } ${!t.sectionPath ? 'border-amber-400 text-amber-600 font-medium' : ''}`}
-                      >
-                        <option value="">— انتخاب بخش —</option>
-                        {NOTIFICATION_SECTIONS.map(s => (
-                          <option key={s.path} value={s.path}>{s.label}</option>
-                        ))}
-                      </select>
-                      {t.sectionPath ? (
-                        <div className="text-[10px] opacity-50 mt-1 font-mono" dir="ltr">{t.sectionPath}</div>
-                      ) : (
-                        <div className="text-[10px] text-amber-600 mt-1">اعلان‌های این نوع مقصد مشخصی ندارند</div>
-                      )}
+                      />
+                      {(() => {
+                        const sec = findNotificationSection(t.sectionPath);
+                        if (!sec) return <div className="text-[10px] text-amber-600 mt-1">اعلان‌های این نوع مقصد مشخصی ندارند</div>;
+                        return (
+                          <div className="flex items-center gap-1.5 text-[10px] opacity-60 mt-1 flex-wrap">
+                            <span className={`px-1.5 py-0.5 rounded font-medium ${
+                              sec.scope === 'public'
+                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'
+                            }`}>
+                              {NOTIFICATION_SECTION_SCOPE_LABEL[sec.scope]}
+                            </span>
+                            <code className="font-mono" dir="ltr">{sec.path}</code>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="py-2.5 px-2">
                       <span className="inline-flex items-center gap-1.5 text-xs font-mono" dir="ltr">
@@ -350,7 +387,7 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
           </table>
         </div>
         <p className="text-[11px] opacity-50 mt-2">
-          تغییر رنگ بلافاصله در لیست اعلان‌ها، زنگوله بالای پنل و داشبورد اعمال و به‌صورت محلی ذخیره می‌شود. ستون «بخش مربوطه» مشخص می‌کند اعلان‌های هر نوع به کدام بخش از پنل مدیریت متصل‌اند؛ این بخش، مقصد پیش‌فرض دکمه «مشاهده جزئیات» آن اعلان است.
+          تغییر رنگ بلافاصله در لیست اعلان‌ها، زنگوله بالای پنل و داشبورد اعمال و به‌صورت محلی ذخیره می‌شود. ستون «بخش مربوطه» مشخص می‌کند اعلان‌های هر نوع به کدام بخش از سایت متصل‌اند؛ این بخش می‌تواند یکی از پنل‌های «پنل مدیریت» یا یکی از «بخش‌های عمومی سایت» (صفحاتی مثل فروشگاه، اخبار، پیگیری سفارش و…) باشد و مقصد پیش‌فرض دکمه «مشاهده جزئیات» آن اعلان است.
         </p>
       </div>
 
@@ -399,11 +436,12 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
             <span className="text-[11px] opacity-60 block mt-1 leading-5">
               {(() => {
                 const def = notificationSettings.types.find(t => t.id === bTypeId);
-                const sec = NOTIFICATION_SECTIONS.find(s => s.path === def?.sectionPath);
+                const sec = findNotificationSection(def?.sectionPath);
+                const scopeTag = sec ? `«${NOTIFICATION_SECTION_SCOPE_LABEL[sec.scope]} → ${sec.label}»` : '';
                 return bLink.trim()
                   ? <>مقصد این اعلان: <code className="font-mono text-blue-600" dir="ltr">{bLink.trim()}</code> (دستی)</>
                   : sec
-                    ? <>بدون لینک دستی، مقصد پیش‌فرض بخش «{sec.label}» است: <code className="font-mono text-blue-600" dir="ltr">{sec.path}</code></>
+                    ? <>بدون لینک دستی، مقصد پیش‌فرض {scopeTag} است: <code className="font-mono text-blue-600" dir="ltr">{sec.path}</code></>
                     : <span className="text-amber-600">نوع انتخابی به بخشی متصل نیست؛ برای مشخص شدن مقصد، لینک داخلی را وارد کنید یا در جدول بالا «بخش مربوطه» آن را تعیین کنید.</span>;
               })()}
             </span>
@@ -463,9 +501,9 @@ function TypeEditorModal(props: {
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(id)) { setError('شناسه باید با حرف انگلیسی شروع شود (بدون فاصله).'); return; }
     if (!form.label.trim()) { setError('نام فارسی نوع الزامی است.'); return; }
     if (isNew && types.some(t => t.id === id)) { setError('این شناسه قبلاً ثبت شده است.'); return; }
-    // A type must be bound to an exact admin-panel section, otherwise its
-    // notifications would have no destination («مقصد») to point at.
-    if (!form.sectionPath) { setError('انتخاب «بخش مربوطه» الزامی است؛ مشخص کنید اعلان‌های این نوع به کدام بخش از پنل مدیریت می‌روند.'); return; }
+    // A type must be bound to an exact site section (admin panel or public page),
+    // otherwise its notifications would have no destination («مقصد») to point at.
+    if (!form.sectionPath) { setError('انتخاب «بخش مربوطه» الزامی است؛ مشخص کنید اعلان‌های این نوع به کدام بخش از سایت (پنل مدیریت یا بخش‌های عمومی) می‌روند.'); return; }
     onSave({ ...form, id, label: form.label.trim(), color: normalizeHex(form.color) });
   };
 
@@ -528,21 +566,23 @@ function TypeEditorModal(props: {
         </label>
 
         <label className="block">
-          <span className="text-xs font-medium opacity-70 block mb-1">بخش مربوطه در پنل مدیریت * </span>
-          <select
+          <span className="text-xs font-medium opacity-70 block mb-1">بخش مربوطه (مقصد اعلان) * </span>
+          <SectionSelect
             value={form.sectionPath || ''}
-            onChange={e => setForm(f => ({ ...f, sectionPath: e.target.value || undefined }))}
+            onChange={path => setForm(f => ({ ...f, sectionPath: path || undefined }))}
+            title="اعلان‌های این نوع به کدام بخش از سایت تعلق دارند؟"
             className={`${inputCls} w-full ${!form.sectionPath ? 'border-amber-400' : ''}`}
-          >
-            <option value="">— انتخاب بخش مقصد —</option>
-            {NOTIFICATION_SECTIONS.map(s => (
-              <option key={s.path} value={s.path}>{s.label}</option>
-            ))}
-          </select>
+          />
           <span className="text-[11px] opacity-60 block mt-1 leading-5">
-            مشخص می‌کند اعلان‌های این نوع به کدام بخش از پنل مربوط باشند؛ مسیر{' '}
+            مشخص می‌کند اعلان‌های این نوع به کدام بخش از سایت مربوط باشند؛ می‌توانید یکی از پنل‌های «پنل مدیریت»
+            یا یکی از «بخش‌های عمومی سایت» (صفحاتی مثل فروشگاه، اخبار، پیگیری سفارش و…) را انتخاب کنید. مسیر{' '}
             {form.sectionPath
-              ? <code className="font-mono text-blue-600" dir="ltr">{form.sectionPath}</code>
+              ? (() => { const sec = findNotificationSection(form.sectionPath); return (
+                  <span>
+                    <code className="font-mono text-blue-600" dir="ltr">{sec?.path}</code>{' '}
+                    ({NOTIFICATION_SECTION_SCOPE_LABEL[sec!.scope]} → {sec?.label})
+                  </span>
+                ); })()
               : <span className="text-amber-600">«مشخص نشده»</span>}{' '}
             مقصد پیش‌فرض دکمه «مشاهده جزئیات» هر اعلان از این نوع خواهد بود.
           </span>
