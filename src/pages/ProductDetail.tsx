@@ -35,6 +35,10 @@ export default function ProductDetail() {
       date: new Date().toLocaleDateString('fa-IR'),
       approved: false // نظرات جدید باید توسط ادمین تایید شوند
     };
+    if (!product) {
+      navigate('/');
+      return null;
+    }
     setReviews([...reviews, review]);
     track('review_submit', { productId: product.id, rating: newRating });
     setNewComment('');

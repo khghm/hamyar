@@ -191,8 +191,8 @@ export function usePageTracking(): void {
     fire();
     const origPush = window.history.pushState.bind(window.history);
     const origReplace = window.history.replaceState.bind(window.history);
-    (window.history as any).pushState = (...a: any[]) => { origPush(...a); fire(); };
-    (window.history as any).replaceState = (...a: any[]) => { origReplace(...a); fire(); };
+    (window.history as any).pushState = (...a: [unknown, string, (string | URL)?]) => { origPush(...a); fire(); };
+    (window.history as any).replaceState = (...a: [unknown, string, (string | URL)?]) => { origReplace(...a); fire(); };
     window.addEventListener('popstate', fire);
     return () => {
       window.removeEventListener('popstate', fire);

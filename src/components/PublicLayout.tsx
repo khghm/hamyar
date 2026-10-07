@@ -87,6 +87,9 @@ export default function PublicLayout() {
                   {userMenuOpen && (
                     <div className={`absolute left-0 mt-2 w-48 rounded-lg shadow-xl py-2 z-50 ${darkMode ? 'bg-slate-700 border border-slate-600' : 'bg-white border border-gray-200'}`}>
                       <Link to="/profile" onClick={() => setUserMenuOpen(false)} className={`block px-4 py-2 text-sm ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'}`}>پروفایل من</Link>
+                      {currentUser?.role === 'admin' && (
+                        <Link to="/admin" onClick={() => setUserMenuOpen(false)} className={`block px-4 py-2 text-sm ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'}`}>پنل مدیریت</Link>
+                      )}
                       <button onClick={() => { logout(); setUserMenuOpen(false); }} className={`block w-full text-right px-4 py-2 text-sm ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'} text-red-500`}>خروج</button>
                     </div>
                   )}

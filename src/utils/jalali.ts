@@ -143,3 +143,9 @@ export function formatJalaliFull(dateStr: string): string {
   
   return `${dayName} ${jd} ${monthName} ${jy}`;
 }
+
+export function toIsoDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().split('T')[0];
+}

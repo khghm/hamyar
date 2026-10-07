@@ -5,7 +5,7 @@ import { toJalaliString } from '../../utils/jalali';
 import { PROJECT_FIELD_LABELS, getProjectService } from '../../store';
 
 export default function AdminOrders() {
-  const { darkMode, orders, setOrders, users, updateOrder, projects, contentProjects } = useApp();
+  const { darkMode, orders, setOrders, updateOrder, projects, contentProjects } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');

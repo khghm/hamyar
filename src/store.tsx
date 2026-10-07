@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { logActivity } from './utils/auditLog';
 import { track } from './utils/analytics';
 import { normalizeHex, badgeStyle } from './utils/color';
+import { supabase } from './lib/supabase';
+import { signInCustomer, signUpCustomer, fetchCurrentProfile, updateCustomerProfile as updateCustomerProfileAPI } from './api/auth';
+import type { ProfileRow } from './api/users';
 
 // Types
 export interface CartItem {
@@ -16,6 +19,8 @@ export interface User {
   role: 'admin' | 'customer';
   name: string;
   phone: string;
+  email?: string;
+  supabaseUserId?: string;
   // Admin-only fields: link to the staff account created in the RBAC section
   currentAdminId?: string;
   roleId?: string;
@@ -1770,10 +1775,10 @@ export const ADMIN_PAGE_PERMISSIONS: Record<string, string[]> = {
 interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
-  currentUser: User | null;
-  login: (phone: string, name: string, invitedBy?: string) => void;
+   currentUser: User | null;
+  login: (email: string, password: string, name: string, phone?: string, inviteCode?: string) => Promise<{ ok: boolean; error?: string; needsEmailConfirmation?: boolean }>;
   adminLogin: (username: string, password: string) => boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
   products: Product[];
   setProducts: (p: Product[]) => void;
   mediaItems: MediaItem[];
@@ -1979,6 +1984,8 @@ export interface AdminNotification {
   read: boolean;
   createdAt: string;
   recipientIds?: string[];     // audience restriction (system broadcasts); undefined = everyone
+  userId?: string | null;      // user-specific notification; null = global broadcast
+  dedupeKey?: string;          // idempotency key to prevent duplicate notifications on rehydration
 }
 
 // A notification type definition — editable from the admin settings UI.
@@ -3115,7 +3122,80 @@ export function AppProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(CUSTOMER_SESSION_KEY);
     }
   }, [currentUser]);
-  useEffect(() => { localStorage.setItem('hamyar_cart', JSON.stringify(cartItems)); }, [cartItems]);
+
+  // Sync Supabase Auth sessions into the store. On mount we check for an
+  // existing session; on `SIGNED_IN` / `SIGNED_OUT` we (re)sync the local
+  // customer User so tickets/orders stay attached to the right account.
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncFromSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!isMounted) return;
+
+      if (session?.user) {
+        // Only sync customer sessions; admin sessions use local RBAC state
+        const profile = await fetchCurrentProfile();
+        if (!isMounted || !profile) return;
+
+        const existing = usersRef.current.find(u => u.email === session.user.email && u.role === 'customer');
+        const merged: User = {
+          id: profile.id || existing?.id || session.user.id,
+          username: session.user.email || '',
+          password: '',
+          role: 'customer',
+          name: profile.display_name || '',
+          phone: profile.phone || '',
+          email: profile.email || session.user.email || '',
+          supabaseUserId: profile.id,
+          inviteCode: profile.invite_code || existing?.inviteCode || '',
+          invitedBy: profile.invited_by || existing?.invitedBy,
+          invitedCount: profile.invited_count || existing?.invitedCount || 0,
+          loyaltyPoints: profile.loyalty_points ?? existing?.loyaltyPoints ?? 0,
+          totalEarnedPoints: existing?.totalEarnedPoints ?? (profile.loyalty_points ?? 0),
+          level: (profile.level as User['level']) || existing?.level || 'normal',
+          favorites: existing?.favorites || [],
+          selectedMedia: existing?.selectedMedia || [],
+          createdAt: profile.created_at || existing?.createdAt || new Date().toISOString(),
+        };
+
+        setUsers(prev => {
+          if (prev.some(u => u.id === merged.id)) {
+            return prev.map(u => u.id === merged.id ? merged : u);
+          }
+          return [...prev, merged];
+        });
+
+        // Keep the live session in sync with the DB profile
+        setCurrentUser(prev => {
+          if (prev?.role === 'customer' && prev.email === merged.email) {
+            return { ...merged, favorites: prev.favorites, selectedMedia: prev.selectedMedia, walletBalance: prev.walletBalance };
+          }
+          return merged;
+        });
+      }
+    };
+
+    // Initial check
+    syncFromSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setUserPermissions(undefined);
+        setCartItems([]);
+      } else if (event === 'SIGNED_IN') {
+        syncFromSession();
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => { localStorage.setItem('hamyar_products', JSON.stringify(products)); }, [products]);
   useEffect(() => { localStorage.setItem('hamyar_media', JSON.stringify(mediaItems)); }, [mediaItems]);
   useEffect(() => { localStorage.setItem('hamyar_services', JSON.stringify(services)); }, [services]);
@@ -4403,94 +4483,81 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders]);
 
-  const login = (phone: string, name: string, invitedBy?: string) => {
-    // Always work from the latest users list so reward updates made right before
-    // login (e.g. the inviter's bonus in Auth.tsx) are not overwritten.
+  const login = async (email: string, password: string, name: string, phone?: string, inviteCode?: string): Promise<{ ok: boolean; error?: string; needsEmailConfirmation?: boolean }> => {
     const cfg = configRef.current;
     const baseUsers = usersRef.current;
-    let user = baseUsers.find(u => u.phone === phone);
-    if (!user) {
-      // Keep the id stable across logins: reuse the current session id when it
-      // is not already taken by another account, otherwise fall back to the
-      // legacy snapshot id / cached identity (pre-fix sessions) and finally a
-      // fresh id. A brand new id per visit used to orphan every previously
-      // created ticket.
-      const cu = currentUserRef.current;
-      const legacyId = initialCustomerSessionRef.current?.id;
-      const identity = readCachedIdentity();
-      const free = (id?: string) => !!id && !baseUsers.some(u => u.id === id);
-      const reusedId =
-        cu && cu.role === 'customer' && cu.phone === phone && free(cu.id) ? cu.id :
-        free(legacyId) && (!cu || cu.role !== 'customer' || cu.phone === phone) ? legacyId :
-        identity && identity.phone === phone && free(identity.id) ? identity.id : undefined;
-      user = {
-        id: reusedId || 'u' + Date.now(),
-        username: phone,
-        password: '',
-        role: 'customer',
-        name,
-        phone,
-        inviteCode: 'INV' + Math.random().toString(36).substr(2, 6).toUpperCase(),
-        invitedBy,
-        invitedCount: 0,
-        loyaltyPoints: 0,
-        totalEarnedPoints: 0,
-        level: 'normal',
-        favorites: [],
-        selectedMedia: [],
-        createdAt: new Date().toISOString()
-      };
-      setUsers([...baseUsers, user]);
-      // اعلان کاربر جدید – رنگ نارنجی مخصوص خود
-      if (user.role === 'customer') {
-        pushNotification({
-          type: 'user',
-          title: 'کاربر جدید عضو شد',
-          message: `مشتری جدید «${user.name}» با شماره ${user.phone}${invitedBy ? ' از طریق کد دعوت' : ''} ثبت‌نام کرد.`,
-          link: '/admin/customers',
-          priority: 'normal',
-          key: 'user-' + user.id,
-        });
-      }
-      // Welcome bonus for a newly invited user — amount comes from the admin
-      // gamification settings (config-driven, no hard-coded values).
-      if (invitedBy && cfg.enabled && cfg.invitedUserBonus > 0) {
-        awardLoyaltyPoints(user.id, cfg.invitedUserBonus, 'امتیاز خوش‌آمدگویی (کاربر دعوت‌شده)', { category: 'invite' });
-        user = usersRef.current.find(u => u.id === user!.id) || user;
-      }
+    const code = inviteCode?.trim().toUpperCase() || undefined;
+
+    // First try signing in; if the account doesn't exist yet, sign up instead.
+    // This makes the single "ورود / ثبت‌نام" button work for both flows.
+    let result: { ok: boolean; error?: string; needsEmailConfirmation?: boolean } = { ok: false };
+    const existing = baseUsers.find(u => u.email === email || (u.supabaseUserId && false));
+    const isNew = !existing && code === undefined;
+
+    if (existing) {
+      result = await signInCustomer(email, password);
     } else {
-      // Existing customer signing in with an invite code for the first time:
-      // record the referral and grant the rewards instead of silently ignoring it.
-      const inviter = baseUsers.find(u => u.id === invitedBy);
-      if (inviter && !user.invitedBy && user.role === 'customer') {
-        const updatedUser: User = { ...user, invitedBy };
-        const nextUsers = baseUsers.map(u => {
-          if (u.id === inviter.id) {
-            return { ...u, invitedCount: (u.invitedCount || 0) + 1 };
-          }
-          if (u.id === user!.id) return updatedUser;
-          return u;
-        });
-        setUsers(nextUsers);
-        // Keep the local reference in sync with the latest saved record so the
-        // streak logic below never writes a stale copy over the new referral data.
-        user = usersRef.current.find(u => u.id === user!.id) || updatedUser;
-        // Inviter bonus — amount comes from the admin gamification settings.
-        if (cfg.enabled && cfg.inviteBonus > 0) {
-          awardLoyaltyPoints(inviter.id, cfg.inviteBonus, `پاداش دعوت دوست با کد ${inviter.inviteCode || ''}`, { category: 'invite' });
-        }
+      result = await signUpCustomer({ email, password, displayName: name, inviteCode: code });
+      if (result.ok && result.needsEmailConfirmation) {
+        return result;
+      }
+      if (result.ok) {
+        result = await signInCustomer(email, password);
       }
     }
-    // Cache the resolved identity so a later logout → refresh → login (or even
-    // a lost session snapshot) still resolves to this exact account id — the
-    // tickets/orders created under it can never become invisible again.
-    if (user.role === 'customer' && user.phone) {
+
+    if (!result.ok) {
+      return result;
+    }
+
+    // Fetch the profile row created by the trigger (or already existing)
+    const profile = await fetchCurrentProfile();
+    if (!profile) {
+      return { ok: false, error: 'پروفایل کاربری یافت نشد. لطفاً دوباره وارد شوید.' };
+    }
+
+    // Resolve the inviter from the users list (for local streak/bonus logic)
+    let inviterId: string | undefined;
+    if (code) {
+      const inviter = baseUsers.find(u => u.inviteCode === code && u.role === 'customer');
+      if (inviter) inviterId = inviter.id;
+    }
+
+    const user: User = {
+      id: profile.id || existing?.id || 'u' + Date.now(),
+      username: email,
+      password: '',
+      role: 'customer',
+      name: profile.display_name || name || '',
+      phone: profile.phone || phone || '',
+      email: profile.email || email,
+      supabaseUserId: profile.id,
+      inviteCode: profile.invite_code || existing?.inviteCode || 'INV' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+      invitedBy: inviterId || profile.invited_by || existing?.invitedBy,
+      invitedCount: profile.invited_count || existing?.invitedCount || 0,
+      loyaltyPoints: profile.loyalty_points ?? existing?.loyaltyPoints ?? 0,
+      totalEarnedPoints: existing?.totalEarnedPoints ?? (profile.loyalty_points ?? 0),
+      level: (profile.level as User['level']) || 'normal',
+      favorites: existing?.favorites || [],
+      selectedMedia: existing?.selectedMedia || [],
+      createdAt: profile.created_at || existing?.createdAt || new Date().toISOString(),
+    };
+
+    // Add the user to the users list (merge if already present)
+    const nextUsers = existing
+      ? baseUsers.map(u => u.id === existing.id ? user : u)
+      : [...baseUsers.filter(u => u.id !== user.id), user];
+    setUsers(nextUsers);
+
+    // Cache the identity so a later logout → refresh → login keeps the same id
+    if (user.phone) {
       try {
         localStorage.setItem(CUSTOMER_IDENTITY_KEY, JSON.stringify({ id: user.id, phone: user.phone }));
       } catch { /* storage unavailable */ }
     }
-    // Daily-login streak bonus (at most once per calendar day).
+
     setCurrentUser(applyLoginStreak(user));
+    return { ok: true };
   };
 
   // Permissions granted to the logged-in admin through its RBAC role.
@@ -4535,13 +4602,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const establishAdminSession = (su: SystemUser, roleName: string, perms?: string[]) => {
     const id = 'admin_' + su.id;
     const existing = usersRef.current.find(u => u.id === id);
-    const sessionUser: User = {
+     const sessionUser: User = {
       id,
       username: su.username,
       password: su.password,
       role: 'admin',
       name: su.name || su.username,
       phone: su.phone || '',
+      email: su.email,
       loyaltyPoints: existing?.loyaltyPoints ?? 0,
       level: existing?.level ?? 'vip',
       favorites: existing?.favorites ?? [],
@@ -4584,6 +4652,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           role: 'admin',
           name: su?.name || 'مدیر سیستم',
           phone: su?.phone || '09913911880',
+          email: su?.email,
           loyaltyPoints: 0,
           level: 'vip',
           favorites: [],
@@ -4648,6 +4717,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       role: 'admin',
       name: su.name,
       phone: su.phone || '',
+      email: su.email,
       loyaltyPoints: 0,
       level: 'vip',
       favorites: [],
@@ -4665,10 +4735,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try { await supabase.auth.signOut(); } catch { /* ignore */ }
     setCurrentUser(null);
     setUserPermissions(undefined);
-    // Remove the cart on logout so no leftover/duplicate cart remains
     setCartItems([]);
   };
 
@@ -4726,9 +4796,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUsers(users.map(u => u.id === updated.id ? updated : u));
   };
 
-  // Customer club: lets the user edit basic profile fields (birthDate feeds the birthday bonus).
-  const updateCustomerProfile = (patch: Partial<Pick<User, 'name' | 'phone' | 'birthDate'>>) => {
+   // Customer club: lets the user edit basic profile fields (birthDate feeds the birthday bonus).
+  const updateCustomerProfile = async (patch: Partial<Pick<User, 'name' | 'phone' | 'birthDate'>>) => {
     if (!currentUser) return;
+    const result = await updateCustomerProfileAPI({
+      displayName: patch.name,
+      phone: patch.phone,
+      birthDate: patch.birthDate,
+    });
+    if (!result.ok) {
+      console.error('[store] updateCustomerProfile:', result.error);
+      return;
+    }
     const updated = { ...currentUser, ...patch };
     setCurrentUser(updated);
     setUsers(usersRef.current.map(u => u.id === updated.id ? updated : u));

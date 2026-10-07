@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { useApp, Persona } from '../../store';
+import React, { useEffect, useState } from 'react';
+import { useApp, Persona, User } from '../../store';
+import { fetchProfiles, profileToUser } from '../../api/users';
 import { 
   Users, Plus, X, Edit, Trash2, Eye, UserCheck, 
   TrendingUp, DollarSign, Heart, Target, MessageCircle, Upload
@@ -7,6 +8,23 @@ import {
 
 export default function AdminPersonas() {
   const { darkMode, personas, setPersonas, users } = useApp();
+  const [syncedCustomers, setSyncedCustomers] = useState<User[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchProfiles()
+      .then(profiles => {
+        if (!mounted) return;
+        const fromProfile = profiles.filter(p => p.id && p.email).map(profileToUser);
+        const localCustomers = users.filter(u => u.role === 'customer');
+        const supaIds = new Set(fromProfile.map(u => u.id));
+        setSyncedCustomers([...fromProfile, ...localCustomers.filter(u => !supaIds.has(u.id))]);
+      })
+      .catch(err => console.error('[Personas] fetchProfiles:', err));
+    return () => { mounted = false; };
+  }, []);
+
+  const customerList = syncedCustomers.length > 0 ? syncedCustomers : users.filter(u => u.role === 'customer');
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -115,7 +133,7 @@ export default function AdminPersonas() {
   };
 
   const getCustomersWithPersona = (personaId: string) => {
-    return users.filter(u => u.role === 'customer' && u.personaIds?.includes(personaId));
+    return customerList.filter(u => u.role === 'customer' && u.personaIds?.includes(personaId));
   };
 
   const avatarOptions = [
@@ -213,7 +231,7 @@ export default function AdminPersonas() {
         <div className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <UserCheck size={20} className="text-blue-600 mb-2" />
           <div className="text-2xl font-bold">
-            {users.filter(u => u.role === 'customer' && u.personaIds && u.personaIds.length > 0).length}
+            {customerList.filter(u => u.role === 'customer' && u.personaIds && u.personaIds.length > 0).length}
           </div>
           <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>مشتریان با پرسونا</div>
         </div>

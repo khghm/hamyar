@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp, GamificationConfig, LoyaltyTierRule, LoyaltyRewardItem, GamificationBadgeDef, LoyaltyCategory, User } from '../../store';
+import { fetchProfiles, profileToUser } from '../../api/users';
 import {
   Gift, Users, TrendingUp, Award, Gamepad2, Settings2, Trophy, Crown, Medal, Store,
   History, Plus, Trash2, Search, Star, Zap, Percent, CalendarCheck, Save, RotateCcw, AlertTriangle,
@@ -85,8 +86,25 @@ export default function AdminInvites() {
     darkMode, users, orders, reviews,
     loyaltyTx, gamificationConfig, setGamificationConfig, resetLoyaltyData,
     awardLoyaltyPoints, deductLoyaltyPointsForAdmin, redeemLoyaltyReward, setUserLevel, getEarnedBadges,
-  } = app;
+   } = app;
 
+  const [syncedCustomers, setSyncedCustomers] = useState<User[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchProfiles()
+      .then(profiles => {
+        if (!mounted) return;
+        const fromProfile = profiles.filter(p => p.id && p.email).map(profileToUser);
+        const localCustomers = users.filter(u => u.role === 'customer');
+        const supaIds = new Set(fromProfile.map(u => u.id));
+        setSyncedCustomers([...fromProfile, ...localCustomers.filter(u => !supaIds.has(u.id))]);
+      })
+      .catch(err => console.error('[Invites] fetchProfiles:', err));
+    return () => { mounted = false; };
+  }, []);
+
+  const customerList = syncedCustomers.length > 0 ? syncedCustomers : users.filter(u => u.role === 'customer');
   const [tab, setTab] = useState<TabId>('overview');
   const [search, setSearch] = useState('');
 
@@ -109,7 +127,7 @@ export default function AdminInvites() {
   const arraysDirty = JSON.stringify({ t: draft.tiers, r: draft.rewards, b: draft.badges }) !==
     JSON.stringify({ t: gamificationConfig.tiers, r: gamificationConfig.rewards, b: gamificationConfig.badges });
 
-  const customers = users.filter(u => u.role === 'customer');
+  const customers = customerList.filter(u => u.role === 'customer');
   const invitedUsers = customers.filter(u => u.invitedBy);
   const topInviters = [...customers]
     .filter(u => (u.invitedCount || 0) > 0)
@@ -274,7 +292,7 @@ export default function AdminInvites() {
               </thead>
               <tbody>
                 {filteredCustomers.map(user => {
-                  const inviter = user.invitedBy ? users.find(u => u.id === user.invitedBy) : null;
+                  const inviter = user.invitedBy ? customerList.find(u => u.id === user.invitedBy) : null;
                   return (
                     <tr key={user.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
                       <td className="p-3 font-medium">{user.name}</td>
@@ -610,7 +628,7 @@ export default function AdminInvites() {
               </thead>
               <tbody>
                 {ledgerRows.map(t => {
-                  const usr = users.find(u => u.id === t.userId);
+      const usr = customerList.find(u => u.id === t.userId);
                   const meta = CATEGORY_META[t.category] || CATEGORY_META.manual;
                   return (
                     <tr key={t.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
@@ -633,7 +651,7 @@ export default function AdminInvites() {
 
       {/* ---------------------------------------------------------------- Manage-user modal */}
       {manageUser && (() => {
-        const live = users.find(u => u.id === manageUser.id) || manageUser;
+        const live = customerList.find(u => u.id === manageUser.id) || manageUser;
         const badgeState = getEarnedBadges(live);
         const userTx = loyaltyTx.filter(t => t.userId === live.id).slice(0, 10);
         const nextTier = [...gamificationConfig.tiers].sort((a, b) => a.minPoints - b.minPoints).find(t => t.minPoints > (live.totalEarnedPoints ?? live.loyaltyPoints ?? 0));

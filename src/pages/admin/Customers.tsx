@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { useApp } from '../../store';
+import React, { useState, useEffect } from 'react';
+import { useApp, User } from '../../store';
+import { fetchProfiles, profileToUser } from '../../api/users';
+import type { ProfileRow } from '../../api/users';
 import { Search, Users, Star, Eye, Film, ShoppingCart, Wrench, Package, Calendar, DollarSign, Heart, X, UserCheck, Wallet } from 'lucide-react';
 import { toJalaliString } from '../../utils/jalali';
 
@@ -14,14 +16,36 @@ export default function AdminCustomers() {
     services,
     personas 
   } = useApp();
-  
+   
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'services' | 'personas'>('overview');
   const [showPersonaModal, setShowPersonaModal] = useState(false);
+  const [customers, setCustomers] = useState<User[]>([]);
 
-  const customers = users.filter(u => u.role === 'customer' && (u.name.includes(search) || u.phone.includes(search)));
-  const detail = selectedUser ? users.find(u => u.id === selectedUser) : null;
+  // Sync customer profiles from Supabase so the admin panel sees every
+  // registered customer — not just those whose local login wrote to localStorage.
+  useEffect(() => {
+    let mounted = true;
+    fetchProfiles()
+      .then(profiles => {
+        if (!mounted) return;
+        const fromProfile: User[] = profiles
+          .filter(p => p.id && p.email)
+          .map(profileToUser);
+
+        // Merge Supabase profiles with any local-only customer users
+        const localCustomers = users.filter(u => u.role === 'customer');
+        const supaIds = new Set(fromProfile.map(u => u.id));
+        const merged = [...fromProfile, ...localCustomers.filter(u => !supaIds.has(u.id))];
+        setCustomers(merged);
+      })
+      .catch(err => console.error('[Customers] fetchProfiles:', err));
+    return () => { mounted = false; };
+  }, []);
+
+  const customersList = customers.length > 0 ? customers : users.filter(u => u.role === 'customer');
+  const detail = selectedUser ? customersList.find(u => u.id === selectedUser) : null;
 
   const levelLabels: Record<string, string> = { normal: 'عادی', silver: 'نقره‌ای', gold: 'طلایی', vip: 'VIP' };
   const levelColors: Record<string, string> = { 
@@ -53,7 +77,7 @@ export default function AdminCustomers() {
 
   // دریافت محصولات از سبد خرید
   const getCartProducts = (userId: string) => {
-    const user = users.find(u => u.id === userId);
+    const user = customersList.find(u => u.id === userId);
     if (!user || !user.cart) return [];
     return user.cart.map((item: any) => {
       const product = products.find(p => p.id === item.productId);
@@ -63,7 +87,7 @@ export default function AdminCustomers() {
 
   // نسبت دادن پرسونا به مشتری
   const assignPersona = (userId: string, personaId: string) => {
-    const user = users.find(u => u.id === userId);
+    const user = customersList.find(u => u.id === userId);
     if (!user) return;
     
     const personaIds = user.personaIds || [];
@@ -72,6 +96,7 @@ export default function AdminCustomers() {
       : [...personaIds, personaId];
     
     setUsers(users.map(u => u.id === userId ? { ...u, personaIds: updatedPersonaIds } : u));
+    setCustomers(customersList.map(u => u.id === userId ? { ...u, personaIds: updatedPersonaIds } : u));
   };
 
   return (
