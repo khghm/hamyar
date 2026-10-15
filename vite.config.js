@@ -11,5 +11,12 @@ export default defineConfig({
     hmr: {
       port: 3000,
     },
+    proxy: {
+      '/functions/v1': {
+        target: 'https://rcimwpsnekxsxeivpivm.supabase.co',
+        changeOrigin: true,
+        secure: true,
+      },
+    },
   },
 });

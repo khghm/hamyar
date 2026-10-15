@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp, Role, SystemUser } from '../../store';
+import { updateStaffAccount } from '../../api/rbac';
 import { Shield, Users, Key, Plus, X, Edit, Trash2, Check, Lock, Unlock, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminRBAC() {
@@ -60,7 +61,7 @@ export default function AdminRBAC() {
     setShowUserForm(true);
   };
 
-  const saveUser = () => {
+  const saveUser = async () => {
     const uname = (userForm.username || '').trim();
     if (!uname) { setFormError('نام کاربری را وارد کنید'); return; }
     if (!(userForm.password || '').trim()) { setFormError('رمز عبور را وارد کنید'); return; }
@@ -71,17 +72,26 @@ export default function AdminRBAC() {
       if (systemUsers.some(u => u.id !== editUserId && u.username.trim().toLowerCase() === uname.toLowerCase())) {
         setFormError('این نام کاربری قبلاً ثبت شده است'); return;
       }
+      // Update via API (server-side)
+      const res = await updateStaffAccount(editUserId, {
+        display_name: userForm.name || '',
+        role_id: userForm.roleId || '',
+        active: userForm.active ?? true,
+      });
+      if (!res.ok) { setFormError(res.error || 'خطا در به‌روزرسانی'); return; }
+
+      // Update local state
       const updated: SystemUser = { ...target, ...userForm, username: uname } as SystemUser;
       setSystemUsers(systemUsers.map(u => u.id === editUserId ? updated : u));
       // Mirror the change into the admin User record used by the rest of the app
       setUsers(usersList.map(u => u.id === 'admin_' + updated.id
-        ? { ...u, username: updated.username, password: updated.password, name: updated.name, phone: updated.phone || '', roleId: updated.roleId }
+        ? { ...u, username: updated.username, name: updated.name, phone: updated.phone || '', roleId: updated.roleId }
         : u));
       setShowUserForm(false);
       return;
     }
     // New staff account – created through the store so it can sign in right away
-    const res = createStaffUser({
+    const res = await createStaffUser({
       username: uname,
       password: userForm.password || '',
       name: userForm.name || '',

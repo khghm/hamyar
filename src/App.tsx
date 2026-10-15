@@ -1,4 +1,5 @@
 import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp, ADMIN_PAGE_PERMISSIONS } from './store';
 import PublicLayout from './components/PublicLayout';
@@ -52,7 +53,7 @@ import { AdminEmployees } from './pages/admin/Employees';
 import { AdminCampaigns, AdminSmsPanel, AdminReviews, AdminAuditLog, AdminBackup } from './pages/admin/Management';
 
 function AppRoutes() {
-  const { currentUser, canAccessPage } = useApp();
+  const { currentUser, adminLoggedIn, canAccessPage } = useApp();
 
   // Route-level guard: staff accounts can only open the admin pages their RBAC
   // role allows. Direct URL access to a restricted page sends them back to the
@@ -88,7 +89,7 @@ function AppRoutes() {
       </Route>
 
       {/* Admin Routes */}
-      <Route path="/admin" element={currentUser?.role === 'admin' ? <AdminLayout /> : <Navigate to="/auth" />}>
+      <Route path="/admin" element={(currentUser?.role === 'admin' || adminLoggedIn) ? <AdminLayout /> : <Navigate to="/auth" />}>
         <Route index element={<AdminDashboard />} />
         <Route path="orders" element={<Guarded path="/admin/orders"><AdminOrders /></Guarded>} />
         <Route path="customers" element={<Guarded path="/admin/customers"><AdminCustomers /></Guarded>} />
@@ -123,15 +124,26 @@ function AppRoutes() {
   );
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      retry: 1,
+    },
+  },
+});
+
 export default function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <AnalyticsBootstrap />
-        <AppRoutes />
-        <SupportChat />
-      </BrowserRouter>
-    </AppProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <AnalyticsBootstrap />
+          <AppRoutes />
+          <SupportChat />
+        </BrowserRouter>
+      </AppProvider>
+    </QueryClientProvider>
   );
 }
 

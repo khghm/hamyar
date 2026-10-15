@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
 import { resetPasswordForEmail, signInCustomer, signUpCustomer, fetchCurrentProfile } from '../api/auth';
+import { supabase } from '../lib/supabase';
 import { Mail, Lock, User, Gift, Phone } from 'lucide-react';
 
 const INVITE_BONUS = 50;
 
 export default function Auth() {
-  const { darkMode, login, adminLogin } = useApp();
+  const { darkMode, login, loginWithSession, adminLogin } = useApp();
   const navigate = useNavigate();
   const [mode, setMode] = useState<'customer' | 'admin'>('customer');
   const [isRegister, setIsRegister] = useState(false);
@@ -19,11 +20,33 @@ export default function Auth() {
   const [phone, setPhone] = useState('');
   const [inviteCode, setInviteCode] = useState('');
 
-  const [adminUser, setAdminUser] = useState('');
-  const [adminPass, setAdminPass] = useState('');
-
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Check for existing session on mount (e.g., after email confirmation redirect)
+  useEffect(() => {
+    let cancelled = false;
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session?.user && !loading && !email && !password) {
+        // User has confirmed email and has a session, but hasn't entered credentials yet
+        // Auto-login using the session
+        try {
+          const result = await loginWithSession(session.user.email!);
+          if (!cancelled && result.ok) {
+            navigate('/profile');
+          } else if (!cancelled && result.error) {
+            console.warn('[Auth] auto-login failed:', result.error);
+          }
+        } catch (e) {
+          console.error('[Auth] auto-login error:', e);
+        }
+      }
+    };
+    checkSession();
+    return () => { cancelled = true; };
+  }, [navigate, loginWithSession, loading]);
 
   const handleCustomerSubmit = async () => {
     if (loading) return;
@@ -67,9 +90,10 @@ export default function Auth() {
     const loginResult = await login(email, password, name, phone || undefined, inviteCode || undefined);
     if (!loginResult.ok) {
       setError(loginResult.error || 'همگام‌سازی پروفایل با مشکل مواجه شد');
+    } else {
+      setLoading(false);
+      navigate('/profile');
     }
-    setLoading(false);
-    navigate('/profile');
   };
 
   const handleForgotPassword = async () => {
@@ -85,11 +109,11 @@ export default function Auth() {
     setLoading(false);
   };
 
-  const handleAdminLogin = () => {
-    if (adminLogin(adminUser, adminPass)) {
+  const handleAdminLogin = async () => {
+    if (await adminLogin(email, password)) {
       navigate('/admin');
     } else {
-      setError('نام کاربری یا رمز عبور اشتباه است');
+      setError('ایمیل یا رمز عبور اشتباه است');
     }
   };
 
@@ -189,17 +213,20 @@ export default function Auth() {
             </div>
           </div>
         ) : (
-          /* Admin login (local RBAC) */
+          /* Admin login (Supabase Auth + staff_accounts) */
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-center mb-2">ورود مدیریت</h2>
+            <p className={`text-sm text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              با ایمیل و رمز عبور Supabase Auth وارد شوید
+            </p>
             <div className="relative">
-              <User size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" placeholder="نام کاربری" value={adminUser} onChange={e => setAdminUser(e.target.value)}
+              <Mail size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="email" placeholder="ایمیل ادمین" value={email} onChange={e => setEmail(e.target.value)}
                 className={`w-full pr-10 pl-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`} />
             </div>
             <div className="relative">
               <Lock size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="password" placeholder="رمز عبور" value={adminPass} onChange={e => setAdminPass(e.target.value)}
+              <input type="password" placeholder="رمز عبور" value={password} onChange={e => setPassword(e.target.value)}
                 className={`w-full pr-10 pl-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`} />
             </div>
             <button onClick={handleAdminLogin} className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all">

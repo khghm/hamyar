@@ -5,7 +5,7 @@ import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen
 import NotificationBell from './NotificationBell';
 
 export default function AdminLayout() {
-  const { darkMode, toggleDarkMode, logout, canAccessPage, currentUser, roles, unreadNotificationsCount } = useApp();
+  const { darkMode, toggleDarkMode, logout, canAccessPage, currentUser, roles, unreadNotificationsCount, adminLoggedIn } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const location = useLocation();
   const navigate = useNavigate();

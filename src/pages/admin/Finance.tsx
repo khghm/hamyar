@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { useApp, Expense } from '../../store';
-import { Plus, X, DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Download, PieChart, BarChart3 } from 'lucide-react';
+import { useApp, Expense, Order } from '../../store';
+import { Plus, X, DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Download, PieChart, BarChart3, FileText, CheckCircle, Clock } from 'lucide-react';
 import { exportToExcel } from '../../utils/export';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
 import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminFinance() {
-  const { darkMode, expenses, setExpenses, orders } = useApp();
+  const { darkMode, expenses, setExpenses, invoices, orders } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
@@ -24,9 +24,12 @@ export default function AdminFinance() {
     });
   }, [expenses, filter, dateRange]);
 
-  const totalIncome = orders.reduce((s, o) => s + o.paid, 0);
+  const paidInvoices = invoices.filter(inv => inv.status === 'paid' || inv.status === 'issued');
+  const totalIncome = paidInvoices.reduce((s, inv) => s + (inv.total || 0), 0);
   const totalExpense = filteredExpenses.reduce((s, e) => s + e.amount, 0);
   const profit = totalIncome - totalExpense;
+  const totalInvoiceAmount = invoices.reduce((s, inv) => s + (inv.total || 0), 0);
+  const pendingInvoiceAmount = invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'issued').reduce((s, inv) => s + (inv.total || 0), 0);
 
   // آمار به تفکیک دسته
   const expensesByCategory = useMemo(() => {
@@ -37,21 +40,35 @@ export default function AdminFinance() {
     return Object.entries(result).sort((a, b) => b[1] - a[1]);
   }, [filteredExpenses]);
 
-  // درآمد به تفکیک جریان
+  // سفارشات «تولید محتوا» در سیستم type='service' ذخیره می‌شوند اما در واقع
+  // گروه جداگانه‌ای هستند. تشخیص آن‌ها بر اساس projectServiceId (همان الگویی که
+  // در بخش سفارشات کاربرد دارد) تا درآمدشان از «خدمات کافی‌نت» جداسازی شود.
+  const isContentOrder = (o: Order) =>
+    o.type === 'service' && !!o.projectServiceId && o.projectServiceId.startsWith('ps-ct');
+
+  // درآمد به تفکیک جریان (بر اساس فاکتورهای پرداخت‌شده)
+  const orderById = new Map(orders.map(o => [o.id, o] as const));
+  const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'media' | 'product' | 'webdesign' | 'content' => {
+    if (i.type === 'media' || i.type === 'product' || i.type === 'webdesign') return i.type;
+    const linked = i.orderId ? orderById.get(i.orderId) : undefined;
+    if (linked && isContentOrder(linked)) return 'content';
+    return 'service';
+  };
   const incomeByType = useMemo(() => ({
-    service: orders.filter(o => o.type === 'service').reduce((s, o) => s + o.paid, 0),
-    media: orders.filter(o => o.type === 'media').reduce((s, o) => s + o.paid, 0),
-    product: orders.filter(o => o.type === 'product').reduce((s, o) => s + o.paid, 0),
-    webdesign: orders.filter(o => o.type === 'webdesign').reduce((s, o) => s + o.paid, 0),
-  }), [orders]);
+    service: paidInvoices.filter(i => invoiceFlow(i) === 'service').reduce((s, i) => s + (i.total || 0), 0),
+    media: paidInvoices.filter(i => invoiceFlow(i) === 'media').reduce((s, i) => s + (i.total || 0), 0),
+    product: paidInvoices.filter(i => invoiceFlow(i) === 'product').reduce((s, i) => s + (i.total || 0), 0),
+    webdesign: paidInvoices.filter(i => invoiceFlow(i) === 'webdesign').reduce((s, i) => s + (i.total || 0), 0),
+    content: paidInvoices.filter(i => invoiceFlow(i) === 'content').reduce((s, i) => s + (i.total || 0), 0),
+  }), [paidInvoices, orders]);
 
   // آمار ماهانه
   const monthlyStats = useMemo(() => {
     const months: Record<string, { income: number; expense: number }> = {};
-    orders.forEach(o => {
-      const month = new Date(o.createdAt).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long' });
+    paidInvoices.forEach(inv => {
+      const month = new Date(inv.date || inv.createdAt).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long' });
       if (!months[month]) months[month] = { income: 0, expense: 0 };
-      months[month].income += o.paid;
+      months[month].income += inv.total || 0;
     });
     expenses.forEach(e => {
       const month = new Date(e.date).toLocaleDateString('fa-IR', { year: 'numeric', month: 'long' });
@@ -59,7 +76,7 @@ export default function AdminFinance() {
       months[month].expense += e.amount;
     });
     return Object.entries(months).slice(-6).reverse();
-  }, [orders, expenses]);
+  }, [paidInvoices, expenses]);
 
   const save = () => {
     setExpenses([...expenses, { ...form, id: 'e' + Date.now() } as Expense]);
@@ -96,7 +113,7 @@ export default function AdminFinance() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -127,24 +144,43 @@ export default function AdminFinance() {
         <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <PieChart size={20} className="text-purple-500" />
+              <FileText size={20} className="text-purple-500" />
             </div>
           </div>
-          <div className="text-xl font-bold text-purple-600">{totalIncome > 0 ? Math.round((totalExpense / totalIncome) * 100) : 0}%</div>
-          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>نسبت هزینه به درآمد</div>
+          <div className="text-xl font-bold text-purple-600">{invoices.length}</div>
+          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>کل فاکتورها</div>
+        </div>
+        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+              <CheckCircle size={20} className="text-emerald-500" />
+            </div>
+          </div>
+          <div className="text-xl font-bold text-emerald-600">{paidInvoices.length}</div>
+          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>فاکتورهای پرداخت‌شده</div>
+        </div>
+        <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Clock size={20} className="text-amber-500" />
+            </div>
+          </div>
+          <div className="text-xl font-bold text-amber-600">{pendingInvoiceAmount.toLocaleString('fa-IR')}</div>
+          <div className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>مبلغ در انتظار (تومان)</div>
         </div>
       </div>
 
       {/* Income by Type */}
       <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
         <h3 className="font-bold mb-4 flex items-center gap-2"><BarChart3 size={18} /> درآمد به تفکیک جریان</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'خدمات', value: incomeByType.service, color: 'bg-blue-500' },
-            { label: 'کپی مدیا', value: incomeByType.media, color: 'bg-purple-500' },
-            { label: 'فروش کالا', value: incomeByType.product, color: 'bg-green-500' },
-            { label: 'طراحی سایت', value: incomeByType.webdesign, color: 'bg-orange-500' },
-          ].map((item, i) => (
+<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {[
+              { label: 'خدمات', value: incomeByType.service, color: 'bg-blue-500' },
+              { label: 'کپی مدیا', value: incomeByType.media, color: 'bg-purple-500' },
+              { label: 'فروش کالا', value: incomeByType.product, color: 'bg-green-500' },
+              { label: 'طراحی سایت', value: incomeByType.webdesign, color: 'bg-orange-500' },
+              { label: 'تولید محتوا', value: incomeByType.content, color: 'bg-pink-500' },
+            ].map((item, i) => (
             <div key={i} className={`p-3 rounded-lg ${darkMode ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
               <div className={`w-3 h-3 rounded-full ${item.color} mb-2`}></div>
               <div className="font-bold">{item.value.toLocaleString('fa-IR')}</div>

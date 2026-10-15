@@ -4,7 +4,7 @@ import { useApp } from '../store';
 import { ShoppingCart, Trash2, Plus, Minus, CreditCard, Wallet, ArrowLeft, Tag, CheckCircle } from 'lucide-react';
 
 export default function Cart() {
-  const { darkMode, currentUser, products, campaigns, orders, setOrders, cartItems, clearCart, updateCartQuantity, removeFromCart, deductWallet } = useApp();
+  const { darkMode, currentUser, products, campaigns, cartItems, clearCart, updateCartQuantity, removeFromCart, createCatalogOrder } = useApp();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
@@ -81,43 +81,28 @@ export default function Cart() {
         name: product?.name || '',
         price: product?.price || 0,
         quantity: c.quantity,
-        total: (product?.price || 0) * c.quantity,
         image: product?.image || ''
       };
     });
 
-    // اگر پرداخت از کیف پول است، مبلغ را کسر کن
-    if (paymentMethod === 'wallet') {
-      const success = deductWallet(finalTotal);
-      if (!success) {
-        alert('موجودی کیف پول شما کافی نیست');
-        return;
-      }
+    const result = createCatalogOrder({
+      items: orderItems,
+      paymentMethod,
+      customerName: currentUser.name,
+      customerPhone: currentUser.phone,
+      couponCode: appliedCoupon?.code || null,
+    });
+
+    if (!result.ok) {
+      alert(result.error || 'خطا در ثبت سفارش');
+      return;
     }
 
-    const newOrder = {
-      id: 'o' + Date.now(),
-      trackingCode: 'HMY-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
-      customerId: currentUser.id,
-      customerName: currentUser.name,
-      type: 'product' as const,
-      channel: 'وب‌سایت',
-      status: 'new' as const,
-      priority: 'normal' as const,
-      items: orderItems,
-      total: finalTotal,
-      paid: paymentMethod === 'wallet' ? finalTotal : 0,
-      remaining: paymentMethod === 'wallet' ? 0 : finalTotal,
-      createdAt: new Date().toISOString(),
-      description: `سفارش از فروشگاه آنلاین - پرداخت ${paymentMethod === 'wallet' ? 'کیف پول' : 'آنلاین'}`,
-      paymentMethod: paymentMethod,
-      couponCode: appliedCoupon?.code || null
-    };
-
-    setOrders([...orders, newOrder]);
     clearCart();
-    
-    alert(`سفارش شما با کد رهگیری ${newOrder.trackingCode} ثبت شد${paymentMethod === 'online' ? '. پس از پرداخت آنلاین، سفارش شما پردازش خواهد شد.' : ' و مبلغ از کیف پول شما کسر شد.'}`);
+    setAppliedCoupon(null);
+    setCouponCode('');
+
+    alert(`سفارش شما با کد رهگیری ${result.order?.trackingCode || ''} ثبت شد${paymentMethod === 'online' ? '. پس از پرداخت آنلاین، سفارش شما پردازش خواهد شد.' : ' و مبلغ از کیف پول شما کسر شد.'}`);
     navigate('/profile');
   };
 

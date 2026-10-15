@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        # eslint در CI هشدارها را خطا نمی‌داند ولی اگر ریگرسی معرفی شود
+        # قابل مشاهده است؛ خطاها (severity 2) در هر صورت fail می‌کنند.
+        run: npm run lint
+
+      - name: Accessibility
+        # دکمهٔ فقط-آیکن بدون نام دسترس‌پذیر: کاربر صفحه‌خوان فقط «دکمه» می‌شنود
+        # و نمی‌فهمد چه می‌کند. بررسی ارزان است و رگرسیون را همان‌جا می‌گیرد.
+        run: node scripts/check-icon-buttons.mjs
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  db:
+    # RLS، grantها و RPCهای اتمیک در هیچ شبیه‌سازی قابل بررسی نیستند — باید روی
+    # Postgres واقعی اجرا شوند. سرویس کامل Supabase لازم نیست: این ایمیج همان
+    # نقش‌های `anon`/`authenticated`/`service_role` و اسکیمای `storage` را دارد
+    # که کد ما به آن‌ها تکیه می‌کند، و `scripts/db/00-storage-bootstrap.sql`
+    # ستون‌های جاافتادهٔ `storage.buckets` را می‌سازد.
+    name: Database suites
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: supabase/postgres:15.8.1.060
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      PGPASSWORD: postgres
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # روی runnerهای لینوکس `pwsh` از پیش نصب است، پس همان اسکریپتی اجرا می‌شود
+      # که توسعه‌دهنده به‌صورت محلی اجرا می‌کند — یک منبع حقیقت، نه یک کپی bash
+      # که بعداً از هم جدا بیفتد.
+      - name: Migrations, seed and SQL suites
+        shell: pwsh
+        run: ./scripts/db-test.ps1 -Direct

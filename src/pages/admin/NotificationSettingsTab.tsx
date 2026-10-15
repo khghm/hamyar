@@ -4,10 +4,10 @@ import {
   ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import {
-  useApp, NOTIFICATION_PRIORITY_META,
+  NOTIFICATION_PRIORITY_META,
   NOTIFICATION_SECTIONS_BY_SCOPE, NOTIFICATION_SECTION_SCOPE_LABEL, findNotificationSection,
   NotificationType, NotificationTypeDef, NotificationPriority, NotificationSettings,
-  NotificationSectionScope,
+  NotificationSectionScope, ResolvedNotificationMeta,
 } from '../../store';
 import { normalizeHex } from '../../utils/color';
 
@@ -36,7 +36,7 @@ type SettingsTabProps = {
   systemUsers: { id: string; name: string; active: boolean }[];
   currentUser: { name?: string } | null;
   pushAuditLog: (action: string, details: string, module: string) => void;
-  getNotificationMeta: (t: NotificationType) => ReturnType<ReturnType<typeof useApp>['getNotificationMeta']>;
+  getNotificationMeta: (t: NotificationType) => ResolvedNotificationMeta;
 };
 
 const AUDIENCE_OPTIONS: { value: 'all' | 'active' | 'admins'; label: string }[] = [

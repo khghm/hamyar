@@ -152,46 +152,48 @@ export default function MediaCatalog() {
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
           {filtered.map(item => (
-            <Link key={item.id} to={`/media/${item.id}`} className={`group rounded-xl overflow-hidden border transition-all hover:shadow-xl hover:-translate-y-1 cursor-pointer block ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
-              <div className="relative aspect-[2/3] overflow-hidden">
-                {item.image ? (
-                  <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => { (e.target as HTMLImageElement).src = ''; (e.target as HTMLImageElement).style.display = 'none'; }} />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                {/* Quality Badge */}
-                <span className="absolute top-2 right-2 bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">{item.quality}</span>
-                {/* Rating */}
-                <div className="absolute top-2 left-2 bg-black/70 text-yellow-400 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                  <Star size={10} fill="currentColor" /> {item.imdb || item.rating}
-                </div>
-                {/* Type Badge */}
-                <span className="absolute bottom-2 right-2 bg-blue-600/90 text-white text-[10px] font-medium px-2 py-0.5 rounded">
-                  {typeLabels[item.type]}
-                </span>
-                {/* Favorite & Select Buttons */}
-                {currentUser && (
-                  <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => { e.stopPropagation(); addToFavorites(item.id); }}
-                      className={`p-1.5 rounded-full ${currentUser.favorites.includes(item.id) ? 'bg-red-500 text-white' : 'bg-white/80 text-slate-700'}`}>
-                      <Heart size={12} fill={currentUser.favorites.includes(item.id) ? 'white' : 'none'} />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); selectMedia(item.id); }}
-                      className={`p-1.5 rounded-full ${currentUser.selectedMedia.includes(item.id) ? 'bg-green-500 text-white' : 'bg-white/80 text-slate-700'}`}>
-                      <Eye size={12} />
-                    </button>
+            <div key={item.id} className={`group rounded-xl overflow-hidden border transition-all hover:shadow-xl hover:-translate-y-1 ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
+              <Link to={`/media/${item.id}`} className="block">
+                <div className="relative aspect-[2/3] overflow-hidden">
+                  {item.image ? (
+                    <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => { (e.target as HTMLImageElement).src = ''; (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  ) : null}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                  {/* Quality Badge */}
+                  <span className="absolute top-2 right-2 bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">{item.quality}</span>
+                  {/* Rating */}
+                  <div className="absolute top-2 left-2 bg-black/70 text-yellow-400 text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    <Star size={10} fill="currentColor" /> {item.imdb || item.rating}
                   </div>
-                )}
-              </div>
-              <div className="p-3">
-                <h3 className="font-bold text-sm line-clamp-2 mb-1">{item.title}</h3>
-                <div className={`flex items-center gap-2 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  <span>{item.year}</span>
-                  <span>|</span>
-                  <span className="truncate">{item.genre[0]}</span>
+                  {/* Type Badge */}
+                  <span className="absolute bottom-2 right-2 bg-blue-600/90 text-white text-[10px] font-medium px-2 py-0.5 rounded">
+                    {typeLabels[item.type]}
+                  </span>
                 </div>
-              </div>
-            </Link>
+                <div className="p-3">
+                  <h3 className="font-bold text-sm line-clamp-2 mb-1">{item.title}</h3>
+                  <div className={`flex items-center gap-2 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <span>{item.year}</span>
+                    <span>|</span>
+                    <span className="truncate">{item.genre[0]}</span>
+                  </div>
+                </div>
+              </Link>
+              {/* Favorite & Select Buttons - OUTSIDE Link to avoid invalid HTML */}
+              {currentUser && (
+                <div className="absolute bottom-4 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <button onClick={(e) => { e.stopPropagation(); addToFavorites(item.id); }}
+                    className={`p-1.5 rounded-full pointer-events-auto ${currentUser.favorites.includes(item.id) ? 'bg-red-500 text-white' : 'bg-white/80 text-slate-700'}`}>
+                    <Heart size={12} fill={currentUser.favorites.includes(item.id) ? 'white' : 'none'} />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); selectMedia(item.id); }}
+                    className={`p-1.5 rounded-full pointer-events-auto ${currentUser.selectedMedia.includes(item.id) ? 'bg-green-500 text-white' : 'bg-white/80 text-slate-700'}`}>
+                    <Eye size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
 

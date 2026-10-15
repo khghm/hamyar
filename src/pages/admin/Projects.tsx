@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
-import { useApp, Project, visibleProjects } from '../../store';
-import { Plus, X, Edit, Trash2, Kanban, List, Calendar, DollarSign, User, Clock, AlertCircle } from 'lucide-react';
+import { useApp, Project, visibleProjects, Order } from '../../store';
+import { Plus, X, Edit, Trash2, Kanban, List, Calendar, DollarSign, User, Clock, AlertCircle, Eye, ShoppingCart, Package, FileText, ExternalLink } from 'lucide-react';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
 import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminProjects() {
-  const { darkMode, projects, setProjects } = useApp();
+  const { darkMode, projects, setProjects, orders } = useApp();
   // Content-production orders are handled in the «تیم تولید محتوا» section and
   // must not be listed in the projects board – only web-design projects show.
   const allProjects = visibleProjects(projects);
+
+  // پیدا کردن سفارش آنلاین مرتبط با هر پروژه (هم از طریق sourceOrderId و هم
+  // از طریق orders.projectId که توسط سیستم همگام‌سازی پر می‌شود).
+  const orderById = new Map(orders.map(o => [o.id, o] as const));
+  const linkedOrder = (p: Project): Order | undefined =>
+    (p.sourceOrderId && orderById.get(p.sourceOrderId)) ||
+    orders.find(o => o.projectId === p.id);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -276,13 +283,32 @@ export default function AdminProjects() {
                         </div>
                       </div>
 
-                      {/* Deadline */}
+{/* Deadline */}
                       {project.deadline && (
                         <div className={`flex items-center gap-1 text-xs ${isOverdue(project.deadline) ? 'text-red-500' : darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                           {isOverdue(project.deadline) ? <AlertCircle size={12} /> : <Calendar size={12} />}
-                          <span>{isOverdue(project.deadline) ? 'عقب‌افتاده: ' : 'تحویل: '}{toJalaliString(project.deadline)}</span>
+                          <span>{isOverdue(project.deadline) ? 'تاخیر در تحویل: ' : 'تحویل: '}{toJalaliString(project.deadline)}</span>
                         </div>
                       )}
+
+                      {/* Linked online order (بخش پروژه‌ها ↔ سفارشات طراحی سایت) */}
+                      {(() => {
+                        const srcOrder = linkedOrder(project);
+                        if (!srcOrder) return null;
+                        return (
+                          <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-800/50">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 font-medium" title={srcOrder ? `وضعیت سفارش مرجع: ${srcOrder.status}` : ''}>
+                              🛒 سفارش آنلاین {srcOrder.trackingCode}
+                            </span>
+                            {srcOrder.documentStatus === 'pending' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">PickUp مدارک در انتظار بررسی</span>
+                            )}
+                            {srcOrder.documentStatus === 'rejected' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">loffs</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
 
@@ -312,36 +338,61 @@ export default function AdminProjects() {
                   <th className="text-right p-3">پیشرفت</th>
                   <th className="text-right p-3">هزینه</th>
                   <th className="text-right p-3">تحویل</th>
+                  <th className="text-right p-3">سفارش آنلاین</th>
                   <th className="text-right p-3">عملیات</th>
                 </tr>
               </thead>
               <tbody>
-                {allProjects.map(p => (
-                  <tr key={p.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
-                    <td className="p-3 font-medium">{p.title}</td>
-                    <td className="p-3">{p.clientName}</td>
-                    <td className="p-3">{p.type}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded text-xs bg-gradient-to-l ${stageColors[p.stage]} text-white`}>
-                        {p.stage}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-20 h-2 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
-                          <div className={`h-full rounded-full ${getProgressColor(p.progress)}`} style={{ width: `${p.progress}%` }}></div>
+                {allProjects.map(p => {
+                  const srcOrder = linkedOrder(p);
+                  return (
+                    <tr key={p.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
+                      <td className="p-3 font-medium">{p.title}</td>
+                      <td className="p-3">{p.clientName}</td>
+                      <td className="p-3">{p.type}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-1 rounded text-xs bg-gradient-to-l ${stageColors[p.stage]} text-white`}>
+                          {p.stage}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-20 h-2 rounded-full ${darkMode ? 'bg-slate-700' : 'bg-gray-200'}`}>
+                            <div className={`h-full rounded-full ${getProgressColor(p.progress)}`} style={{ width: `${p.progress}%` }}></div>
+                          </div>
+                          <span className="text-xs">{p.progress}%</span>
                         </div>
-                        <span className="text-xs">{p.progress}%</span>
-                      </div>
-                    </td>
-                    <td className="p-3">{p.totalCost.toLocaleString('fa-IR')}</td>
-                    <td className={`p-3 text-xs ${isOverdue(p.deadline) ? 'text-red-500 font-bold' : ''}`}>{toJalaliString(p.deadline)}</td>
-                    <td className="p-3 flex gap-2">
-                      <button onClick={() => openEdit(p)} className="text-blue-600 text-xs hover:underline">ویرایش</button>
-                      <button onClick={() => setProjects(projects.filter(x => x.id !== p.id))} className="text-red-500 text-xs hover:underline">حذف</button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="p-3">{p.totalCost.toLocaleString('fa-IR')}</td>
+                      <td className={`p-3 text-xs ${isOverdue(p.deadline) ? 'text-red-500 font-bold' : ''}`}>{toJalaliString(p.deadline)}</td>
+                      <td className="p-3">
+                        {srcOrder && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 font-medium" title={`وضعیت سفارش: ${srcOrder.status}`}>
+                              🛒 {srcOrder.trackingCode}
+                            </span>
+                            {srcOrder.documentStatus === 'pending' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">مدارک در انتظار بررسی</span>
+                            )}
+                            {srcOrder.documentStatus === 'rejected' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">مدارک رد شده</span>
+                            )}
+                            {srcOrder.documentStatus === 'approved' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">مدارک تأیید شده</span>
+                            )}
+                          </div>
+                        )}
+                        {!srcOrder && (
+                          <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>—</span>
+                        )}
+                      </td>
+                      <td className="p-3 flex gap-2">
+                        <button onClick={() => openEdit(p)} className="text-blue-600 text-xs hover:underline">ویرایش</button>
+                        <button onClick={() => setProjects(projects.filter(x => x.id !== p.id))} className="text-red-500 text-xs hover:underline">حذف</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

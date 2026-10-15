@@ -74,7 +74,6 @@ export default function JalaliDatePicker({ value, onChange, label, className = '
     if (gregorianDate) {
       // اطمینان از اینکه تاریخ به درستی تبدیل شده است
       const isoDate = gregorianDate.toISOString().split('T')[0];
-      console.log(`Selected: ${jalaliStr} -> ${isoDate}`);
       onChange(isoDate);
     }
     setIsOpen(false);

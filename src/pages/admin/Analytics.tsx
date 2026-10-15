@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useApp } from '../../store';
+import { useApp, Order } from '../../store';
 import { 
   TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, Package, Film, 
   BarChart3, PieChart, Download, Calendar, Filter, Eye, ArrowUp, ArrowDown,
@@ -11,7 +11,7 @@ import { formatJalali, toJalaliString } from '../../utils/jalali';
 export default function AdminAnalytics() {
   const { 
     darkMode, orders, products, users, mediaItems, services, expenses, 
-    campaigns, contentProjects, notes, reviews, suppliers, employees
+    campaigns, contentProjects, notes, reviews, suppliers, employees, invoices
   } = useApp();
 
   const [dateRange, setDateRange] = useState('all');
@@ -34,19 +34,50 @@ export default function AdminAnalytics() {
         return true;
       });
 
-    const totalRevenue = filteredOrders.reduce((s, o) => s + o.paid, 0);
+    const filteredInvoices = dateRange === 'all' ? invoices :
+      invoices.filter(inv => {
+        const invDate = new Date(inv.date || inv.createdAt);
+        const now = new Date();
+        if (dateRange === 'today') return invDate.toDateString() === now.toDateString();
+        if (dateRange === 'week') {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          return invDate >= weekAgo;
+        }
+        if (dateRange === 'month') {
+          return invDate.getMonth() === now.getMonth() && invDate.getFullYear() === now.getFullYear();
+        }
+        return true;
+      });
+
+    const paidInvoices = filteredInvoices.filter(inv => inv.status === 'paid' || inv.status === 'issued');
+    const totalRevenue = paidInvoices.reduce((s, inv) => s + (inv.total || 0), 0);
     const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
     const profit = totalRevenue - totalExpenses;
     const totalOrders = filteredOrders.length;
+    const totalInvoices = filteredInvoices.length;
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     const totalCustomers = users.filter(u => u.role === 'customer').length;
     
-    // آمار به تفکیک جریان
+    // سفارشات «تولید محتوا» در سیستم type='service' ذخیره می‌شوند اما در واقع
+    // گروه جداگانه‌ای هستند. تشخیص آن‌ها بر اساس projectServiceId (همان الگویی که
+    // در بخش سفارشات کاربرد دارد) تا درآمدشان از «خدمات کافی‌نت» جداسازی شود.
+    const isContentOrder = (o: Order) =>
+      o.type === 'service' && !!o.projectServiceId && o.projectServiceId.startsWith('ps-ct');
+
+    // آمار به تفکیک جریان (بر اساس فاکتورهای پرداخت‌شده)
+    const orderById = new Map(filteredOrders.map(o => [o.id, o] as const));
+    const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'media' | 'product' | 'webdesign' | 'content' => {
+      if (i.type === 'media' || i.type === 'product' || i.type === 'webdesign') return i.type;
+      const linked = i.orderId ? orderById.get(i.orderId) : undefined;
+      if (linked && isContentOrder(linked)) return 'content';
+      return 'service';
+    };
     const revenueByType = {
-      service: filteredOrders.filter(o => o.type === 'service').reduce((s, o) => s + o.paid, 0),
-      media: filteredOrders.filter(o => o.type === 'media').reduce((s, o) => s + o.paid, 0),
-      product: filteredOrders.filter(o => o.type === 'product').reduce((s, o) => s + o.paid, 0),
-      webdesign: filteredOrders.filter(o => o.type === 'webdesign').reduce((s, o) => s + o.paid, 0),
+      service: paidInvoices.filter(i => invoiceFlow(i) === 'service').reduce((s, i) => s + (i.total || 0), 0),
+      media: paidInvoices.filter(i => invoiceFlow(i) === 'media').reduce((s, i) => s + (i.total || 0), 0),
+      product: paidInvoices.filter(i => invoiceFlow(i) === 'product').reduce((s, i) => s + (i.total || 0), 0),
+      webdesign: paidInvoices.filter(i => invoiceFlow(i) === 'webdesign').reduce((s, i) => s + (i.total || 0), 0),
+      content: paidInvoices.filter(i => invoiceFlow(i) === 'content').reduce((s, i) => s + (i.total || 0), 0),
     };
 
     // آمار به تفکیک کانال
@@ -78,9 +109,9 @@ export default function AdminAnalytics() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    // پرفروش‌ترین خدمات
+    // پرفروش‌ترین خدمات (سفارشات service که تولید محتوا نیستند)
     const serviceSales: Record<string, number> = {};
-    filteredOrders.filter(o => o.type === 'service').forEach(o => {
+    filteredOrders.filter(o => o.type === 'service' && !isContentOrder(o)).forEach(o => {
       serviceSales[o.description || 'خدمات'] = (serviceSales[o.description || 'خدمات'] || 0) + 1;
     });
     const topServices = Object.entries(serviceSales)
@@ -259,6 +290,7 @@ export default function AdminAnalytics() {
               { label: 'کپی مدیا', value: stats.revenueByType.media, color: 'bg-purple-500' },
               { label: 'فروش کالا', value: stats.revenueByType.product, color: 'bg-green-500' },
               { label: 'طراحی سایت', value: stats.revenueByType.webdesign, color: 'bg-orange-500' },
+              { label: 'تولید محتوا', value: stats.revenueByType.content, color: 'bg-pink-500' },
             ].map((item, i) => {
               const percent = stats.totalRevenue > 0 ? (item.value / stats.totalRevenue) * 100 : 0;
               return (

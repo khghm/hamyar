@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp, User } from '../../store';
 import { fetchProfiles, profileToUser } from '../../api/users';
 import type { ProfileRow } from '../../api/users';
-import { Search, Users, Star, Eye, Film, ShoppingCart, Wrench, Package, Calendar, DollarSign, Heart, X, UserCheck, Wallet } from 'lucide-react';
+import { Search, Users, Star, Eye, Film, ShoppingCart, Wrench, Package, Calendar, DollarSign, Heart, X, UserCheck, Wallet, LifeBuoy } from 'lucide-react';
 import { toJalaliString } from '../../utils/jalali';
 
 export default function AdminCustomers() {
@@ -14,38 +14,122 @@ export default function AdminCustomers() {
     products, 
     orders, 
     services,
-    personas 
+    personas,
+    tickets,
   } = useApp();
    
   const [search, setSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'services' | 'personas'>('overview');
+  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'services' | 'personas' | 'tickets'>('overview');
   const [showPersonaModal, setShowPersonaModal] = useState(false);
   const [customers, setCustomers] = useState<User[]>([]);
 
+  const sameCustomer = (a: Partial<User> | { phone?: string | null; email?: string | null; id?: string }, b: Partial<User> | { phone?: string | null; email?: string | null; id?: string }) => {
+    const norm = (s?: string | null) => (s || '').toString().trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (a.id && b.id && a.id === b.id) return true;
+    if (norm(a.phone) && norm(b.phone) && norm(a.phone) === norm(b.phone)) return true;
+    if (norm(a.email) && norm(b.email) && norm(a.email) === norm(b.email)) return true;
+    return false;
+  };
+
+  const normalizePhone = (p?: string | null): string => {
+    const digits = (p || '').toString().replace(/\D/g, '');
+    return digits.length >= 10 ? '0' + digits.slice(-10) : (p || '').toString();
+  };
+
+  const filterCustomerOrders = (customer: Pick<User, 'id' | 'phone' | 'email' | 'name'>) => {
+    const p = normalizePhone(customer.phone);
+    const e = (customer.email || '').trim().toLowerCase();
+    const n = (customer.name || '').trim();
+    return orders.filter(o => {
+      if (o.customerId === customer.id) return true;
+      if (p && normalizePhone(o.customerName) === p) return true;
+      if (p && o.customerName && normalizePhone(o.customerName) === p) return true;
+      if (e && o.customerName && o.customerName.trim().toLowerCase() === e) return true;
+      if (n && (o.customerName || '').trim() === n) return true;
+      return false;
+    });
+  };
+
+  const findCustomerInAllUsers = (customer: Pick<User, 'id' | 'phone' | 'email' | 'name'>): User | undefined => {
+    const locals = users.filter(u => u.role === 'customer');
+    let hit = locals.find(u => sameCustomer(u, customer));
+    if (hit) return hit;
+    hit = customersList.find(u => sameCustomer(u, customer));
+    return hit;
+  };
+
+  const filterCustomerTickets = (customer: Pick<User, 'id' | 'phone' | 'email' | 'name'>) => {
+    const p = normalizePhone(customer.phone);
+    const n = (customer.name || '').trim();
+    return tickets.filter(t => {
+      if (t.customerId === customer.id) return true;
+      if (p && normalizePhone(t.customerPhone) === p) return true;
+      if (n && (t.customerName || '').trim() === n) return true;
+      return false;
+    });
+  };
+
+  // Keep a live reference to `users` so the one-shot profile-fetch below can
+  // merge against the latest local customers without re-running every time the
+  // store hands us a new `users` array reference (which happens repeatedly
+  // during hydration and was causing the fetch/setCustomers loop).
+  const usersRef = useRef(users);
+  usersRef.current = users;
+
   // Sync customer profiles from Supabase so the admin panel sees every
   // registered customer — not just those whose local login wrote to localStorage.
+  // Ran once on mount; the merge reads the latest `users` through `usersRef`.
   useEffect(() => {
     let mounted = true;
     fetchProfiles()
       .then(profiles => {
         if (!mounted) return;
-        const fromProfile: User[] = profiles
-          .filter(p => p.id && p.email)
-          .map(profileToUser);
+        const localCustomers = usersRef.current.filter(u => u.role === 'customer');
 
-        // Merge Supabase profiles with any local-only customer users
-        const localCustomers = users.filter(u => u.role === 'customer');
-        const supaIds = new Set(fromProfile.map(u => u.id));
-        const merged = [...fromProfile, ...localCustomers.filter(u => !supaIds.has(u.id))];
+        const fromProfile: User[] = profiles
+          .filter(p => p.id)
+          .map(rawProfile => {
+            const localMatch = localCustomers.find(lc => sameCustomer(lc, rawProfile));
+            const enriched = profileToUser(rawProfile);
+            if (localMatch) {
+              const cart = (localMatch.cart && localMatch.cart.length) ? localMatch.cart : enriched.cart;
+              return {
+                ...enriched,
+                ...localMatch,
+                id: localMatch.id,
+                supabaseUserId: rawProfile.id,
+                name: localMatch.name || enriched.name,
+                phone: localMatch.phone || enriched.phone,
+                email: localMatch.email || enriched.email,
+                cart,
+                favorites: (localMatch.favorites && localMatch.favorites.length) ? localMatch.favorites : enriched.favorites,
+                selectedMedia: (localMatch.selectedMedia && localMatch.selectedMedia.length) ? localMatch.selectedMedia : enriched.selectedMedia,
+                loyaltyPoints: Math.max(localMatch.loyaltyPoints || 0, enriched.loyaltyPoints || 0),
+                walletBalance: Math.max(localMatch.walletBalance || 0, enriched.walletBalance || 0),
+              } as User;
+            }
+            return enriched;
+          });
+
+        const supaNormalizedKeys = new Set(fromProfile.map(u => `${normalizePhone(u.phone)}|${(u.email||'').toLowerCase().trim()}|${u.id}`));
+        const remainingLocals = localCustomers.filter(lc => {
+          const key = `${normalizePhone(lc.phone)}|${(lc.email||'').toLowerCase().trim()}|${lc.id}`;
+          if (supaNormalizedKeys.has(key)) return false;
+          return !fromProfile.some(fp => sameCustomer(fp, lc));
+        });
+        const merged = [...fromProfile, ...remainingLocals];
         setCustomers(merged);
       })
-      .catch(err => console.error('[Customers] fetchProfiles:', err));
+      .catch(err => {
+        console.warn('[Customers] fetchProfiles failed, using local customers only:', err);
+        setCustomers(usersRef.current.filter(u => u.role === 'customer'));
+      });
     return () => { mounted = false; };
   }, []);
 
   const customersList = customers.length > 0 ? customers : users.filter(u => u.role === 'customer');
-  const detail = selectedUser ? customersList.find(u => u.id === selectedUser) : null;
+  const detail = selectedUser ? (customersList.find(u => u.id === selectedUser) || customersList.find(u => sameCustomer(u, { id: selectedUser }))) : null;
 
   const levelLabels: Record<string, string> = { normal: 'عادی', silver: 'نقره‌ای', gold: 'طلایی', vip: 'VIP' };
   const levelColors: Record<string, string> = { 
@@ -56,9 +140,12 @@ export default function AdminCustomers() {
   };
 
   // محاسبه آمار مشتری
-  const getCustomerStats = (userId: string) => {
-    const userOrders = orders.filter(o => o.customerId === userId);
-    const totalSpent = userOrders.reduce((sum, o) => sum + o.paid, 0);
+  const getCustomerStats = (customerOrId: string | User) => {
+    const customer = typeof customerOrId === 'string'
+      ? (customersList.find(u => u.id === customerOrId) || { id: customerOrId, phone: '', email: '', name: '' })
+      : customerOrId;
+    const userOrders = filterCustomerOrders(customer);
+    const totalSpent = userOrders.reduce((sum, o) => sum + (o.paid || 0), 0);
     const totalOrders = userOrders.length;
     const completedOrders = userOrders.filter(o => o.status === 'delivered').length;
     
@@ -76,10 +163,14 @@ export default function AdminCustomers() {
   };
 
   // دریافت محصولات از سبد خرید
-  const getCartProducts = (userId: string) => {
-    const user = customersList.find(u => u.id === userId);
-    if (!user || !user.cart) return [];
-    return user.cart.map((item: any) => {
+  const getCartProducts = (customerOrId: string | User) => {
+    const byId = typeof customerOrId === 'string'
+      ? customersList.find(u => u.id === customerOrId)
+      : customerOrId;
+    const customer = byId || (typeof customerOrId === 'string' ? findCustomerInAllUsers({ id: customerOrId, phone: '', email: '', name: '' }) : undefined);
+    const cart = customer?.cart;
+    if (!cart || cart.length === 0) return [];
+    return cart.map((item: any) => {
       const product = products.find(p => p.id === item.productId);
       return product ? { ...product, qty: item.quantity } : null;
     }).filter(Boolean);
@@ -227,7 +318,30 @@ export default function AdminCustomers() {
       )}
 
       {/* Customer Detail Modal */}
-      {detail && (
+      {detail && (() => {
+        const localMatch = findCustomerInAllUsers(detail);
+        const resolvedDetail: User = {
+          ...detail,
+          ...(localMatch || {}),
+          id: detail.id,
+          cart: (localMatch && localMatch.cart?.length) ? localMatch.cart : detail.cart || [],
+          favorites: (localMatch && localMatch.favorites?.length) ? localMatch.favorites : detail.favorites || [],
+          selectedMedia: (localMatch && localMatch.selectedMedia?.length) ? localMatch.selectedMedia : detail.selectedMedia || [],
+          walletBalance: Math.max(detail.walletBalance || 0, localMatch?.walletBalance || 0),
+          loyaltyPoints: Math.max(detail.loyaltyPoints || 0, localMatch?.loyaltyPoints || 0),
+          phone: detail.phone || localMatch?.phone || '',
+          email: detail.email || localMatch?.email || '',
+        } as User;
+        const TICKET_STATUS_LABELS: Record<string, string> = {
+          open: 'باز', in_progress: 'در حال پیگیری', resolved: 'حل شده', closed: 'بسته شده',
+        };
+        const ticketStatusCls: Record<string, string> = {
+          open: 'bg-blue-100 text-blue-700',
+          in_progress: 'bg-yellow-100 text-yellow-700',
+          resolved: 'bg-green-100 text-green-700',
+          closed: 'bg-gray-100 text-gray-600',
+        };
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSelectedUser(null)}>
           <div 
             className={`w-full max-w-4xl p-6 rounded-2xl max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-slate-800' : 'bg-white'}`} 
@@ -272,14 +386,14 @@ export default function AdminCustomers() {
                   <Star size={16} className="text-yellow-500" />
                   <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>امتیاز وفاداری</span>
                 </div>
-                <div className="text-2xl font-bold">{detail.loyaltyPoints}</div>
+                <div className="text-2xl font-bold">{resolvedDetail.loyaltyPoints}</div>
               </div>
               <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <ShoppingCart size={16} className="text-blue-500" />
                   <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>سفارشات</span>
                 </div>
-                <div className="text-2xl font-bold">{getCustomerStats(detail.id).totalOrders}</div>
+                <div className="text-2xl font-bold">{getCustomerStats(resolvedDetail).totalOrders}</div>
               </div>
               <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                 <div className="flex items-center gap-2 mb-2">
@@ -287,7 +401,7 @@ export default function AdminCustomers() {
                   <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>مجموع خرید</span>
                 </div>
                 <div className="text-2xl font-bold text-green-600">
-                  {getCustomerStats(detail.id).totalSpent.toLocaleString('fa-IR')} ت
+                  {getCustomerStats(resolvedDetail).totalSpent.toLocaleString('fa-IR')} ت
                 </div>
               </div>
               <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
@@ -296,7 +410,7 @@ export default function AdminCustomers() {
                   <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>کیف پول</span>
                 </div>
                 <div className="text-2xl font-bold text-emerald-600">
-                  {(detail.walletBalance || 0).toLocaleString('fa-IR')} ت
+                  {(resolvedDetail.walletBalance || 0).toLocaleString('fa-IR')} ت
                 </div>
               </div>
               <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
@@ -304,7 +418,7 @@ export default function AdminCustomers() {
                   <Heart size={16} className="text-red-500" />
                   <span className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>علاقه‌مندی</span>
                 </div>
-                <div className="text-2xl font-bold">{detail.favorites.length}</div>
+                <div className="text-2xl font-bold">{resolvedDetail.favorites.length}</div>
               </div>
             </div>
 
@@ -313,12 +427,19 @@ export default function AdminCustomers() {
               {[
                 { id: 'overview', label: 'نمای کلی', icon: Users },
                 { id: 'personas', label: 'پرسوناها', icon: UserCheck },
+                { id: 'orders', label: 'سفارشات', icon: ShoppingCart },
+                { id: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
+                { id: 'services', label: 'خدمات', icon: Wrench },
                 { id: 'media', label: 'فیلم‌ها', icon: Film },
                 { id: 'products', label: 'محصولات', icon: Package },
-                { id: 'orders', label: 'سفارشات', icon: ShoppingCart },
-                { id: 'services', label: 'خدمات', icon: Wrench },
               ].map(tab => {
                 const Icon = tab.icon;
+                const count =
+                  tab.id === 'orders' ? filterCustomerOrders(detail).length :
+                  tab.id === 'tickets' ? filterCustomerTickets(detail).length :
+                  tab.id === 'media' ? (detail.selectedMedia?.length || 0) + (detail.favorites?.length || 0) :
+                  tab.id === 'products' ? getCartProducts(detail).length :
+                  undefined;
                 return (
                   <button
                     key={tab.id}
@@ -331,6 +452,11 @@ export default function AdminCustomers() {
                   >
                     <Icon size={16} />
                     {tab.label}
+                    {typeof count === 'number' && count > 0 && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        activeDetailTab === tab.id ? 'bg-white/30 text-white' : 'bg-blue-100 text-blue-700'
+                      }`}>{count}</span>
+                    )}
                   </button>
                 );
               })}
@@ -344,32 +470,32 @@ export default function AdminCustomers() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>کد دعوت:</span>
-                      <p className="font-mono font-bold">{detail.inviteCode}</p>
+                      <p className="font-mono font-bold">{resolvedDetail.inviteCode || '---'}</p>
                     </div>
                     <div>
                       <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>تعداد دعوت‌ها:</span>
-                      <p className="font-bold">{detail.invitedCount || 0}</p>
+                      <p className="font-bold">{resolvedDetail.invitedCount || 0}</p>
                     </div>
                     <div>
                       <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>فیلم‌های انتخاب شده:</span>
-                      <p className="font-bold">{detail.selectedMedia.length}</p>
+                      <p className="font-bold">{resolvedDetail.selectedMedia.length}</p>
                     </div>
                     <div>
                       <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>علاقه‌مندی‌ها:</span>
-                      <p className="font-bold">{detail.favorites.length}</p>
+                      <p className="font-bold">{resolvedDetail.favorites.length}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Assigned Personas */}
-                {detail.personaIds && detail.personaIds.length > 0 && (
+                {resolvedDetail.personaIds && resolvedDetail.personaIds.length > 0 && (
                   <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                     <h4 className="font-bold mb-3 flex items-center gap-2">
                       <UserCheck size={18} className="text-purple-600" />
                       پرسوناهای اختصاص یافته
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {detail.personaIds.map(personaId => {
+                      {resolvedDetail.personaIds.map(personaId => {
                         const persona = personas.find(p => p.id === personaId);
                         if (!persona) return null;
                         return (
@@ -380,7 +506,7 @@ export default function AdminCustomers() {
                               <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{persona.tagline}</p>
                             </div>
                             <button
-                              onClick={() => assignPersona(detail.id, personaId)}
+                              onClick={() => assignPersona(resolvedDetail.id, personaId)}
                               className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded"
                             >
                               <X size={16} />
@@ -396,8 +522,7 @@ export default function AdminCustomers() {
                 <div className={`p-4 rounded-xl ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                   <h4 className="font-bold mb-3">فعالیت‌های اخیر</h4>
                   <div className="space-y-2">
-                    {orders
-                      .filter(o => o.customerId === detail.id)
+                    {filterCustomerOrders(resolvedDetail)
                       .slice(-5)
                       .reverse()
                       .map(order => (
@@ -424,7 +549,7 @@ export default function AdminCustomers() {
                           </div>
                         </div>
                       ))}
-                    {orders.filter(o => o.customerId === detail.id).length === 0 && (
+                    {filterCustomerOrders(resolvedDetail).length === 0 && (
                       <p className={`text-sm text-center py-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         فعالیتی ثبت نشده است
                       </p>
@@ -450,9 +575,9 @@ export default function AdminCustomers() {
                   </button>
                 </div>
 
-                {detail.personaIds && detail.personaIds.length > 0 ? (
+                {resolvedDetail.personaIds && resolvedDetail.personaIds.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {detail.personaIds.map(personaId => {
+                    {resolvedDetail.personaIds.map(personaId => {
                       const persona = personas.find(p => p.id === personaId);
                       if (!persona) return null;
                       return (
@@ -466,7 +591,7 @@ export default function AdminCustomers() {
                               </div>
                             </div>
                             <button
-                              onClick={() => assignPersona(detail.id, personaId)}
+                              onClick={() => assignPersona(resolvedDetail.id, personaId)}
                               className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded"
                             >
                               <X size={16} />
@@ -510,14 +635,14 @@ export default function AdminCustomers() {
             {activeDetailTab === 'media' && (
               <div className="space-y-4">
                 {/* Selected Media */}
-                {detail.selectedMedia.length > 0 && (
+                {resolvedDetail.selectedMedia.length > 0 && (
                   <div>
                     <h4 className="font-bold mb-3 flex items-center gap-2">
                       <Film size={18} className="text-blue-600" />
-                      فیلم‌های انتخاب شده برای کپی ({detail.selectedMedia.length})
+                      فیلم‌های انتخاب شده برای کپی ({resolvedDetail.selectedMedia.length})
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {getSelectedMediaDetails(detail.selectedMedia).map((media: any) => (
+                      {getSelectedMediaDetails(resolvedDetail.selectedMedia).map((media: any) => (
                         <div key={media.id} className={`rounded-lg overflow-hidden border ${darkMode ? 'border-slate-600' : 'border-gray-200'}`}>
                           <div className="aspect-[2/3] relative">
                             {media.image && (
@@ -549,14 +674,14 @@ export default function AdminCustomers() {
                 )}
 
                 {/* Favorites */}
-                {detail.favorites.length > 0 && (
+                {resolvedDetail.favorites.length > 0 && (
                   <div>
                     <h4 className="font-bold mb-3 flex items-center gap-2">
                       <Heart size={18} className="text-red-600" />
-                      علاقه‌مندی‌ها ({detail.favorites.length})
+                      علاقه‌مندی‌ها ({resolvedDetail.favorites.length})
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {getSelectedMediaDetails(detail.favorites).map((media: any) => (
+                      {getSelectedMediaDetails(resolvedDetail.favorites).map((media: any) => (
                         <div key={media.id} className={`rounded-lg overflow-hidden border ${darkMode ? 'border-slate-600' : 'border-gray-200'}`}>
                           <div className="aspect-[2/3] relative">
                             {media.image && (
@@ -575,7 +700,7 @@ export default function AdminCustomers() {
                   </div>
                 )}
 
-                {detail.selectedMedia.length === 0 && detail.favorites.length === 0 && (
+                {resolvedDetail.selectedMedia.length === 0 && resolvedDetail.favorites.length === 0 && (
                   <div className="text-center py-12">
                     <Film size={48} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
                     <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -592,9 +717,9 @@ export default function AdminCustomers() {
                   <Package size={18} className="text-green-600" />
                   محصولات در سبد خرید
                 </h4>
-                {getCartProducts(detail.id).length > 0 ? (
+                {getCartProducts(resolvedDetail).length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {getCartProducts(detail.id).map((product: any) => (
+                    {getCartProducts(resolvedDetail).map((product: any) => (
                       <div key={product.id} className={`p-4 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
                         <div className="flex gap-3">
                           {product.image && (
@@ -631,10 +756,10 @@ export default function AdminCustomers() {
                   <ShoppingCart size={18} className="text-purple-600" />
                   تاریخچه سفارشات
                 </h4>
-                {orders.filter(o => o.customerId === detail.id).length > 0 ? (
+                {filterCustomerOrders(resolvedDetail).length > 0 ? (
                   <div className="space-y-3">
-                    {orders
-                      .filter(o => o.customerId === detail.id)
+                    {filterCustomerOrders(resolvedDetail)
+                      .slice()
                       .reverse()
                       .map(order => (
                         <div key={order.id} className={`p-4 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
@@ -712,10 +837,11 @@ export default function AdminCustomers() {
                   <Wrench size={18} className="text-orange-600" />
                   خدمات درخواست شده
                 </h4>
-                {orders.filter(o => o.customerId === detail.id && o.type === 'service').length > 0 ? (
+                {filterCustomerOrders(resolvedDetail).filter(o => o.type === 'service').length > 0 ? (
                   <div className="space-y-3">
-                    {orders
-                      .filter(o => o.customerId === detail.id && o.type === 'service')
+                    {filterCustomerOrders(resolvedDetail)
+                      .filter(o => o.type === 'service')
+                      .slice()
                       .reverse()
                       .map(order => (
                         <div key={order.id} className={`p-4 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
@@ -751,9 +877,89 @@ export default function AdminCustomers() {
                 )}
               </div>
             )}
+
+            {activeDetailTab === 'tickets' && (
+              <div className="space-y-4">
+                <h4 className="font-bold mb-3 flex items-center gap-2">
+                  <LifeBuoy size={18} className="text-cyan-600" />
+                  تیکت‌های پشتیبانی
+                </h4>
+                {filterCustomerTickets(resolvedDetail).length > 0 ? (
+                  <div className="space-y-3">
+                    {filterCustomerTickets(resolvedDetail)
+                      .slice()
+                      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+                      .map(ticket => (
+                        <div key={ticket.id} className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="font-bold text-sm">{ticket.subject}</p>
+                              <p className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                <span className="font-mono text-cyan-600">{ticket.code}</span>
+                                {' · '}بروزرسانی: {toJalaliString(ticket.updatedAt)}
+                                {ticket.orderId && ` · سفارش مرتبط: ${ticket.orderId}`}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className={`text-xs px-2 py-1 rounded ${ticketStatusCls[ticket.status] || 'bg-gray-100 text-gray-600'}`}>
+                                {TICKET_STATUS_LABELS[ticket.status] || ticket.status}
+                              </span>
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                ticket.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                                ticket.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                ticket.priority === 'low' ? 'bg-gray-200 text-gray-700' :
+                                'bg-blue-100 text-blue-700'
+                              }`}>
+                                {ticket.priority === 'urgent' ? 'فوری' :
+                                 ticket.priority === 'high' ? 'بالا' :
+                                 ticket.priority === 'low' ? 'پایین' : 'معمولی'}
+                              </span>
+                            </div>
+                          </div>
+                          {ticket.description && (
+                            <p className={`text-xs mb-3 border-l-2 pl-3 ${darkMode ? 'border-slate-500 text-slate-300' : 'border-slate-200 text-slate-600'}`}>
+                              {ticket.description.length > 200 ? ticket.description.slice(0, 200) + '…' : ticket.description}
+                            </p>
+                          )}
+                          {ticket.messages && ticket.messages.length > 0 && (
+                            <div className={`p-3 rounded-lg space-y-2 ${darkMode ? 'bg-slate-800' : 'bg-white'}`}>
+                              <p className={`text-[11px] font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                آخرین پیام ({ticket.messages.length} پیام کل):
+                              </p>
+                              {(() => {
+                                const lastMsg = ticket.messages[ticket.messages.length - 1];
+                                return (
+                                  <div className={`rounded-lg px-3 py-2 text-xs ${
+                                    lastMsg.sender === 'support'
+                                      ? 'bg-cyan-50 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-200'
+                                      : darkMode ? 'bg-slate-700 text-slate-200' : 'bg-gray-50 text-slate-700'
+                                  }`}>
+                                    <p className="font-bold mb-0.5">
+                                      {lastMsg.author || (lastMsg.sender === 'support' ? 'پشتیبانی' : ticket.customerName)}
+                                      <span className="opacity-60 mr-1">· {toJalaliString(lastMsg.createdAt)}</span>
+                                    </p>
+                                    <p className="leading-6 whitespace-pre-wrap">{lastMsg.text}</p>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <LifeBuoy size={48} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
+                    <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      تیکتی ثبت نشده است
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      )}
+      );})()}
     </div>
   );
 }

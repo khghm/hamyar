@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp, visibleProjects } from '../../store';
+import { useApp, visibleProjects, Order } from '../../store';
 import { 
   DollarSign, ShoppingCart, Users, Film, Package, Wrench, AlertTriangle, TrendingUp, 
   MessageSquare, Lightbulb, Gift, Truck, Percent, Bell, Shield, FileText, Video,
@@ -10,15 +10,23 @@ import { formatJalali, getJalaliDayName, toJalaliString } from '../../utils/jala
 import { timeAgoFa } from '../../utils/notificationTime';
 
 export default function AdminDashboard() {
-  const { 
+  const {
     darkMode, orders, products, users, mediaItems, services, projects, expenses,
-    notes, reviews, suppliers, employees, campaigns, smsLogs, contentProjects, 
-    contentIdeas, faqs, systemUsers, roles,
+    notes, reviews, suppliers, employees, campaigns, smsLogs, contentProjects,
+    contentIdeas, faqs, systemUsers, roles, invoices,
     notifications, unreadNotificationsCount, markNotificationRead, getNotificationMeta,
   } = useApp();
 
-  // محاسبات اصلی
-  const totalRevenue = orders.reduce((s, o) => s + o.paid, 0);
+  // سفارشات «تولید محتوا» در سیستم type='service' ذخیره می‌شوند اما در واقع
+  // گروه مدیا هستند. تشخیص آن‌ها بر اساس projectServiceId (همان الگویی که
+  // در بخش سفارشات کاربرد دارد) تا درآمدشان در دسته «کپی مدیا» جمع شود.
+  const isContentOrder = (o: Order) =>
+    o.type === 'service' && !!o.projectServiceId && o.projectServiceId.startsWith('ps-ct');
+
+  // درآمد از فاکتورهای پرداخت‌شده/صادرشده محاسبه می‌شود (همان منبعی که
+  // بخش مالی از آن استفاده می‌کند) تا اعداد داشبورد و حسابداری مطابقت داشته باشند.
+  const paidInvoices = invoices.filter(inv => inv.status === 'paid' || inv.status === 'issued');
+  const totalRevenue = paidInvoices.reduce((s, inv) => s + (inv.total || 0), 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const profit = totalRevenue - totalExpenses;
   const openOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
@@ -67,12 +75,22 @@ export default function AdminDashboard() {
   const pendingReviewList = reviews.filter(r => !r.approved).slice(0, 5);
   const urgentProjects = contentProjects.filter(p => p.priority === 'urgent' && p.status !== 'completed').slice(0, 3);
 
-  // درآمد به تفکیک جریان
+  // درآمد به تفکیک جریان — بر اساس فاکتورهای پرداخت‌شده/صادرشده و با
+  // دسته‌بندی درست سفارشات (تولید محتوا به عنوان جریان جداگانه، نه زیر کپی مدیا).
+  // هر فاکتور را به order مرتبطش مپ می‌کنیم تا تشخیص «تولید محتوا» انجام شود.
+  const orderById = new Map(orders.map(o => [o.id, o] as const));
+  const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'media' | 'product' | 'webdesign' | 'content' => {
+    if (i.type === 'media' || i.type === 'product' || i.type === 'webdesign') return i.type;
+    const linked = i.orderId ? orderById.get(i.orderId) : undefined;
+    if (linked && isContentOrder(linked)) return 'content';
+    return 'service';
+  };
   const revenueByType = {
-    service: orders.filter(o => o.type === 'service').reduce((s, o) => s + o.paid, 0),
-    media: orders.filter(o => o.type === 'media').reduce((s, o) => s + o.paid, 0),
-    product: orders.filter(o => o.type === 'product').reduce((s, o) => s + o.paid, 0),
-    webdesign: orders.filter(o => o.type === 'webdesign').reduce((s, o) => s + o.paid, 0),
+    service: paidInvoices.filter(i => invoiceFlow(i) === 'service').reduce((s, i) => s + (i.total || 0), 0),
+    media: paidInvoices.filter(i => invoiceFlow(i) === 'media').reduce((s, i) => s + (i.total || 0), 0),
+    product: paidInvoices.filter(i => invoiceFlow(i) === 'product').reduce((s, i) => s + (i.total || 0), 0),
+    webdesign: paidInvoices.filter(i => invoiceFlow(i) === 'webdesign').reduce((s, i) => s + (i.total || 0), 0),
+    content: paidInvoices.filter(i => invoiceFlow(i) === 'content').reduce((s, i) => s + (i.total || 0), 0),
   };
 
   return (
@@ -156,6 +174,7 @@ export default function AdminDashboard() {
               { label: 'کپی مدیا', value: revenueByType.media, color: 'bg-purple-500', link: '/admin/media' },
               { label: 'فروش کالا', value: revenueByType.product, color: 'bg-green-500', link: '/admin/products' },
               { label: 'طراحی سایت', value: revenueByType.webdesign, color: 'bg-orange-500', link: '/admin/projects' },
+              { label: 'تولید محتوا', value: revenueByType.content, color: 'bg-pink-500', link: '/admin/content-team' },
             ].map((item, i) => {
               const percent = totalRevenue > 0 ? (item.value / totalRevenue) * 100 : 0;
               return (

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useApp, Order } from '../../store';
-import { Plus, Search, Filter, Kanban, List, User, Clock, AlertCircle, DollarSign, Tag, X, Eye, CheckCircle, XCircle, Paperclip, ExternalLink } from 'lucide-react';
+import { Plus, Search, Filter, Kanban, List, User, Clock, AlertCircle, DollarSign, Tag, X, Eye, CheckCircle, XCircle, Paperclip, ExternalLink, Briefcase, Link2 } from 'lucide-react';
 import { toJalaliString } from '../../utils/jalali';
 import { PROJECT_FIELD_LABELS, getProjectService } from '../../store';
 
 export default function AdminOrders() {
-  const { darkMode, orders, setOrders, updateOrder, projects, contentProjects } = useApp();
+  const { darkMode, orders, setOrders, updateOrder, updateOrderStatus, deleteOrder, projects, setProjects, contentProjects } = useApp();
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('kanban');
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -79,7 +79,7 @@ export default function AdminOrders() {
   };
 
   const updateStatus = (id: string, status: string) => {
-    setOrders(orders.map(o => o.id === id ? { ...o, status: status as any } : o));
+    updateOrderStatus(id, status as any);
   };
 
   // Drag and Drop handlers
@@ -98,7 +98,7 @@ export default function AdminOrders() {
     const orderId = e.dataTransfer.getData('orderId');
     const order = orders.find(o => o.id === orderId);
     if (order && order.status !== status) {
-      setOrders(orders.map(o => o.id === orderId ? { ...o, status: status as any } : o));
+      updateOrderStatus(orderId, status as any);
     }
   };
 
@@ -269,39 +269,67 @@ export default function AdminOrders() {
                           </span>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
-                          {(order.formData || order.documents) && (
-                            <button
-                              onClick={() => setDetailsOrder(order)}
-                              className="flex-1 flex items-center justify-center gap-1 text-emerald-600 text-xs py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                            >
-                              <Eye size={12} /> جزئیات
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => {
-                              setNewOrder({
-                                customerName: order.customerName,
-                                type: order.type as any,
-                                channel: order.channel,
-                                priority: order.priority as any,
-                                total: order.total,
-                                description: order.description || ''
-                              });
-                              setShowForm(true);
-                            }}
-                            className="flex-1 text-blue-600 text-xs py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                          >
-                            ویرایش
-                          </button>
-                          <button 
-                            onClick={() => setOrders(orders.filter(x => x.id !== order.id))} 
-                            className="flex-1 text-red-500 text-xs py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                          >
-                            حذف
-                          </button>
-                        </div>
+{/* Actions */}
+                         <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+                           {(order.formData || order.documents) && (
+                             <button
+                               onClick={() => setDetailsOrder(order)}
+                               className="flex-1 flex items-center justify-center gap-1 text-emerald-600 text-xs py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                             >
+                               <Eye size={12} /> جزئیات
+                             </button>
+                           )}
+                           {order.type === 'webdesign' && (
+                             <button
+                               onClick={() => {
+                                 // Create a project from this order
+                                 const newProject = {
+                                   id: 'pr' + Date.now(),
+                                   title: order.formData?.industry ? `سایت ${order.formData.industry}` : `پروژه ${order.trackingCode}`,
+                                   clientName: order.customerName,
+                                   type: order.formData?.industry || 'فروشگاهی',
+                                   stage: 'مشاوره',
+                                   deadline: order.formData?.deadline || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                                   totalCost: order.total,
+                                   paidAmount: order.paid,
+                                   progress: 0,
+                                   description: `سازماندهی از سفارش ${order.trackingCode} - ${order.description || ''}`,
+                                   sourceOrderId: order.id,
+                                 };
+                                 setProjects([...projects, newProject]);
+                                 // Link the order to the project
+                                 updateOrder(order.id, { projectId: newProject.id });
+                                 // Switch to projects tab would be ideal but we just notify
+                                 alert(`پروژه «${newProject.title}» ایجاد و به سفارش ${order.trackingCode} لینک شد.`);
+                               }}
+                               className="flex-1 text-purple-600 text-xs py-1 rounded hover:bg-purple-50 dark:hover:bg-purple-900/20 flex items-center justify-center gap-1"
+                             >
+                               <Briefcase size={12} /> ایجاد پروژه
+                             </button>
+                           )}
+                           <button 
+                             onClick={() => {
+                               setNewOrder({
+                                 customerName: order.customerName,
+                                 type: order.type as any,
+                                 channel: order.channel,
+                                 priority: order.priority as any,
+                                 total: order.total,
+                                 description: order.description || ''
+                               });
+                               setShowForm(true);
+                             }}
+                             className="flex-1 text-blue-600 text-xs py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                           >
+                             ویرایش
+                           </button>
+                           <button 
+                             onClick={() => deleteOrder(order.id)} 
+                             className="flex-1 text-red-500 text-xs py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                           >
+                             حذف
+                           </button>
+                         </div>
                       </div>
                     ))}
 
@@ -333,6 +361,7 @@ export default function AdminOrders() {
                   <th className="text-right p-3">وضعیت</th>
                   <th className="text-right p-3">مبلغ</th>
                   <th className="text-right p-3">تاریخ</th>
+                  <th className="text-right p-3">پروژه</th>
                   <th className="text-right p-3">عملیات</th>
                 </tr>
               </thead>
@@ -357,13 +386,51 @@ export default function AdminOrders() {
                     <td className="p-3 font-bold">{o.total.toLocaleString('fa-IR')}</td>
                     <td className="p-3 text-xs">{toJalaliString(o.createdAt)}</td>
                     <td className="p-3">
+                      {(() => {
+                        const linkedProject = projects?.find(p => p.id === o.projectId);
+                        if (linkedProject) {
+                          return (
+                            <span className="text-blue-600 text-xs hover:underline" title={linkedProject.title}>
+                              {linkedProject.title} ({linkedProject.stage})
+                            </span>
+                          );
+                        }
+                        return <span className={`text-xs ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>—</span>;
+                      })()}
+                    </td>
+                    <td className="p-3">
                       <div className="flex items-center gap-2">
                         {(o.formData || o.documents) && (
                           <button onClick={() => setDetailsOrder(o)} className="text-emerald-600 text-xs hover:underline flex items-center gap-1">
                             <Eye size={12} /> جزئیات
                           </button>
                         )}
-                        <button onClick={() => setOrders(orders.filter(x => x.id !== o.id))} className="text-red-500 text-xs hover:underline">حذف</button>
+                        {o.type === 'webdesign' && (
+                          <button
+                            onClick={() => {
+                              const newProject = {
+                                id: 'pr' + Date.now(),
+                                title: o.formData?.industry ? `سایت ${o.formData.industry}` : `پروژه ${o.trackingCode}`,
+                                clientName: o.customerName,
+                                type: o.formData?.industry || 'فروشگاهی',
+                                stage: 'مشاوره',
+                                deadline: o.formData?.deadline || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                                totalCost: o.total,
+                                paidAmount: o.paid,
+                                progress: 0,
+                                description: `سازماندهی از سفارش ${o.trackingCode} - ${o.description || ''}`,
+                                sourceOrderId: o.id,
+                              };
+                              setProjects([...projects, newProject]);
+                              updateOrder(o.id, { projectId: newProject.id });
+                              alert(`پروژه «${newProject.title}» ایجاد و به سفارش ${o.trackingCode} لینک شد.`);
+                            }}
+                            className="text-purple-600 text-xs hover:underline flex items-center gap-1"
+                          >
+                            <Briefcase size={12} /> ایجاد پروژه
+                          </button>
+                        )}
+                        <button onClick={() => deleteOrder(o.id)} className="text-red-500 text-xs hover:underline">حذف</button>
                       </div>
                     </td>
                   </tr>
@@ -532,7 +599,18 @@ export default function AdminOrders() {
                 <div>
                   <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>پروژه مرتبط:</span>{' '}
                   {linkedProject && !isContentOrder(live) ? (
-                    <span className="font-medium text-blue-600">{linkedProject.title} ({linkedProject.stage})</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="font-medium text-blue-600">{linkedProject.title} ({linkedProject.stage})</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(linkedProject.id);
+                          alert(`شناسه پروژه کپی شد: ${linkedProject.id}\nبرای مشاهده در بخش پروژه‌ها، به تب «پروژه‌ها» بروید.`);
+                        }}
+                        className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        <Link2 size={12} /> کپی شناسه
+                      </button>
+                    </div>
                   ) : isContentOrder(live) ? (
                     /* Content-production orders are tracked only in «تیم تولید محتوا», not in بخش پروژه‌ها */
                     <span className={darkMode ? 'text-slate-500' : 'text-slate-400'}>(در بخش تیم تولید محتوا پیگیری می‌شود)</span>
