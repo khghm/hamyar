@@ -427,128 +427,128 @@ export const useCatalogStore = create<CatalogState>()(
       setProducts: (products) => {
         const prev = get().products;
         set({ products });
-        if (get().hydrated) syncProducts(products, prev).catch(() => {});
+        if (get().hydrated) syncProducts(products, prev).catch((e) => console.error('[catalogStore] syncProducts failed:', e));
       },
       setMediaItems: (mediaItems) => {
         const prev = get().mediaItems;
         set({ mediaItems });
-        if (get().hydrated) syncMediaItems(mediaItems, prev).catch(() => {});
+        if (get().hydrated) syncMediaItems(mediaItems, prev).catch((e) => console.error('[catalogStore] syncMediaItems failed:', e));
       },
       setServices: (services) => {
         const prev = get().services;
         set({ services });
-        if (get().hydrated) syncServices(services, prev).catch(() => {});
+        if (get().hydrated) syncServices(services, prev).catch((e) => console.error('[catalogStore] syncServices failed:', e));
       },
       setNews: (news) => {
         const prev = get().news;
         set({ news });
-        if (get().hydrated) syncNews(news, prev).catch(() => {});
+        if (get().hydrated) syncNews(news, prev).catch((e) => console.error('[catalogStore] syncNews failed:', e));
       },
       setPortfolio: (portfolio) => {
         const prev = get().portfolio;
         set({ portfolio });
-        if (get().hydrated) syncPortfolio(portfolio, prev).catch(() => {});
+        if (get().hydrated) syncPortfolio(portfolio, prev).catch((e) => console.error('[catalogStore] syncPortfolio failed:', e));
       },
       setAboutContent: (aboutContent) => set({ aboutContent }),
       setProjects: (projects) => {
         const prev = get().projects;
         set({ projects });
-        if (get().hydrated) syncProjects(projects, prev).catch(() => {});
+        if (get().hydrated) syncProjects(projects, prev).catch((e) => console.error('[catalogStore] syncProjects failed:', e));
       },
 
       addProduct: (product) => {
         const prev = get().products;
         const next = [...prev, product];
         set({ products: next });
-        if (get().hydrated) syncProducts(next, prev).catch(() => {});
+        if (get().hydrated) syncProducts(next, prev).catch((e) => console.error('[catalogStore] syncProducts failed:', e));
       },
       updateProduct: (id, patch) => {
         const prev = get().products;
         const next = prev.map((p) => p.id === id ? { ...p, ...patch } : p);
         set({ products: next });
-        if (get().hydrated) syncProducts(next, prev).catch(() => {});
+        if (get().hydrated) syncProducts(next, prev).catch((e) => console.error('[catalogStore] syncProducts failed:', e));
       },
       deleteProduct: (id) => {
         const prev = get().products;
         const next = prev.filter((p) => p.id !== id);
         set({ products: next });
-        if (get().hydrated) syncProducts(next, prev).catch(() => {});
+        if (get().hydrated) syncProducts(next, prev).catch((e) => console.error('[catalogStore] syncProducts failed:', e));
       },
 
       addMedia: (media) => {
         const prev = get().mediaItems;
         const next = [...prev, media];
         set({ mediaItems: next });
-        if (get().hydrated) syncMediaItems(next, prev).catch(() => {});
+        if (get().hydrated) syncMediaItems(next, prev).catch((e) => console.error('[catalogStore] syncMediaItems failed:', e));
       },
       updateMedia: (id, patch) => {
         const prev = get().mediaItems;
         const next = prev.map((m) => m.id === id ? { ...m, ...patch } : m);
         set({ mediaItems: next });
-        if (get().hydrated) syncMediaItems(next, prev).catch(() => {});
+        if (get().hydrated) syncMediaItems(next, prev).catch((e) => console.error('[catalogStore] syncMediaItems failed:', e));
       },
       deleteMedia: (id) => {
         const prev = get().mediaItems;
         const next = prev.filter((m) => m.id !== id);
         set({ mediaItems: next });
-        if (get().hydrated) syncMediaItems(next, prev).catch(() => {});
+        if (get().hydrated) syncMediaItems(next, prev).catch((e) => console.error('[catalogStore] syncMediaItems failed:', e));
       },
 
       addService: (service) => {
         const prev = get().services;
         const next = [...prev, service];
         set({ services: next });
-        if (get().hydrated) syncServices(next, prev).catch(() => {});
+        if (get().hydrated) syncServices(next, prev).catch((e) => console.error('[catalogStore] syncServices failed:', e));
       },
       updateService: (id, patch) => {
         const prev = get().services;
         const next = prev.map((s) => s.id === id ? { ...s, ...patch } : s);
         set({ services: next });
-        if (get().hydrated) syncServices(next, prev).catch(() => {});
+        if (get().hydrated) syncServices(next, prev).catch((e) => console.error('[catalogStore] syncServices failed:', e));
       },
       deleteService: (id) => {
         const prev = get().services;
         const next = prev.filter((s) => s.id !== id);
         set({ services: next });
-        if (get().hydrated) syncServices(next, prev).catch(() => {});
+        if (get().hydrated) syncServices(next, prev).catch((e) => console.error('[catalogStore] syncServices failed:', e));
       },
 
       addNews: (item) => {
         const prev = get().news;
         const next = [...prev, item];
         set({ news: next });
-        if (get().hydrated) syncNews(next, prev).catch(() => {});
+        if (get().hydrated) syncNews(next, prev).catch((e) => console.error('[catalogStore] syncNews failed:', e));
       },
       updateNews: (id, patch) => {
         const prev = get().news;
         const next = prev.map((n) => n.id === id ? { ...n, ...patch } : n);
         set({ news: next });
-        if (get().hydrated) syncNews(next, prev).catch(() => {});
+        if (get().hydrated) syncNews(next, prev).catch((e) => console.error('[catalogStore] syncNews failed:', e));
       },
       deleteNews: (id) => {
         const prev = get().news;
         const next = prev.filter((n) => n.id !== id);
         set({ news: next });
-        if (get().hydrated) syncNews(next, prev).catch(() => {});
+        if (get().hydrated) syncNews(next, prev).catch((e) => console.error('[catalogStore] syncNews failed:', e));
       },
 
       addPortfolio: (item) => {
         const prev = get().portfolio;
         const next = [...prev, item];
         set({ portfolio: next });
-        if (get().hydrated) syncPortfolio(next, prev).catch(() => {});
+        if (get().hydrated) syncPortfolio(next, prev).catch((e) => console.error('[catalogStore] syncPortfolio failed:', e));
       },
       updatePortfolio: (id, patch) => {
         const prev = get().portfolio;
         const next = prev.map((p) => p.id === id ? { ...p, ...patch } : p);
         set({ portfolio: next });
-        if (get().hydrated) syncPortfolio(next, prev).catch(() => {});
+        if (get().hydrated) syncPortfolio(next, prev).catch((e) => console.error('[catalogStore] syncPortfolio failed:', e));
       },
       deletePortfolio: (id) => {
         const prev = get().portfolio;
         const next = prev.filter((p) => p.id !== id);
         set({ portfolio: next });
-        if (get().hydrated) syncPortfolio(next, prev).catch(() => {});
+        if (get().hydrated) syncPortfolio(next, prev).catch((e) => console.error('[catalogStore] syncPortfolio failed:', e));
       },
 
       updateAbout: (patch) =>
