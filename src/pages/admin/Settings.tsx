@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp, NewsItem, PortfolioItem } from '../../store';
 import { Plus, X, Upload, Edit, Trash2, FileImage, Video, Image } from 'lucide-react';
 import { formatJalali, toJalaliString } from '../../utils/jalali';
+import { uploadImageToSupabase, deleteImageFromSupabase } from '../../api/storage';
 
 interface Banner {
   page: string;
@@ -85,22 +86,28 @@ export default function AdminSettings() {
     setEditPortfolioId(null);
   };
 
-  const handleImageUpload = (callback: (url: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (folder: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => callback(ev.target?.result as string);
-      reader.readAsDataURL(file);
+    if (!file) return;
+    
+    const { url, error } = await uploadImageToSupabase(folder, file);
+    if (error) {
+      alert('خطا در آپلود: ' + error);
+      return;
     }
+    return url;
   };
 
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setAboutContent({ ...aboutContent, trustVideo: ev.target?.result as string });
-      reader.readAsDataURL(file);
+    if (!file) return;
+    
+    const { url, error } = await uploadImageToSupabase('about/videos', file);
+    if (error) {
+      alert('خطا در آپلود ویدئو: ' + error);
+      return;
     }
+    setAboutContent({ ...aboutContent, trustVideo: url });
   };
 
   return (
@@ -184,9 +191,30 @@ export default function AdminSettings() {
                     <label className="text-sm mb-1 block">تصویر خبر</label>
                     <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer w-fit ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}>
                       <Upload size={16} /> انتخاب تصویر
-                      <input type="file" accept="image/*" onChange={handleImageUpload((url) => setNewsForm({...newsForm, image: url}))} className="hidden" />
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={async (e) => {
+                          const url = await handleImageUpload('news')(e);
+                          if (url) setNewsForm({...newsForm, image: url});
+                        }} 
+                        className="hidden" 
+                      />
                     </label>
-                    {newsForm.image && <img src={newsForm.image} alt="" className="mt-2 w-32 h-20 object-cover rounded" />}
+                    {newsForm.image && (
+                      <div className="relative mt-2 w-32 h-20">
+                        <img src={newsForm.image} alt="" className="w-full h-full object-cover rounded" />
+                        <button 
+                          onClick={async () => {
+                            if (newsForm.image) await deleteImageFromSupabase(newsForm.image);
+                            setNewsForm({...newsForm, image: ''});
+                          }}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <label className="flex items-center gap-2">
                     <input type="checkbox" checked={newsForm.active} onChange={e => setNewsForm({...newsForm, active: e.target.checked})} />
@@ -254,9 +282,30 @@ export default function AdminSettings() {
                     <label className="text-sm mb-1 block">تصویر نمونه‌کار</label>
                     <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer w-fit ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}>
                       <Upload size={16} /> انتخاب تصویر
-                      <input type="file" accept="image/*" onChange={handleImageUpload((url) => setPortfolioForm({...portfolioForm, image: url}))} className="hidden" />
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={async (e) => {
+                          const url = await handleImageUpload('portfolio')(e);
+                          if (url) setPortfolioForm({...portfolioForm, image: url});
+                        }} 
+                        className="hidden" 
+                      />
                     </label>
-                    {portfolioForm.image && <img src={portfolioForm.image} alt="" className="mt-2 w-32 h-20 object-cover rounded" />}
+                    {portfolioForm.image && (
+                      <div className="relative mt-2 w-32 h-20">
+                        <img src={portfolioForm.image} alt="" className="w-full h-full object-cover rounded" />
+                        <button 
+                          onClick={async () => {
+                            if (portfolioForm.image) await deleteImageFromSupabase(portfolioForm.image);
+                            setPortfolioForm({...portfolioForm, image: ''});
+                          }}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <button onClick={savePortfolio} className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">ذخیره</button>
                 </div>
@@ -277,13 +326,24 @@ export default function AdminSettings() {
             <div className="flex items-start gap-4">
               <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer w-fit ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}>
                 <Upload size={16} /> آپلود لوگو
-                <input type="file" accept="image/*" onChange={handleImageUpload((url) => setAboutContent({...aboutContent, logo: url}))} className="hidden" />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={async (e) => {
+                    const url = await handleImageUpload('about/logo')(e);
+                    if (url) setAboutContent({...aboutContent, logo: url});
+                  }} 
+                  className="hidden" 
+                />
               </label>
               {aboutContent.logo && (
                 <div className="relative">
                   <img src={aboutContent.logo} alt="لوگو" className="w-32 h-32 object-contain rounded-lg border" />
                   <button 
-                    onClick={() => setAboutContent({...aboutContent, logo: ''})}
+                    onClick={async () => {
+                      await deleteImageFromSupabase(aboutContent.logo);
+                      setAboutContent({...aboutContent, logo: ''});
+                    }}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
                   >
                     ×
@@ -314,9 +374,30 @@ export default function AdminSettings() {
             <label className="text-sm font-medium block mb-1">جواز کسب</label>
             <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer w-fit ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}>
               <FileImage size={16} /> آپلود تصویر جواز کسب
-              <input type="file" accept="image/*" onChange={handleImageUpload((url) => setAboutContent({...aboutContent, licenseImage: url}))} className="hidden" />
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={async (e) => {
+                  const url = await handleImageUpload('about/license')(e);
+                  if (url) setAboutContent({...aboutContent, licenseImage: url});
+                }} 
+                className="hidden" 
+              />
             </label>
-            {aboutContent.licenseImage && <img src={aboutContent.licenseImage} alt="جواز کسب" className="mt-2 w-40 h-28 object-cover rounded" />}
+            {aboutContent.licenseImage && (
+              <div className="relative mt-2 w-40 h-28">
+                <img src={aboutContent.licenseImage} alt="جواز کسب" className="w-full h-full object-cover rounded" />
+                <button 
+                  onClick={async () => {
+                    await deleteImageFromSupabase(aboutContent.licenseImage);
+                    setAboutContent({...aboutContent, licenseImage: ''});
+                  }}
+                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Trust Images */}
@@ -324,20 +405,32 @@ export default function AdminSettings() {
             <label className="text-sm font-medium block mb-1">تصاویر اعتمادسازی</label>
             <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer w-fit ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}>
               <FileImage size={16} /> افزودن تصویر
-              <input type="file" accept="image/*" onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onload = (ev) => setAboutContent({...aboutContent, trustImages: [...aboutContent.trustImages, ev.target?.result as string]});
-                  reader.readAsDataURL(file);
-                }
-              }} className="hidden" />
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const { url, error } = await uploadImageToSupabase('about/trust', file);
+                    if (error) {
+                      alert('خطا در آپلود: ' + error);
+                      return;
+                    }
+                    setAboutContent({...aboutContent, trustImages: [...aboutContent.trustImages, url]});
+                  }
+                }} 
+                className="hidden" 
+              />
             </label>
             <div className="flex flex-wrap gap-2 mt-2">
               {aboutContent.trustImages.map((img, i) => (
                 <div key={i} className="relative">
                   <img src={img} alt="" className="w-24 h-16 object-cover rounded" />
-                  <button onClick={() => setAboutContent({...aboutContent, trustImages: aboutContent.trustImages.filter((_, idx) => idx !== i)})}
+                  <button 
+                    onClick={async () => {
+                      await deleteImageFromSupabase(img);
+                      setAboutContent({...aboutContent, trustImages: aboutContent.trustImages.filter((_, idx) => idx !== i)});
+                    }}
                     className="absolute -top-1 -left-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center">x</button>
                 </div>
               ))}
@@ -411,16 +504,17 @@ export default function AdminSettings() {
                         <input 
                           type="file" 
                           accept="image/*"
-                          onChange={e => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const updated = [...aboutContent.socialMedia];
-                                updated[idx] = { ...social, icon: ev.target?.result as string };
-                                setAboutContent({...aboutContent, socialMedia: updated});
-                              };
-                              reader.readAsDataURL(file);
+                              const { url, error } = await uploadImageToSupabase('about/social', file);
+                              if (error) {
+                                alert('خطا در آپلود: ' + error);
+                                return;
+                              }
+                              const updated = [...aboutContent.socialMedia];
+                              updated[idx] = { ...social, icon: url };
+                              setAboutContent({...aboutContent, socialMedia: updated});
                             }
                           }}
                           className="hidden" 
@@ -534,16 +628,17 @@ export default function AdminSettings() {
                       <input 
                         type="file" 
                         accept="image/*"
-                        onChange={e => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                              const updated = [...banners];
-                              updated[idx] = { ...banner, imageUrl: ev.target?.result as string };
-                              setBanners(updated);
-                            };
-                            reader.readAsDataURL(file);
+                            const { url, error } = await uploadImageToSupabase('banners', file);
+                            if (error) {
+                              alert('خطا در آپلود: ' + error);
+                              return;
+                            }
+                            const updated = [...banners];
+                            updated[idx] = { ...banner, imageUrl: url };
+                            setBanners(updated);
                           }
                         }}
                         className="hidden" 
@@ -551,7 +646,8 @@ export default function AdminSettings() {
                     </label>
                     {banner.imageUrl && (
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
+                          await deleteImageFromSupabase(banner.imageUrl);
                           const updated = [...banners];
                           updated[idx] = { ...banner, imageUrl: '' };
                           setBanners(updated);
