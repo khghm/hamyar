@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase';
 export { supabase } from '../lib/supabase';
 export type { Session, User } from '@supabase/supabase-js';
 
@@ -16,7 +17,6 @@ export async function uploadOrderDocument(
   file: File,
   label: string,
 ): Promise<{ path: string; error?: string }> {
-  const { supabase } = await import('../lib/supabase');
   const ext = file.name.split('.')?.pop();
   const safeLabel = (label || 'doc').replace(/[^a-zA-Z0-9_-]/g, '_');
   const fileName = `${safeLabel}-${crypto.randomUUID()}.${ext}`;
@@ -32,7 +32,6 @@ export async function getSignedDocumentUrl(
   storagePath: string,
   expiresInSec = 120,
 ): Promise<string> {
-  const { supabase } = await import('../lib/supabase');
   const { data } = await supabase.storage
     .from('order-documents')
     .createSignedUrl(storagePath, expiresInSec);
@@ -47,5 +46,24 @@ export async function dataUrlToFile(
   const res = await fetch(dataUrl);
   const blob = await res.blob();
   return new File([blob], fileName, { type: mimeType });
+}
+
+export async function uploadImage(
+  folder: string,
+  file: File,
+): Promise<{ path: string; error?: string }> {
+  const ext = file.name.split('.')?.pop() || 'jpg';
+  const fileName = `${crypto.randomUUID()}.${ext}`;
+  const path = `${folder}/${fileName}`;
+  const { error } = await supabase.storage
+    .from('images')
+    .upload(path, file, { upsert: false });
+  if (error) return { path: '', error: error.message };
+  return { path };
+}
+
+export function getPublicImageUrl(storagePath: string): string {
+  const { data } = supabase.storage.from('images').getPublicUrl(storagePath);
+  return data?.publicUrl ?? '';
 }
 
