@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp, MediaItem } from '../../store';
 import { Plus, Search, Edit, Trash2, X, Upload, Filter, Grid, List, Eye, Star } from 'lucide-react';
 import { uploadImageToSupabase } from '../../api/storage';
+import SafeImage from '../../components/SafeImage';
 
 export default function AdminMedia() {
   const { darkMode, mediaItems, setMediaItems } = useApp();
@@ -188,7 +189,7 @@ export default function AdminMedia() {
           {filtered.map(m => (
             <div key={m.id} className={`rounded-lg overflow-hidden border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
               <div className="aspect-[2/3] bg-slate-700 relative">
-                {m.image && <img src={m.image} alt={m.title} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+                <SafeImage src={m.image} alt={m.title} className="w-full h-full object-cover" />
                 <span className="absolute top-1 right-1 bg-blue-600 text-white text-[9px] px-1 rounded">{typeLabels[m.type]}</span>
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                   <div className="flex items-center gap-1 text-yellow-400 text-xs">

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp, Product } from '../../store';
 import { Plus, Search, Edit, Trash2, Upload, X, AlertTriangle, Package, TrendingDown } from 'lucide-react';
 import { uploadImageToSupabase } from '../../api/storage';
+import SafeImage from '../../components/SafeImage';
 
 export default function AdminProducts() {
   const { darkMode, products, setProducts } = useApp();
@@ -250,7 +251,7 @@ export default function AdminProducts() {
                   }`}>
                     <td className="p-3">
                       <div className="w-12 h-12 rounded bg-gray-200 dark:bg-slate-600 overflow-hidden">
-                        <img src={p.image} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <SafeImage src={p.image} alt="" className="w-full h-full object-cover" />
                       </div>
                     </td>
                     <td className="p-3 font-medium">{p.name}</td>

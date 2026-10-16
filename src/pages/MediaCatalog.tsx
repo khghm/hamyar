@@ -4,6 +4,7 @@ import { useApp } from '../store';
 import { Search, Filter, Star, Heart, Eye, ChevronDown, X, SlidersHorizontal } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 import { track } from '../utils/analytics';
+import SafeImage from '../components/SafeImage';
 
 export default function MediaCatalog() {
   const { darkMode, mediaItems, currentUser, addToFavorites, selectMedia } = useApp();
@@ -155,10 +156,7 @@ export default function MediaCatalog() {
             <div key={item.id} className={`group rounded-xl overflow-hidden border transition-all hover:shadow-xl hover:-translate-y-1 ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
               <Link to={`/media/${item.id}`} className="block">
                 <div className="relative aspect-[2/3] overflow-hidden">
-                  {item.image ? (
-                    <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => { (e.target as HTMLImageElement).src = ''; (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  ) : null}
+                  <SafeImage src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                   {/* Quality Badge */}
                   <span className="absolute top-2 right-2 bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">{item.quality}</span>
@@ -219,10 +217,7 @@ export default function MediaCatalog() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={() => setSelectedItem(null)}>
           <div className={`max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl ${darkMode ? 'bg-slate-800' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
             <div className="relative h-64 overflow-hidden rounded-t-2xl">
-              {detail.image ? (
-                <img src={detail.image} alt={detail.title} className="w-full h-full object-cover"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              ) : null}
+              <SafeImage src={detail.image} alt={detail.title} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
               <button onClick={() => setSelectedItem(null)} className="absolute top-4 left-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70">
                 <X size={20} />

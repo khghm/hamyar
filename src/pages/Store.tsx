@@ -4,6 +4,7 @@ import { useApp } from '../store';
 import { Search, SlidersHorizontal, ShoppingCart, X, Star, ChevronDown, Heart } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 import { track } from '../utils/analytics';
+import SafeImage from '../components/SafeImage';
 
 export default function Store() {
   const { darkMode, currentUser, products } = useApp();
@@ -188,8 +189,7 @@ export default function Store() {
             {filtered.map(product => (
               <Link key={product.id} to={`/product/${product.id}`} className={`rounded-xl border overflow-hidden transition-all hover:shadow-lg block ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
                 <div className={`h-48 flex items-center justify-center ${darkMode ? 'bg-slate-700' : 'bg-gray-50'} relative`}>
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <SafeImage src={product.image} alt={product.name} className="w-full h-full object-cover" />
                   {product.originalPrice && (
                     <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
                       {Math.round((1 - product.price / product.originalPrice) * 100)}%
