@@ -366,6 +366,7 @@ interface CatalogState {
 
   startRealtime: () => void;
   stopRealtime: () => void;
+  refresh: () => Promise<void>;
 }
 
 let catalogRealtimeUnsubs: Array<() => void> = [];
@@ -676,6 +677,42 @@ export const useCatalogStore = create<CatalogState>()(
           catalogVisibilityUnsub();
           catalogVisibilityUnsub = null;
         }
+      },
+
+      refresh: async () => {
+        const reportSyncError = (report: SyncErrorReport) => {
+          try {
+            useNotificationStore.getState().pushSystemError?.(
+              `همگام‌سازی ${report.table} ناموفق بود`,
+              report.message + (report.keys.length ? `: ${report.keys.join(', ')}` : '')
+            );
+          } catch { /* notification store not ready */ }
+        };
+        const unsubSync = onSyncError(reportSyncError);
+        try {
+          const [cloudProducts, cloudMedia, cloudServices, cloudNews, cloudPortfolio, cloudProjects, cloudAbout] =
+            await Promise.all([
+              fetchProducts().catch(() => null),
+              fetchMediaItems().catch(() => null),
+              fetchServices().catch(() => null),
+              fetchNews().catch(() => null),
+              fetchPortfolio().catch(() => null),
+              fetchProjects().catch(() => null),
+              fetchAboutContent<AboutContent>().catch(() => null),
+            ]);
+          set({
+            products: cloudProducts && cloudProducts.length ? cloudProducts : get().products,
+            mediaItems: cloudMedia && cloudMedia.length ? cloudMedia : get().mediaItems,
+            services: cloudServices && cloudServices.length ? cloudServices : get().services,
+            news: cloudNews && cloudNews.length ? cloudNews : get().news,
+            portfolio: cloudPortfolio && cloudPortfolio.length ? cloudPortfolio : get().portfolio,
+            projects: cloudProjects && cloudProjects.length ? cloudProjects : get().projects,
+            aboutContent: cloudAbout ? { ...get().aboutContent, ...cloudAbout } : get().aboutContent,
+          });
+        } catch (e) {
+          console.warn('[catalog] refresh failed:', e);
+        }
+        void unsubSync;
       },
     }),
     {

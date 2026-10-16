@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store';
+import { useCatalogStore } from '../state/catalogStore';
 import { Search, SlidersHorizontal, ShoppingCart, X, Star, ChevronDown, Heart } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 import { track } from '../utils/analytics';
 import SafeImage from '../components/SafeImage';
+import { onTabVisible } from '../lib/realtime';
 
 export default function Store() {
   const { darkMode, currentUser, products } = useApp();
@@ -16,6 +18,16 @@ export default function Store() {
   const [sortBy, setSortBy] = useState('default');
   const [showMobileFilter, setShowMobileFilter] = useState(false);
   const { cartItems: cart, addToCart: addToCartStore, removeFromCart: removeFromCartStore, updateCartQuantity, clearCart } = useApp();
+
+  const refreshCatalog = useCatalogStore((s) => s.refresh);
+
+  useEffect(() => {
+    refreshCatalog();
+    const unsub = onTabVisible(() => {
+      refreshCatalog();
+    });
+    return () => unsub();
+  }, [refreshCatalog]);
 
   const categories = Array.from(new Set(products.map(p => p.category)));
   const brands = Array.from(new Set(products.map(p => p.brand)));
