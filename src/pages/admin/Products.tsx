@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp, Product } from '../../store';
 import { Plus, Search, Edit, Trash2, Upload, X, AlertTriangle, Package, TrendingDown } from 'lucide-react';
 import { uploadImageToSupabase } from '../../api/storage';
+import { syncProducts } from '../../api/products';
 import SafeImage from '../../components/SafeImage';
 
 export default function AdminProducts() {
@@ -59,13 +60,20 @@ export default function AdminProducts() {
     setShowForm(true); 
   };
 
-  const save = () => {
+  const save = async () => {
+    const previous = products;
+    let next: Product[];
     if (editId) {
-      setProducts(products.map(p => p.id === editId ? { ...p, ...form } as Product : p));
+      next = products.map(p => p.id === editId ? { ...p, ...form } as Product : p);
     } else {
-      setProducts([...products, { ...form, id: 'p' + Date.now() } as Product]);
+      next = [...products, { ...form, id: 'p' + Date.now() } as Product];
     }
+    setProducts(next);
     setShowForm(false);
+    const result = await syncProducts(next, previous);
+    if (!result.ok) {
+      alert('خطا در ذخیره محصول: ' + (result.error || 'نامشخص'));
+    }
   };
 
   // تصویر محصول در باکت Supabase (`images/products/…`) ذخیره می‌شود و فقط URL
