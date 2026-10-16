@@ -473,24 +473,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const isAuthenticated = !!currentUser || adminLoggedIn;
-
+  // Realtime (Supabase Realtime over WebSocket) is intentionally NOT started.
+  // Cloudflare Workers cannot establish WebSocket connections to Supabase Realtime,
+  // and all catalog sync is handled via HTTP refresh() instead.
   useEffect(() => {
-    if (isAuthenticated) {
-      useCatalogStore.getState().startRealtime();
-      useOrderStore.getState().startRealtime();
-      useTicketStore.getState().startRealtime();
-      useNotificationStore.getState().startRealtime();
-      useContentStore.getState().startRealtime();
-      useFinanceStore.getState().startRealtime();
-    } else {
-      useCatalogStore.getState().stopRealtime();
-      useOrderStore.getState().stopRealtime();
-      useTicketStore.getState().stopRealtime();
-      useNotificationStore.getState().stopRealtime();
-      useContentStore.getState().stopRealtime();
-      useFinanceStore.getState().stopRealtime();
-    }
+    useCatalogStore.getState().stopRealtime();
+    useOrderStore.getState().stopRealtime();
+    useTicketStore.getState().stopRealtime();
+    useNotificationStore.getState().stopRealtime();
+    useContentStore.getState().stopRealtime();
+    useFinanceStore.getState().stopRealtime();
     return () => {
       useCatalogStore.getState().stopRealtime();
       useOrderStore.getState().stopRealtime();
@@ -499,7 +491,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       useContentStore.getState().stopRealtime();
       useFinanceStore.getState().stopRealtime();
     };
-  }, [isAuthenticated]);
+  }, []);
 
   return (
     <AppContext.Provider
