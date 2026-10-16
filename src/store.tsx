@@ -476,15 +476,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!currentUser || adminLoggedIn;
 
   useEffect(() => {
-    useCatalogStore.getState().startRealtime();
-
     if (isAuthenticated) {
+      useCatalogStore.getState().startRealtime();
       useOrderStore.getState().startRealtime();
       useTicketStore.getState().startRealtime();
       useNotificationStore.getState().startRealtime();
       useContentStore.getState().startRealtime();
       useFinanceStore.getState().startRealtime();
     } else {
+      useCatalogStore.getState().stopRealtime();
       useOrderStore.getState().stopRealtime();
       useTicketStore.getState().stopRealtime();
       useNotificationStore.getState().stopRealtime();

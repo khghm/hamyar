@@ -27,18 +27,18 @@ export function subscribeTableChanges(
 ): () => void {
   const channel = supabase
     .channel(channelName)
-    .on(
-      'postgres_changes',
-      { event, schema: 'public', table },
-      (payload: any) => {
+    .on('postgres_changes', { event, schema: 'public', table }, (payload: any) => {
         handler({
           eventType: payload.eventType,
           new: payload.new ?? null,
           old: payload.old ?? null,
         });
-      },
-    )
-    .subscribe();
+      })
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        console.warn(`[realtime] connection ${status.toLowerCase()} on ${channelName}`);
+      }
+    });
 
   return () => {
     try {
