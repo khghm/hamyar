@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp, MediaItem } from '../../store';
 import { Plus, Search, Edit, Trash2, X, Upload, Filter, Grid, List, Eye, Star } from 'lucide-react';
+import { uploadImageToSupabase } from '../../api/storage';
 
 export default function AdminMedia() {
   const { darkMode, mediaItems, setMediaItems } = useApp();
@@ -64,13 +65,18 @@ export default function AdminMedia() {
     setShowForm(false);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // پوستر عنوان در باکت Supabase (`images/media/…`) ذخیره می‌شود و فقط URL آن
+  // در دیتابیس می‌نشیند؛ پیش‌تر به‌صورت data-URL متن‌شده در ستون image ذخیره
+  // می‌شد که هم دیتابیس را باد می‌کرد و هم بین مرورگرها قابل استفاده نبود.
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setForm({ ...form, image: ev.target?.result as string });
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const { url, error } = await uploadImageToSupabase('media', file);
+    if (error) {
+      alert('خطا در آپلود: ' + error);
+      return;
     }
+    setForm((prev) => ({ ...prev, image: url }));
   };
 
   const toggleGenre = (g: string) => {

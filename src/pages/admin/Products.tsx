@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp, Product } from '../../store';
 import { Plus, Search, Edit, Trash2, Upload, X, AlertTriangle, Package, TrendingDown } from 'lucide-react';
+import { uploadImageToSupabase } from '../../api/storage';
 
 export default function AdminProducts() {
   const { darkMode, products, setProducts } = useApp();
@@ -66,13 +67,18 @@ export default function AdminProducts() {
     setShowForm(false);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // تصویر محصول در باکت Supabase (`images/products/…`) ذخیره می‌شود و فقط URL
+  // آن در دیتابیس می‌نشیند؛ پیش‌تر به‌صورت data-URL متن‌شده در ستون image
+  // ذخیره می‌شد که هم دیتابیس را باد می‌کرد و هم بین مرورگرها قابل استفاده نبود.
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setForm({ ...form, image: ev.target?.result as string });
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const { url, error } = await uploadImageToSupabase('products', file);
+    if (error) {
+      alert('خطا در آپلود: ' + error);
+      return;
     }
+    setForm((prev) => ({ ...prev, image: url }));
   };
 
   const updateStock = (id: string, newStock: number) => {
