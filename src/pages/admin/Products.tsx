@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp, Product } from '../../store';
+import { useCatalogStore } from '../../state/catalogStore';
 import { Plus, Search, Edit, Trash2, Upload, X, AlertTriangle, Package, TrendingDown } from 'lucide-react';
 import { uploadImageToSupabase } from '../../api/storage';
 import { syncProducts } from '../../api/products';
@@ -7,6 +8,7 @@ import SafeImage from '../../components/SafeImage';
 
 export default function AdminProducts() {
   const { darkMode, products, setProducts } = useApp();
+  const refreshCatalog = useCatalogStore((s) => s.refresh);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -72,8 +74,11 @@ export default function AdminProducts() {
     setShowForm(false);
     const result = await syncProducts(next, previous);
     if (!result.ok) {
+      setProducts(previous);
       alert('خطا در ذخیره محصول: ' + (result.error || 'نامشخص'));
+      return;
     }
+    await refreshCatalog();
   };
 
   // تصویر محصول در باکت Supabase (`images/products/…`) ذخیره می‌شود و فقط URL
