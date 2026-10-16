@@ -50,6 +50,17 @@ export async function saveSettingsDoc<T>(
 export const fetchAboutContent = <T>() => fetchSettingsDoc<T>('about_content', 'about', 'content');
 export const saveAboutContent = <T>(value: T) => saveSettingsDoc('about_content', 'about', value, 'content');
 
+/**
+ * بنرهای صفحات. تصویر هر بنر خودش در باکت `images` می‌نشیند و اینجا فقط سندِ
+ * بنرها (شامل URL تصویر) نگه‌داری می‌شود. عمداً از جدول `about_content`
+ * استفاده می‌کنیم نه `site_settings`: پالیسی `anon_read_about` خواندن این جدول را
+ * برای بازدیدکنندهٔ مهمان آزاد می‌گذارد، پس سایت عمومی می‌تواند بنرها را
+ * مستقیماً از دیتابیس بخواند؛ `site_settings` فقط با `perm30/perm31` خوانده
+ * می‌شود و برای مهمان قابل دسترسی نیست.
+ */
+export const fetchBanners = <T>() => fetchSettingsDoc<T>('about_content', 'banners', 'content');
+export const saveBanners = <T>(value: T) => saveSettingsDoc('about_content', 'banners', value, 'content');
+
 export const fetchSiteSettings = <T>() => fetchSettingsDoc<T>('site_settings', 'site');
 export const saveSiteSettings = <T>(value: T) => saveSettingsDoc('site_settings', 'site', value);
 

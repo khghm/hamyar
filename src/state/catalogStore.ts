@@ -17,6 +17,7 @@ import {
   serviceMapper, newsMapper, portfolioMapper,
 } from '../api/services';
 import { fetchProjects, syncProjects, projectMapper } from '../domains/projects/api';
+import { fetchAboutContent, saveAboutContent } from '../api/settings';
 import { onSyncError, type SyncErrorReport } from '../api/sync';
 import { useNotificationStore } from './notificationStore';
 import { subscribeCollectionRealtime, onTabVisible, debounce } from '../lib/realtime';
@@ -375,6 +376,18 @@ const debouncedCatalogRefresh = debounce(() => {
   if (store.hydrated) store.hydrate();
 }, 500);
 
+/**
+ * نوشتن «درباره ما» در `about_content`. هر تغییر فیلد (متن، لوگو، جواز، شبکهٔ
+ * اجتماعی، ویدئو) از `setAboutContent` می‌آید؛ بدون debounce هر کاراکتر یک
+ * درخواست می‌ساخت. با ۶۰۰ms تاخیر، کل تایپ‌کردن یک ردیف نوشتن می‌شود و
+ * آپلودِ تصویر هم بلافاصله بعد از پایانِ ویرایش ذخیره می‌شود.
+ */
+const debouncedSaveAbout = debounce((value: AboutContent) => {
+  saveAboutContent(value).then((r) => {
+    if (!r.ok) console.error('[catalogStore] saveAboutContent failed:', r.error);
+  });
+}, 600);
+
 export const useCatalogStore = create<CatalogState>()(
   persist(
     (set, get): CatalogState => ({
@@ -399,7 +412,7 @@ export const useCatalogStore = create<CatalogState>()(
         };
         const unsubSync = onSyncError(reportSyncError);
         try {
-          const [cloudProducts, cloudMedia, cloudServices, cloudNews, cloudPortfolio, cloudProjects] =
+          const [cloudProducts, cloudMedia, cloudServices, cloudNews, cloudPortfolio, cloudProjects, cloudAbout] =
             await Promise.all([
               fetchProducts().catch(() => null),
               fetchMediaItems().catch(() => null),
@@ -407,6 +420,7 @@ export const useCatalogStore = create<CatalogState>()(
               fetchNews().catch(() => null),
               fetchPortfolio().catch(() => null),
               fetchProjects().catch(() => null),
+              fetchAboutContent<AboutContent>().catch(() => null),
             ]);
           const curr = get();
           set({
@@ -416,6 +430,9 @@ export const useCatalogStore = create<CatalogState>()(
             news: cloudNews && cloudNews.length ? cloudNews : curr.news,
             portfolio: cloudPortfolio && cloudPortfolio.length ? cloudPortfolio : curr.portfolio,
             projects: cloudProjects && cloudProjects.length ? cloudProjects : curr.projects,
+            // سرور مرجع «درباره ما» است؛ مقادیر ابری روی نسخهٔ محلی merge می‌شوند
+            // تا فیلدهای جاافتاده (مثلاً آپلودهای نیمه‌کارهٔ همین مرورگر) حفظ شوند.
+            aboutContent: cloudAbout ? { ...curr.aboutContent, ...cloudAbout } : curr.aboutContent,
             hydrated: true,
           });
         } catch (e) {
@@ -459,7 +476,12 @@ export const useCatalogStore = create<CatalogState>()(
           syncPortfolio(portfolio, prev).then((r) => { if (!r.ok) console.error('[catalogStore] syncPortfolio failed:', r.error, r.rejected); });
         }
       },
-      setAboutContent: (aboutContent) => set({ aboutContent }),
+      setAboutContent: (aboutContent) => {
+        set({ aboutContent });
+        // پیش از تکمیل hydration ممکن است مقدار محلی ناقص باشد؛ ننویس تا
+        // دادهٔ ابری با پیش‌فرض محلی بازنویسی نشود.
+        if (get().hydrated) debouncedSaveAbout(aboutContent);
+      },
       setProjects: (projects) => {
         const prev = get().projects;
         set({ projects });

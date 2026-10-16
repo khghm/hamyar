@@ -1,15 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp, NewsItem, PortfolioItem } from '../../store';
 import { Plus, X, Upload, Edit, Trash2, FileImage, Video, Image } from 'lucide-react';
 import { formatJalali, toJalaliString } from '../../utils/jalali';
 import { uploadImageToSupabase, deleteImageFromSupabase } from '../../api/storage';
+import { fetchBanners, saveBanners } from '../../api/settings';
+import { invalidateBanners, type Banner } from '../../hooks/useBanner';
 
-interface Banner {
-  page: string;
-  title: string;
-  description: string;
-  imageUrl: string;
-}
+const DEFAULT_BANNERS: Banner[] = [
+  { page: 'home', title: 'کافی نت همیار', description: 'مرکز خدمات و فروش دیجیتال', imageUrl: '' },
+  { page: 'services', title: 'خدمات کافی‌نت همیار', description: 'لیست کامل خدمات و تعرفه‌ها', imageUrl: '' },
+  { page: 'media', title: 'کالکشن فیلم و سریال', description: 'مجموعه‌ای کامل از فیلم، سریال، انیمیشن و انیمه با بهترین کیفیت', imageUrl: '' },
+  { page: 'store', title: 'فروشگاه محصولات دیجیتال', description: 'فلش مموری، هارد، کابل، شارژر، دوربین مداربسته و لوازم جانبی', imageUrl: '' },
+  { page: 'webdesign', title: 'طراحی وب‌سایت حرفه‌ای', description: 'طراحی سایت با جدیدترین تکنولوژی‌ها و بهترین کیفیت', imageUrl: '' },
+  { page: 'content', title: 'تولید محتوا', description: 'تولید محتوای متنی، تصویری و ویدیویی + سئو و شبکه‌های اجتماعی', imageUrl: '' },
+  { page: 'asiatech', title: 'نمایندگی اینترنت آسیاتک', description: 'سرویس‌های اینترنت ثابت ADSL، VDSL و فیبر نوری', imageUrl: '' },
+  { page: 'news', title: 'اخبار کافی نت همیار', description: 'آخرین اخبار، تخفیف‌ها و اطلاعیه‌ها', imageUrl: '' },
+  { page: 'about', title: 'درباره کافی نت همیار', description: 'مرکز خدمات و فروش دیجیتال', imageUrl: '' },
+  { page: 'contact', title: 'تماس با ما', description: 'ما آماده پاسخگویی به شما هستیم', imageUrl: '' },
+];
 
 export default function AdminSettings() {
   const { darkMode, news, setNews, portfolio, setPortfolio, aboutContent, setAboutContent } = useApp();
@@ -21,25 +29,44 @@ export default function AdminSettings() {
   const [newsForm, setNewsForm] = useState<Partial<NewsItem>>({ title: '', image: '', caption: '', content: '', date: '', active: true });
   const [portfolioForm, setPortfolioForm] = useState<Partial<PortfolioItem>>({ title: '', description: '', image: '', link: '', type: 'فروشگاهی', technologies: [] });
   
-  const [banners, setBanners] = useState<Banner[]>(() => {
-    const saved = localStorage.getItem('hamyar_banners');
-    return saved ? JSON.parse(saved) : [
-      { page: 'home', title: 'کافی نت همیار', description: 'مرکز خدمات و فروش دیجیتال', imageUrl: '' },
-      { page: 'services', title: 'خدمات کافی‌نت همیار', description: 'لیست کامل خدمات و تعرفه‌ها', imageUrl: '' },
-      { page: 'media', title: 'کالکشن فیلم و سریال', description: 'مجموعه‌ای کامل از فیلم، سریال، انیمیشن و انیمه با بهترین کیفیت', imageUrl: '' },
-      { page: 'store', title: 'فروشگاه محصولات دیجیتال', description: 'فلش مموری، هارد، کابل، شارژر، دوربین مداربسته و لوازم جانبی', imageUrl: '' },
-      { page: 'webdesign', title: 'طراحی وب‌سایت حرفه‌ای', description: 'طراحی سایت با جدیدترین تکنولوژی‌ها و بهترین کیفیت', imageUrl: '' },
-      { page: 'content', title: 'تولید محتوا', description: 'تولید محتوای متنی، تصویری و ویدیویی + سئو و شبکه‌های اجتماعی', imageUrl: '' },
-      { page: 'asiatech', title: 'نمایندگی اینترنت آسیاتک', description: 'سرویس‌های اینترنت ثابت ADSL، VDSL و فیبر نوری', imageUrl: '' },
-      { page: 'news', title: 'اخبار کافی نت همیار', description: 'آخرین اخبار، تخفیف‌ها و اطلاعیه‌ها', imageUrl: '' },
-      { page: 'about', title: 'درباره کافی نت همیار', description: 'مرکز خدمات و فروش دیجیتال', imageUrl: '' },
-      { page: 'contact', title: 'تماس با ما', description: 'ما آماده پاسخگویی به شما هستیم', imageUrl: '' },
-    ];
-  });
+  const [banners, setBanners] = useState<Banner[]>(DEFAULT_BANNERS);
+  const [bannersLoaded, setBannersLoaded] = useState(false);
+  // آخرین نسخه‌ای که واقعاً در سرور/مرورگر نشسته؛ جلوی «ذخیرهٔ خودکارِ» مقدار
+  // تازه‌بارگذاری‌شده (یا پیش‌فرض) را می‌گیرد تا سند ابری بی‌دلیل بازنویسی نشود.
+  const lastPersisted = useRef<string>('');
 
   useEffect(() => {
-    localStorage.setItem('hamyar_banners', JSON.stringify(banners));
-  }, [banners]);
+    let cancelled = false;
+    fetchBanners<Banner[]>()
+      .then((rows) => {
+        if (cancelled) return;
+        if (Array.isArray(rows) && rows.length) {
+          setBanners(rows);
+          lastPersisted.current = JSON.stringify(rows);
+        }
+        // اگر سندی وجود نداشت، lastPersisted خالی می‌ماند تا پیش‌فرض‌ها یک‌بار
+        // در سرور ساخته شوند و سایت عمومی مرجعِ پایداری داشته باشد.
+      })
+      .catch(() => { /* آفلاین/خطا: همان پیش‌فرض محلی می‌ماند */ })
+      .finally(() => { if (!cancelled) setBannersLoaded(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!bannersLoaded) return;
+    const serialized = JSON.stringify(banners);
+    if (serialized === lastPersisted.current) return;
+    const timer = setTimeout(() => {
+      lastPersisted.current = serialized;
+      // localStorage فقط کشِ همان مرورگر است؛ مرجع، سرور است.
+      localStorage.setItem('hamyar_banners', serialized);
+      saveBanners(banners).then((r) => {
+        if (!r.ok) console.error('[settings] saveBanners failed:', r.error);
+      });
+      invalidateBanners();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [banners, bannersLoaded]);
 
   const tabs = [
     { id: 'general', label: 'عمومی' },
