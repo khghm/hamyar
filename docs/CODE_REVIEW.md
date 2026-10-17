@@ -203,8 +203,30 @@ status: 'paid'                 // فاکتور محلی
 | ۶ | هدرهای کش (`immutable` برای `/assets/*`، `no-cache` برای HTML) | [public/_headers](../public/_headers) | بازدید دوم عملاً بدون دانلود باندل |
 | ۷ | حذف FontAwesome (cdnjs) و `@import` فونت | [index.html](../index.html) | حذف دو درخواست render-blocking خارجی |
 | ۸ | فاوآیکون درون‌خطی + اسپینر CSS | [index.html](../index.html) | حذف ۴۰۴ فاوآیکون و صفحهٔ سفید تا اجرای React |
+| ۹ | صفحهٔ خطای بوت (پیام + دکمهٔ تلاش دوباره) | [index.html](../index.html) | اگر باندل دانلود نشود، اسپینر ابدی جای خود را به پیام روشن می‌دهد |
 
 **اعتبارسنجی:** `tsc --noEmit` پاس · `vitest` ۲۰۷/۲۰۷ پاس · `vite build` موفق · تست دود مرورگر (Chrome headless) روی ۱۱ مسیر: صفر خطای کنسول (قبلاً یک ۴۰۴ داشت).
+
+### ۷-۱) ریشهٔ واقعی مشکل: دامنهٔ `*.workers.dev`
+
+بعد از دیپلوی، همهٔ فایل‌های JS با `ERR_CONNECTION_RESET` رد شدند. آزمایش‌های عیب‌یابی روی همین دستگاه:
+
+| آزمون | نتیجه |
+|---|---|
+| CLI، HTTP/1.1، شش فایل asset به‌صورت موازی | ✅ همه ۲۰۰ با اندازهٔ کامل و هدر `immutable` → **دیپلوی سالم است** |
+| Chrome → `hamyar.pardismms.workers.dev/assets/...` | ❌ `ERR_CONNECTION_RESET` برای هر ۶ فایل |
+| Chrome → `hamyar.pardismms.workers.dev/` (خود HTML) | ❌ `ERR_CONNECTION_RESET` |
+| Chrome → `www.cloudflare.com` | ✅ ۲۰۰ در ۱٬۶ ثانیه |
+| Chrome → `rcimwpsnekxsxeivpivm.supabase.co` (هم Cloudflare) | ✅ ۴۰۱ در ۰٫۵ ثانیه |
+| Chrome → `www.google.com` | ✅ ۲۰۰ |
+| Chrome با `--disable-http2` و `--disable-quic` | ❌ همچنان reset |
+| Chrome با IPv4 اجباری | ❌ همچنان reset |
+
+نتیجه: مشکل نه HTTP/2 است، نه QUIC، نه IPv6 و نه کد. **نام دامنهٔ `*.workers.dev` روی این شبکه مسدود/ریست می‌شود**، در حالی که سایر دامنه‌های Cloudflare (از جمله دامنهٔ Supabase که اپ به آن وصل است) سالم کار می‌کنند. بنابراین وصل‌کردن یک **Custom Domain** به همان Worker مشکل را حل می‌کند، بدون هیچ تغییر کدی.
+
+> بررسی شد که `pardismms.ir`، `pardismms.com` و `hamyar.ir` هیچ رکورد DNS ندارند؛ یعنی دامنه‌ای به این حساب وصل نیست و باید یکی تهیه شود.
+
+**مراحل:** خرید دامنه → افزودن دامنه به Cloudflare (تغییر nameserver) → Workers & Pages → hamyar → Settings → Domains & Routes → Add → Custom Domain → `hamyar.<domain>`.
 
 ### گام‌های استقرار
 
@@ -213,7 +235,7 @@ npm run build
 npx wrangler deploy
 ```
 
-سپس یک **Custom Domain** به Worker وصل کنید (توضیح در wrangler.toml). تا وقتی سایت روی `*.workers.dev` است، برخی اپراتورها همچنان اتصال را ریست می‌کنند؛ این تنها بخشی است که باید از داشبورد Cloudflare انجام شود.
+سپس یک **Custom Domain** به Worker وصل کنید. تا وقتی سایت روی `*.workers.dev` است، این شبکه اتصال را ریست می‌کند؛ این تنها بخشی است که باید از داشبورد Cloudflare انجام شود.
 
 ### موارد بازِ باقی‌مانده
 
