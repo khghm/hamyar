@@ -3,17 +3,61 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2563eb" />
+    <!-- فاوآیکون درون‌خطی: یک درخواست شبکهٔ کمتر و بدون ۴۰۴ روی /favicon.ico -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Ctext x='16' y='23' font-size='20' font-family='Arial' font-weight='bold' text-anchor='middle' fill='white'%3EH%3C/text%3E%3C/svg%3E" />
     <title>کافی نت همیار | خدمات دیجیتال، فروشگاه، کپی مدیا و طراحی سایت</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!--
+      فونت به‌صورت non-blocking بارگذاری می‌شود.
+      قبلاً یک `@import` داخل <style> بود که رندر صفحه را تا دریافت پاسخ از
+      fonts.googleapis.com قفل می‌کرد؛ روی شبکه‌ای که این دامنه کند یا فیلتر
+      است، همان یک درخواست می‌توانست صفحه را دقایقی سفید نگه دارد. آیکون‌های
+      FontAwesome (cdnjs) هم حذف شدند چون فقط ۵ آیکون شبکهٔ اجتماعی از آن‌ها
+      استفاده می‌کرد و حالا با lucide-react (که از قبل در باندل هست) رسم می‌شوند.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap"
+      />
+    </noscript>
+
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap');
-      * { font-family: 'Vazirmatn', sans-serif; }
       html, body { margin: 0; padding: 0; width: 100%; min-height: 100%; }
+      * { font-family: 'Vazirmatn', 'Segoe UI', Tahoma, Arial, sans-serif; }
+      /* اسپینر CSS تا قبل از اجرای React؛ اگر دانلود JS طول بکشد کاربر صفحهٔ
+         کاملاً سفید نمی‌بیند. */
+      #root:empty::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        margin: auto;
+        width: 34px;
+        height: 34px;
+        border: 3px solid #dbeafe;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: hamyar-spin 0.8s linear infinite;
+      }
+      @keyframes hamyar-spin { to { transform: rotate(360deg); } }
     </style>
-    <script type="module" crossorigin src="/assets/index-CjDIpS0y.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-V-YB17Ld.css">
+    <script type="module" crossorigin src="/assets/index-CHaiZJDI.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-CaE6SDqw.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-DxJoSUF1.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-router-CdVm5XO1.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-supabase-BG2GMQnK.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CuMT7W3u.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div>
   </body>
 </html>

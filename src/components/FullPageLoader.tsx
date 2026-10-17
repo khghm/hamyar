@@ -11,3 +11,15 @@ export function FullPageLoader() {
     </div>
   );
 }
+
+/**
+ * نسخهٔ درون‌صفحه‌ای برای `Suspense` داخل Layoutها: نوار بالا و فوتر سر جایشان
+ * می‌مانند و فقط ناحیهٔ محتوا اسپینر نشان می‌دهد.
+ */
+export function RouteLoading() {
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center" role="status" aria-live="polite">
+      <Loader2 size={28} className="animate-spin text-blue-600" />
+    </div>
+  );
+}

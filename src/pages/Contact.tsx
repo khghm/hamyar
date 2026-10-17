@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../store';
-import { Phone, MapPin, Clock, MessageCircle } from 'lucide-react';
+import { Phone, MapPin, Clock, MessageCircle, MessagesSquare, MessageSquare, Send, Instagram, Share2 } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 import { track } from '../utils/analytics';
 
@@ -93,12 +93,12 @@ export default function Contact() {
             {socialChannels.map((ch, i) => {
               const getIcon = () => {
                 switch(ch.name) {
-                  case 'ایتا': return 'fa-telegram';
-                  case 'روبیکا': return 'fa-instagram';
-                  case 'بله': return 'fa-facebook';
-                  case 'تلگرام': return 'fa-telegram';
-                  case 'اینستاگرام': return 'fa-instagram';
-                  default: return 'fa-share-alt';
+                  case 'ایتا': return MessageCircle;
+                  case 'روبیکا': return MessagesSquare;
+                  case 'بله': return MessageSquare;
+                  case 'تلگرام': return Send;
+                  case 'اینستاگرام': return Instagram;
+                  default: return Share2;
                 }
               };
               const getColor = () => {
@@ -111,12 +111,13 @@ export default function Contact() {
                   default: return 'bg-gray-100 dark:bg-gray-900/30 text-gray-600';
                 }
               };
+              const SocialIcon = getIcon();
               return (
                 <a key={i} href={ch.link} onClick={() => track('social_icon', { network: ch.name })} target="_blank" rel="noopener noreferrer"
                   className={`flex items-center justify-between p-4 rounded-xl transition-all ${darkMode ? 'bg-slate-700/50 hover:bg-slate-700' : 'bg-gray-50 hover:bg-gray-100'}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getColor()}`}>
-                      <i className={`fa-brands ${getIcon()} text-xl`}></i>
+                      <SocialIcon size={20} aria-hidden="true" />
                     </div>
                     <div>
                       <p className="font-bold text-sm">{ch.name}</p>

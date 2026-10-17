@@ -1,0 +1,18 @@
+# هدرهای کش برای Cloudflare Workers Assets.
+#
+# فایل‌های داخل /assets/ هش‌دار هستند (index-CHaiZJDI.js) و با هر دیپلوی نامشان
+# عوض می‌شود؛ پس می‌توانند یک سال immutable کش شوند و بازدید دوم عملاً هیچ
+# دانلودی ندارد — همین موضوع احتمال برخورد با ERR_CONNECTION_RESET را برای
+# کاربران بازگشتی تقریباً صفر می‌کند.
+#
+# index.html نباید کش شود، وگرنه بعد از دیپلوی، مرورگر فایل‌های هش قدیمی را
+# درخواست می‌کند و صفحه سفید می‌شود.
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: no-cache
+
+/
+  Cache-Control: no-cache

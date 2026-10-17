@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { RouteLoading } from './FullPageLoader';
 import { useApp, ADMIN_PAGE_PERMISSIONS } from '../store';
 import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText, Target, Globe, LifeBuoy, Bell } from 'lucide-react';
 import NotificationBell from './NotificationBell';
@@ -188,7 +189,9 @@ export default function AdminLayout() {
 
         {/* Page Content */}
         <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto">
-          <Outlet />
+          <Suspense fallback={<RouteLoading />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { RouteLoading } from './FullPageLoader';
 import { useApp } from '../store';
 import { track } from '../utils/analytics';
-import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart } from 'lucide-react';
+import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart, MessageCircle, MessagesSquare, MessageSquare, Send, Instagram } from 'lucide-react';
 
 export default function PublicLayout() {
   const { darkMode, toggleDarkMode, currentUser, logout, cartItems } = useApp();
@@ -131,7 +132,9 @@ export default function PublicLayout() {
 
       {/* Main Content */}
       <main className="flex-1">
-        <Outlet />
+        <Suspense fallback={<RouteLoading />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Footer */}
@@ -179,31 +182,31 @@ export default function PublicLayout() {
                   href="https://eitaa.com/@hamyar_service1" target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-orange-600' : 'bg-gray-100 hover:bg-orange-500 hover:text-white'}`}
                   title="ایتا">
-                  <i className="fa-brands fa-telegram text-lg"></i>
+                  <MessageCircle size={18} aria-hidden="true" />
                 </a>
                 <a onClick={() => track('social_icon', { network: 'rubika' })}
                   href="https://rubika.ir/hamyar_service1" target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-purple-600' : 'bg-gray-100 hover:bg-purple-500 hover:text-white'}`}
                   title="روبیکا">
-                  <i className="fa-brands fa-instagram text-lg"></i>
+                  <MessagesSquare size={18} aria-hidden="true" />
                 </a>
                 <a onClick={() => track('social_icon', { network: 'ble' })}
                   href="https://ble.ir/hamyar_service1" target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-blue-600' : 'bg-gray-100 hover:bg-blue-500 hover:text-white'}`}
                   title="بله">
-                  <i className="fa-brands fa-facebook text-lg"></i>
+                  <MessageSquare size={18} aria-hidden="true" />
                 </a>
                 <a onClick={() => track('social_icon', { network: 'telegram' })}
                   href="https://t.me/hamyar_service1" target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-sky-600' : 'bg-gray-100 hover:bg-sky-500 hover:text-white'}`}
                   title="تلگرام">
-                  <i className="fa-brands fa-telegram text-lg"></i>
+                  <Send size={18} aria-hidden="true" />
                 </a>
                 <a onClick={() => track('social_icon', { network: 'instagram' })}
                   href="https://instagram.com/hamyar_service1" target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-pink-600' : 'bg-gray-100 hover:bg-pink-500 hover:text-white'}`}
                   title="اینستاگرام">
-                  <i className="fa-brands fa-instagram text-lg"></i>
+                  <Instagram size={18} aria-hidden="true" />
                 </a>
               </div>
               <p className={`text-xs mt-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
