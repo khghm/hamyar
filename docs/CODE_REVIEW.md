@@ -228,6 +228,18 @@ status: 'paid'                 // فاکتور محلی
 
 **مراحل:** خرید دامنه → افزودن دامنه به Cloudflare (تغییر nameserver) → Workers & Pages → hamyar → Settings → Domains & Routes → Add → Custom Domain → `hamyar.<domain>`.
 
+### ۷-۲) میزبان جایگزین در دسترس: GitHub Pages
+
+از همان شبکه، دامنهٔ `*.workers.dev` ریست می‌شود ولی `*.github.io` سالم باز می‌شود (`mdn.github.io` ⇒ ۴۰۴ در ۰٫۵۶ ثانیه، یعنی پاسخ واقعی از سرور؛ `pages.github.com` ⇒ ۲۰۰). بنابراین یک مسیر جایگزین بدون خرید دامنه اضافه شد:
+
+* [.github/workflows/pages.yml](../.github/workflows/pages.yml) — بیلد با `--base=/<repo>/`، ساخت `404.html` برای deep link‌ها، انتشار روی Pages.
+* `basename` روتر از `import.meta.env.BASE_URL` خوانده می‌شود ([src/App.tsx](../src/App.tsx))؛ بدون آن، اپ روی زیرمسیر `/hamyar/` هیچ مسیری را match نمی‌کرد و صفحه خالی می‌ماند (این باگ در آزمایش بازتولید و سپس رفع شد).
+* مسیرهای Edge Function از نسبی به مطلق تغییر کردند ([src/lib/supabase.ts](../src/lib/supabase.ts)): قبلاً `fetch('/functions/v1/...')` روی هر میزبان استاتیک ۴۰۴ می‌گرفت — یعنی ساخت کارمند و پرداخت از اول در نسخهٔ دیپلوی‌شده کار نمی‌کرد.
+
+فعال‌سازی: Settings → Pages → Source: **GitHub Actions**؛ سپس push روی `main`. آدرس: `https://<owner>.github.io/<repo>/`.
+
+**اعتبارسنجی:** بیلد با `--base=/hamyar/` و سرو شبیه‌سازی‌شدهٔ Pages (شامل ۴۰۴.html) در Chrome: هر ۷ مسیر رندر شدند، `/admin` به `/auth` ریدایرکت کرد، صفر خطای شبکه.
+
 ### گام‌های استقرار
 
 ```powershell
@@ -235,7 +247,7 @@ npm run build
 npx wrangler deploy
 ```
 
-سپس یک **Custom Domain** به Worker وصل کنید. تا وقتی سایت روی `*.workers.dev` است، این شبکه اتصال را ریست می‌کند؛ این تنها بخشی است که باید از داشبورد Cloudflare انجام شود.
+سپس یک **Custom Domain** به Worker وصل کنید. تا وقتی سایت روی `*.workers.dev` است، این شبکه اتصال را ریست می‌کند؛ این تنها بخشی است که باید از داشبورد Cloudflare انجام شود. تا آن زمان، GitHub Pages جایگزین در دسترس است.
 
 ### موارد بازِ باقی‌مانده
 

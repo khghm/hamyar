@@ -1,0 +1,71 @@
+name: Deploy to GitHub Pages
+
+# چرا این workflow؟
+# -----------------------------------------------------------------------------
+# دامنهٔ `*.workers.dev` روی شبکه‌های ایران ریست می‌شود (حتی درخواست HTML)، در حالی
+# که `*.github.io` از همان شبکه سالم باز می‌شود. این workflow همان خروجی `dist`
+# را روی GitHub Pages منتشر می‌کند تا یک آدرس جایگزینِ در دسترس وجود داشته باشد.
+#
+# فعال‌سازی (یک بار):
+#   Settings → Pages → Build and deployment → Source: **GitHub Actions**
+#
+# آدرس نتیجه:  https://<owner>.github.io/<repo>/
+# اگر اسم مخزن `hamyar` نیست، مقدار `--base` را در گام Build عوض کنید.
+# -----------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        # این دو مقدار عمومی‌اند و در باندل نهایی هم دیده می‌شوند (کلید
+        # service_role هیچ‌جا در فرانت‌اند استفاده نمی‌شود). اگر خواستید بدون
+        # دست‌زدن به فایل، از Settings → Variables مقادیر را override کنید.
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://rcimwpsnekxsxeivpivm.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_a0tACiO-Z-n-1AIgh26m9A_lbJNpzLx' }}
+        run: npm run build -- --base=/${{ github.event.repository.name }}/
+
+      - name: SPA fallback + disable Jekyll
+        run: |
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

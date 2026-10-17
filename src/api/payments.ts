@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { functionsUrl } from '../lib/supabase'
 
 export interface VerifyPaymentResult {
   ok: boolean
@@ -14,7 +15,7 @@ export async function verifyPayment(
   const jwt = (await supabase.auth.getSession()).data.session?.access_token
   if (!jwt) return { ok: false, error: 'وارد حساب کاربری شوید' }
 
-  const res = await fetch('/functions/v1/verify-payment', {
+  const res = await fetch(functionsUrl('verify-payment'), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${jwt}`,

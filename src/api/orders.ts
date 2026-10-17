@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { functionsUrl } from '../lib/supabase';
 import type { Order, OrderItem, OrderStatus } from '../domains/types';
 
 let staffCheckCache: { uid: string; isStaff: boolean } | null = null;
@@ -138,7 +139,7 @@ export async function createPaymentIntent(orderId: string): Promise<{
   const jwt = (await supabase.auth.getSession()).data.session?.access_token;
   if (!jwt) return { ok: false, error: 'وارد حساب کاربری شوید' };
 
-  const res = await fetch('/functions/v1/create-payment-intent', {
+  const res = await fetch(functionsUrl('create-payment-intent'), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${jwt}`,

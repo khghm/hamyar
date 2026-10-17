@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { functionsUrl } from '../lib/supabase';
 import type { Permission, Role, SystemUser } from '../store';
 
 export interface CreateStaffResult {
@@ -36,7 +37,7 @@ export async function createStaffAccount(
   const jwt = (await supabase.auth.getSession()).data.session?.access_token
   if (!jwt) return { ok: false, error: 'وارد حساب کاربری شوید' }
 
-  const res = await fetch('/functions/v1/create-staff', {
+  const res = await fetch(functionsUrl('create-staff'), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${jwt}`,

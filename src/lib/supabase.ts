@@ -71,3 +71,20 @@ export type {
   Session,
   User,
 } from '@supabase/supabase-js';
+
+/**
+ * آدرس پایهٔ Edge Functions.
+ *
+ * این مسیرها قبلاً به‌صورت نسبی (`/functions/v1/...`) صدا زده می‌شدند. این کار
+ * فقط روی dev server ویت (که proxy دارد) درست کار می‌کند؛ روی هر میزبان
+ * استاتیک (Cloudflare Workers، GitHub Pages، …) درخواست به همان دامنهٔ سایت
+ * می‌رود و ۴۰۴ می‌گیرد. یعنی ساخت کارمند و پرداخت در نسخهٔ دیپلوی‌شده از اول
+ * هم کار نمی‌کرد. حالا همیشه مستقیم به پروژهٔ Supabase می‌رود.
+ */
+export const FUNCTIONS_BASE = supabaseUrl
+  ? `${supabaseUrl}/functions/v1`
+  : '/functions/v1';
+
+export function functionsUrl(name: string): string {
+  return `${FUNCTIONS_BASE}/${name}`;
+}

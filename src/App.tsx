@@ -171,11 +171,24 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * مسیر پایهٔ اپ.
+ *
+ * روی دامنهٔ ریشه (`/`) مقدارش `/` است؛ روی میزبانی که سایت داخل یک زیرمسیر قرار
+ * می‌گیرد (مثل GitHub Pages: `/hamyar/`) مقدار `BASE_URL` همان زیرمسیر می‌شود و
+ * باید به‌عنوان `basename` به روتر داده شود، وگرنه هیچ مسیری match نمی‌شود و
+ * صفحه خالی می‌ماند.
+ */
+const ROUTER_BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter
+          basename={ROUTER_BASENAME}
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <AnalyticsBootstrap />
           <AppRoutes />
           <SupportChat />
