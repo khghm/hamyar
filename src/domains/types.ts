@@ -1028,6 +1028,8 @@ export interface AboutContent {
   phone?: string;
   mobile?: string;
   email?: string;
+  /** شماره‌های اضافی (هر تعداد که ادمین بخواهد). */
+  extraPhones?: string[];
 }
 
 // ---------------------------------------------------------------------------

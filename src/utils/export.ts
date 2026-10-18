@@ -30,6 +30,7 @@ function invoiceHeaderInfo() {
     phone?: string;
     mobile?: string;
     email?: string;
+    extraPhones?: string[];
   } = {};
   try {
     about = useCatalogStore.getState().aboutContent || {};
@@ -53,6 +54,9 @@ function invoiceHeaderInfo() {
     phone: (about.phone || '').trim() || '021-36432665',
     mobile: (about.mobile || '').trim() || '09913911880',
     email: (about.email || '').trim(),
+    extraPhones: (Array.isArray(about.extraPhones) ? about.extraPhones : [])
+      .map(p => String(p || '').trim())
+      .filter(Boolean),
   };
 }
 
@@ -227,6 +231,7 @@ export function printInvoice(invoiceData: any) {
   const contactLine = [
     header.phone ? `تلفن: ${header.phone}` : '',
     header.mobile ? `موبایل: ${header.mobile}` : '',
+    ...header.extraPhones.map(p => `موبایل: ${p}`),
   ].filter(Boolean).join(' | ');
 
   const html = `

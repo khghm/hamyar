@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { RouteLoading } from './FullPageLoader';
 import { useApp } from '../store';
 import { track } from '../utils/analytics';
-import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart, MessageCircle, MessagesSquare, MessageSquare, Send, Instagram } from 'lucide-react';
+import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart, MessageCircle, Send, Instagram } from 'lucide-react';
 
 export default function PublicLayout() {
   const { darkMode, toggleDarkMode, currentUser, logout, cartItems, aboutContent } = useApp();
@@ -180,49 +180,56 @@ export default function PublicLayout() {
               <div className={`space-y-2 text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 <p>تلفن: {contactPhone}</p>
                 <p>موبایل: {contactMobile}</p>
+                {(aboutContent.extraPhones || []).filter(Boolean).map((extra, i) => (
+                  <p key={`extra-${i}`}>موبایل: {extra}</p>
+                ))}
                 <p className="leading-6">{contactAddress}</p>
                 {aboutContent.email ? <p dir="ltr" className="text-left">{aboutContent.email}</p> : null}
               </div>
             </div>
 
-            {/* Social */}
+            {/* Social — هر شبکه‌ای که در تنظیمات تعریف شده، با لوگوی آپلودشده */}
             <div>
               <h4 className="font-bold mb-4">شبکه‌های اجتماعی</h4>
               <div className="flex flex-wrap gap-3">
-                <a onClick={() => track('social_icon', { network: 'eitaa' })}
-                  href={socials.find(s => s.name?.includes('ایتا'))?.url || 'https://eitaa.com/@hamyar_service1'} target="_blank" rel="noopener noreferrer"
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-orange-600' : 'bg-gray-100 hover:bg-orange-500 hover:text-white'}`}
-                  title="ایتا">
-                  <MessageCircle size={18} aria-hidden="true" />
-                </a>
-                <a onClick={() => track('social_icon', { network: 'rubika' })}
-                  href={socials.find(s => s.name?.includes('روبیکا'))?.url || 'https://rubika.ir/hamyar_service1'} target="_blank" rel="noopener noreferrer"
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-purple-600' : 'bg-gray-100 hover:bg-purple-500 hover:text-white'}`}
-                  title="روبیکا">
-                  <MessagesSquare size={18} aria-hidden="true" />
-                </a>
-                <a onClick={() => track('social_icon', { network: 'ble' })}
-                  href={socials.find(s => s.name?.includes('بله'))?.url || 'https://ble.ir/hamyar_service1'} target="_blank" rel="noopener noreferrer"
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-blue-600' : 'bg-gray-100 hover:bg-blue-500 hover:text-white'}`}
-                  title="بله">
-                  <MessageSquare size={18} aria-hidden="true" />
-                </a>
-                <a onClick={() => track('social_icon', { network: 'telegram' })}
-                  href={socials.find(s => s.name?.includes('تلگرام'))?.url || 'https://t.me/hamyar_service1'} target="_blank" rel="noopener noreferrer"
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-sky-600' : 'bg-gray-100 hover:bg-sky-500 hover:text-white'}`}
-                  title="تلگرام">
-                  <Send size={18} aria-hidden="true" />
-                </a>
-                <a onClick={() => track('social_icon', { network: 'instagram' })}
-                  href={socials.find(s => s.name?.includes('اینستاگرام'))?.url || 'https://instagram.com/hamyar_service1'} target="_blank" rel="noopener noreferrer"
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-pink-600' : 'bg-gray-100 hover:bg-pink-500 hover:text-white'}`}
-                  title="اینستاگرام">
-                  <Instagram size={18} aria-hidden="true" />
-                </a>
+                {socials.length > 0 ? socials.map(social => (
+                  <a
+                    key={social.id || social.name}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => track('social_icon', { network: social.name })}
+                    title={social.name}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  >
+                    {social.icon ? (
+                      <img src={social.icon} alt={social.name} className="w-7 h-7 object-contain rounded" />
+                    ) : (
+                      <MessageCircle size={18} aria-hidden="true" />
+                    )}
+                  </a>
+                )) : (
+                  <>
+                    <a onClick={() => track('social_icon', { network: 'telegram' })}
+                      href="https://t.me/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-sky-600' : 'bg-gray-100 hover:bg-sky-500 hover:text-white'}`}
+                      title="تلگرام">
+                      <Send size={18} aria-hidden="true" />
+                    </a>
+                    <a onClick={() => track('social_icon', { network: 'instagram' })}
+                      href="https://instagram.com/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-pink-600' : 'bg-gray-100 hover:bg-pink-500 hover:text-white'}`}
+                      title="اینستاگرام">
+                      <Instagram size={18} aria-hidden="true" />
+                    </a>
+                  </>
+                )}
               </div>
-              <p className={`text-xs mt-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                @hamyar_service1
-              </p>
+              {socials.length > 0 && (
+                <p className={`text-xs mt-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {[...new Set(socials.map(s => s.handle).filter(Boolean))].slice(0, 3).join(' · ')}
+                </p>
+              )}
             </div>
           </div>
 

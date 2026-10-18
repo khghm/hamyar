@@ -406,6 +406,55 @@ export default function AdminSettings() {
                 placeholder="09913911880"
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
             </div>
+
+            {/* شماره‌های اضافی — هر تعداد که لازم باشد */}
+            <div className="md:col-span-2">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">شماره‌های تماس دیگر</label>
+                <button
+                  type="button"
+                  onClick={() => setAboutContent({ ...aboutContent, extraPhones: [...(aboutContent.extraPhones || []), ''] })}
+                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <Plus size={14} /> افزودن شماره
+                </button>
+              </div>
+              {(aboutContent.extraPhones || []).length === 0 ? (
+                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  هنوز شمارهٔ اضافی اضافه نشده است.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {(aboutContent.extraPhones || []).map((extra, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        dir="ltr"
+                        value={extra}
+                        onChange={e => {
+                          const next = [...(aboutContent.extraPhones || [])];
+                          next[i] = e.target.value;
+                          setAboutContent({ ...aboutContent, extraPhones: next });
+                        }}
+                        placeholder="09204767001"
+                        className={`flex-1 px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAboutContent({
+                          ...aboutContent,
+                          extraPhones: (aboutContent.extraPhones || []).filter((_, idx) => idx !== i),
+                        })}
+                        className="p-2 rounded-lg text-red-500 hover:bg-red-500/10"
+                        title="حذف شماره"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="md:col-span-2">
               <label className="text-sm font-medium block mb-1">ایمیل</label>
               <input type="email" dir="ltr" value={aboutContent.email || ''} onChange={e => setAboutContent({...aboutContent, email: e.target.value})}
