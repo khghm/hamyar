@@ -1,26 +1,17 @@
 name = "hamyar"
 compatibility_date = "2026-01-01"
-main = "src/index.js"
 
 # ---------------------------------------------------------------------------
-# استاتیک‌ها از dist سرو می‌شوند. `src/index.js` فقط fallback مسیرهای SPA را
-# برمی‌گرداند (رفرش روی /admin/orders نباید ۴۰۴ بدهد).
+# استقرار فقط-استاتیک (بدون Worker script).
 #
-# مهم برای ایران: دامنهٔ پیش‌فرض `*.workers.dev` روی بسیاری از اپراتورها ناپایدار
-# یا فیلتر است و دانلود فایل‌های بزرگ را وسط راه ریست می‌کند
-# (ERR_CONNECTION_RESET). راه‌حل قطعی، وصل‌کردن یک دامنهٔ اختصاصی به همین Worker
-# است — بدون تغییر کد:
+# `not_found_handling = "single-page-application"` حیاتی است: بدون آن، هر مسیری
+# که فایل استاتیک نباشد (مثل /admin یا /profile) با 404 خالی پاسخ می‌گیرد و
+# مرورگر خطای `net::ERR_HTTP_RESPONSE_CODE_FAILURE` می‌دهد — دقیقاً همان چیزی
+# که با حذف Worker و رفتن به حالت assets-only اتفاق افتاد.
 #
-#   1) دامنه‌ای که در Cloudflare زون دارد را آماده کنید (مثلاً pardismms.ir).
-#   2) داشبورد Cloudflare → Workers & Pages → hamyar → Settings → Domains & Routes
-#      → Add → Custom Domain → مثلاً hamyar.pardismms.ir
-#   3) رکورد DNS به‌صورت خودکار ساخته می‌شود؛ گواهی SSL هم خودکار صادر می‌شود.
-#   4) در صورت تمایل، همین کار با CLI هم ممکن است:
-#        npx wrangler deploy --routes hamyar.pardismms.ir
-#      یا با افزودن این بلوک (نیازمند زون فعال در همان حساب):
-#        routes = [
-#          { pattern = "hamyar.pardismms.ir", custom_domain = true }
-#        ]
+# با این تنظیم، Cloudflare خودش برای مسیرهای ناشناخته `index.html` را با کد ۲۰۰
+# برمی‌گرداند و React Router بقیهٔ کار را انجام می‌دهد.
 # ---------------------------------------------------------------------------
 [assets]
 directory = "dist"
+not_found_handling = "single-page-application"
