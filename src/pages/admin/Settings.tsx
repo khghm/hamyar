@@ -385,6 +385,35 @@ export default function AdminSettings() {
             <textarea value={aboutContent.description} onChange={e => setAboutContent({...aboutContent, description: e.target.value})} rows={4}
               className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
           </div>
+
+          {/* اطلاعات تماس — در فوتر سایت و سربرگ فاکتور چاپی استفاده می‌شود */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium block mb-1">آدرس (فاکتور و فوتر)</label>
+              <input type="text" value={aboutContent.address || ''} onChange={e => setAboutContent({...aboutContent, address: e.target.value})}
+                placeholder="تهران شهرستان قرچک خیابان گوهردشت …"
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">تلفن ثابت</label>
+              <input type="text" dir="ltr" value={aboutContent.phone || ''} onChange={e => setAboutContent({...aboutContent, phone: e.target.value})}
+                placeholder="02136432665"
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1">موبایل</label>
+              <input type="text" dir="ltr" value={aboutContent.mobile || ''} onChange={e => setAboutContent({...aboutContent, mobile: e.target.value})}
+                placeholder="09913911880"
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium block mb-1">ایمیل</label>
+              <input type="email" dir="ltr" value={aboutContent.email || ''} onChange={e => setAboutContent({...aboutContent, email: e.target.value})}
+                placeholder="info@example.com"
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+            </div>
+          </div>
+
           <div>
             <label className="text-sm font-medium block mb-1">مأموریت</label>
             <textarea value={aboutContent.mission} onChange={e => setAboutContent({...aboutContent, mission: e.target.value})} rows={2}

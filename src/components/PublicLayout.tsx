@@ -6,7 +6,13 @@ import { track } from '../utils/analytics';
 import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart, MessageCircle, MessagesSquare, MessageSquare, Send, Instagram } from 'lucide-react';
 
 export default function PublicLayout() {
-  const { darkMode, toggleDarkMode, currentUser, logout, cartItems } = useApp();
+  const { darkMode, toggleDarkMode, currentUser, logout, cartItems, aboutContent } = useApp();
+  // مقادیر تماس/شبکه‌های اجتماعی از «تنظیمات → درباره ما» می‌آیند و اگر خالی
+  // باشند به مقادیر پیش‌فرض قبلی برمی‌گردیم.
+  const contactPhone = aboutContent.phone || '02136432665';
+  const contactMobile = aboutContent.mobile || '09913911880';
+  const contactAddress = aboutContent.address || 'تهران';
+  const socials = (aboutContent.socialMedia || []).filter(s => s.url);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
@@ -37,9 +43,13 @@ export default function PublicLayout() {
       <nav className={`sticky top-0 z-50 shadow-lg ${darkMode ? 'bg-slate-800/95 backdrop-blur-md border-b border-slate-700' : 'bg-white/95 backdrop-blur-md border-b border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            {/* Logo */}
+            {/* Logo — از تنظیمات «درباره ما» */}
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg">H</div>
+              {aboutContent.logo ? (
+                <img src={aboutContent.logo} alt="لوگوی کافی نت همیار" className="w-10 h-10 object-contain" />
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg">H</div>
+              )}
               <span className="font-bold text-lg hidden sm:block">کافی نت همیار</span>
             </Link>
 
@@ -168,9 +178,10 @@ export default function PublicLayout() {
             <div>
               <h4 className="font-bold mb-4">تماس با ما</h4>
               <div className={`space-y-2 text-sm ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                <p>تلفن: 02136432665</p>
-                <p>موبایل: 09913911880</p>
-                <p>موبایل: 09204767001</p>
+                <p>تلفن: {contactPhone}</p>
+                <p>موبایل: {contactMobile}</p>
+                <p className="leading-6">{contactAddress}</p>
+                {aboutContent.email ? <p dir="ltr" className="text-left">{aboutContent.email}</p> : null}
               </div>
             </div>
 
@@ -179,31 +190,31 @@ export default function PublicLayout() {
               <h4 className="font-bold mb-4">شبکه‌های اجتماعی</h4>
               <div className="flex flex-wrap gap-3">
                 <a onClick={() => track('social_icon', { network: 'eitaa' })}
-                  href="https://eitaa.com/@hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  href={socials.find(s => s.name?.includes('ایتا'))?.url || 'https://eitaa.com/@hamyar_service1'} target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-orange-600' : 'bg-gray-100 hover:bg-orange-500 hover:text-white'}`}
                   title="ایتا">
                   <MessageCircle size={18} aria-hidden="true" />
                 </a>
                 <a onClick={() => track('social_icon', { network: 'rubika' })}
-                  href="https://rubika.ir/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  href={socials.find(s => s.name?.includes('روبیکا'))?.url || 'https://rubika.ir/hamyar_service1'} target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-purple-600' : 'bg-gray-100 hover:bg-purple-500 hover:text-white'}`}
                   title="روبیکا">
                   <MessagesSquare size={18} aria-hidden="true" />
                 </a>
                 <a onClick={() => track('social_icon', { network: 'ble' })}
-                  href="https://ble.ir/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  href={socials.find(s => s.name?.includes('بله'))?.url || 'https://ble.ir/hamyar_service1'} target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-blue-600' : 'bg-gray-100 hover:bg-blue-500 hover:text-white'}`}
                   title="بله">
                   <MessageSquare size={18} aria-hidden="true" />
                 </a>
                 <a onClick={() => track('social_icon', { network: 'telegram' })}
-                  href="https://t.me/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  href={socials.find(s => s.name?.includes('تلگرام'))?.url || 'https://t.me/hamyar_service1'} target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-sky-600' : 'bg-gray-100 hover:bg-sky-500 hover:text-white'}`}
                   title="تلگرام">
                   <Send size={18} aria-hidden="true" />
                 </a>
                 <a onClick={() => track('social_icon', { network: 'instagram' })}
-                  href="https://instagram.com/hamyar_service1" target="_blank" rel="noopener noreferrer"
+                  href={socials.find(s => s.name?.includes('اینستاگرام'))?.url || 'https://instagram.com/hamyar_service1'} target="_blank" rel="noopener noreferrer"
                   className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${darkMode ? 'bg-slate-700 hover:bg-pink-600' : 'bg-gray-100 hover:bg-pink-500 hover:text-white'}`}
                   title="اینستاگرام">
                   <Instagram size={18} aria-hidden="true" />

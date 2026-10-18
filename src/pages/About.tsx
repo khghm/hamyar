@@ -37,6 +37,17 @@ export default function About() {
 
       <div className="max-w-7xl mx-auto px-4 py-12">
 
+      {/* لوگو — همان تصویری که در «تنظیمات → درباره ما» آپلود می‌شود */}
+      {aboutContent.logo ? (
+        <div className="flex justify-center mb-10">
+          <img
+            src={aboutContent.logo}
+            alt="لوگوی کافی نت همیار"
+            className={`w-32 h-32 object-contain rounded-2xl border p-3 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
+          />
+        </div>
+      ) : null}
+
       {/* Description */}
       <div className={`max-w-4xl mx-auto p-8 rounded-2xl border mb-12 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
         <p className={`text-lg leading-8 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>

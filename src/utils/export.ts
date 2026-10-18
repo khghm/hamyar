@@ -1,6 +1,76 @@
 // Utility برای خروجی Excel با پشتیبانی کامل فارسی
 import stampImage from '../assets/stamp.jpg';
 import logoImage from '../assets/logo.png';
+import { toJalaliString } from './jalali';
+import { useCatalogStore } from '../state/catalogStore';
+
+/** برچسب فارسی نوع فاکتور برای نسخهٔ چاپی. */
+const INVOICE_TYPE_LABELS: Record<string, string> = {
+  service: 'خدمات',
+  product: 'کالا',
+  webdesign: 'طراحی سایت',
+  combined: 'ترکیبی',
+  media: 'مدیا',
+};
+
+const SHOP_ADDRESS =
+  'تهران شهرستان قرچک خیابان گوهردشت خیابان امین آباد جنب مسجد بنی فاطمه پلاک 180';
+
+/**
+ * اطلاعات سربرگ فاکتور از «تنظیمات → درباره ما» خوانده می‌شود.
+ *
+ * store (نه پراپ) چون `printInvoice` از دو جای مختلف صدا زده می‌شود و همیشه
+ * باید تازه‌ترین مقادیر را داشته باشد؛ هر فیلدی که خالی باشد به مقدار
+ * پیش‌فرض قبلی برمی‌گردد.
+ */
+function invoiceHeaderInfo() {
+  let about: {
+    logo?: string;
+    address?: string;
+    phone?: string;
+    mobile?: string;
+    email?: string;
+  } = {};
+  try {
+    about = useCatalogStore.getState().aboutContent || {};
+  } catch {
+    about = {};
+  }
+
+  const absolute = (url?: string) => {
+    if (!url) return '';
+    if (/^(https?:|data:|blob:)/i.test(url)) return url;
+    try {
+      return new URL(url, window.location.origin).toString();
+    } catch {
+      return url;
+    }
+  };
+
+  return {
+    logo: absolute(about.logo) || logoAbsoluteUrl(),
+    address: (about.address || '').trim() || SHOP_ADDRESS,
+    phone: (about.phone || '').trim() || '021-36432665',
+    mobile: (about.mobile || '').trim() || '09913911880',
+    email: (about.email || '').trim(),
+  };
+}
+
+/**
+ * تاریخ فاکتور به شمسی.
+ *
+ * `invoice.date` معمولاً `YYYY-MM-DD` میلادی است؛ اگر از قبل شمسی باشد
+ * (سال ۱۳۰۰–۱۵۰۰) دست‌نخورده برمی‌گردد تا دوباره تبدیل نشود.
+ */
+function invoiceDateJalali(value: string): string {
+  if (!value) return '—';
+  const m = value.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (m) {
+    const year = Number(m[1]);
+    if (year >= 1300 && year <= 1500) return value;
+  }
+  return toJalaliString(value) || value;
+}
 
 /** آدرس مطلق مهر فروشنده برای پنجرهٔ چاپ (که base آن about:blank است). */
 function stampAbsoluteUrl(): string {
@@ -151,6 +221,13 @@ export function printInvoice(invoiceData: any) {
     alert('لطفاً پاپ‌آپ را برای این سایت فعال کنید');
     return;
   }
+
+  // سربرگ فاکتور از تنظیمات «درباره ما» (لوگو، آدرس، تلفن، ایمیل)
+  const header = invoiceHeaderInfo();
+  const contactLine = [
+    header.phone ? `تلفن: ${header.phone}` : '',
+    header.mobile ? `موبایل: ${header.mobile}` : '',
+  ].filter(Boolean).join(' | ');
 
   const html = `
     <!DOCTYPE html>
@@ -338,26 +415,35 @@ export function printInvoice(invoiceData: any) {
         .signature {
           display: flex;
           justify-content: space-between;
+          align-items: stretch;
+          gap: 24px;
           margin-top: 40px;
           padding-top: 20px;
         }
-        
+
+        /* هر دو کادر هم‌ارتفاع و خط امضا در پایین‌ترین نقطه‌اند تا هم‌تراز شوند؛
+           قبلاً چون کادر فروشنده تصویر مهر داشت، خطِ امضای مشتری بالاتر می‌افتاد. */
         .signature-box {
+          width: 45%;
+          min-height: 120px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          align-items: center;
           text-align: center;
-          width: 200px;
         }
-        
+
         .signature-line {
           border-top: 1px solid #1f2937;
-          margin-top: 50px;
           padding-top: 5px;
           font-size: 12px;
+          width: 100%;
         }
 
         /* مهر فروشنده بالای خط امضا؛ رنگ‌ها در چاپ حفظ می‌شوند */
         .stamp {
           display: block;
-          margin: 0 auto 2px;
+          margin: 0 auto 8px;
           max-width: 170px;
           max-height: 90px;
           object-fit: contain;
@@ -393,7 +479,7 @@ export function printInvoice(invoiceData: any) {
         <div class="header">
           <div class="logo-section">
             <div class="brand-row">
-              <img class="brand-logo" src="${logoAbsoluteUrl()}" alt="لوگوی کافی نت همیار"
+              <img class="brand-logo" src="${header.logo}" alt="لوگوی کافی نت همیار"
                    onerror="this.style.display='none'" />
               <div class="brand-text">
                 <h1>کافی نت همیار</h1>
@@ -401,16 +487,17 @@ export function printInvoice(invoiceData: any) {
             </div>
             <p>
               مرکز خدمات و فروش دیجیتال<br>
-              تلفن: 021-36432665 | موبایل: 09913911880<br>
-              آدرس: تهران
+              ${contactLine || 'تلفن: 021-36432665 | موبایل: 09913911880'}<br>
+              ${header.email ? `ایمیل: ${header.email}<br>` : ''}
+              آدرس: ${header.address}
             </p>
           </div>
           <div class="invoice-info">
             <h2>فاکتور فروش</h2>
             <p><strong>شماره فاکتور:</strong> ${invoiceData.invoiceNumber}</p>
-            <p><strong>تاریخ صدور:</strong> ${invoiceData.date}</p>
-            <p><strong>نوع فاکتور:</strong> ${invoiceData.type}</p>
-            ${invoiceData.dueDate ? `<p><strong>مهلت پرداخت:</strong> ${invoiceData.dueDate}</p>` : ''}
+            <p><strong>تاریخ صدور:</strong> ${invoiceDateJalali(invoiceData.date)}</p>
+            <p><strong>نوع فاکتور:</strong> ${INVOICE_TYPE_LABELS[invoiceData.type] || invoiceData.type || '—'}</p>
+            ${invoiceData.dueDate ? `<p><strong>مهلت پرداخت:</strong> ${invoiceDateJalali(invoiceData.dueDate)}</p>` : ''}
           </div>
         </div>
 

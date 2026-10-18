@@ -1023,6 +1023,11 @@ export interface AboutContent {
   vision: string;
   logo: string;
   socialMedia: SocialMedia[];
+  /** اطلاعات تماس — در فوتر سایت و فاکتور چاپی استفاده می‌شود. */
+  address?: string;
+  phone?: string;
+  mobile?: string;
+  email?: string;
 }
 
 // ---------------------------------------------------------------------------
