@@ -329,7 +329,8 @@ export const useNotificationStore = create<NotificationState>()(
           if (Array.isArray(cloud) && cloud.length > 0) {
             const maxItems = get().notificationSettings.maxItems;
             set((s: NotificationState) => {
-              const merged = [...cloud, ...s.notifications.filter(n => !isServerNotificationId(n.id))];
+              const localList = Array.isArray(s.notifications) ? s.notifications : [];
+              const merged = [...cloud, ...localList.filter(n => !isServerNotificationId(n.id))];
               const seen = new Set<string>();
               const deduped = merged.filter(n => {
                 const k = (n as any).dedupeKey || n.id;
@@ -388,7 +389,7 @@ export const useNotificationStore = create<NotificationState>()(
         };
         const wasUnread = !n.read ? 1 : 0;
         set((state: NotificationState) => ({
-          notifications: [n, ...state.notifications].slice(0, settings.maxItems),
+          notifications: [n, ...(Array.isArray(state.notifications) ? state.notifications : [])].slice(0, settings.maxItems),
           unreadNotificationsCount: state.unreadNotificationsCount + wasUnread,
         }));
         if (settings.showPopups) {
@@ -557,9 +558,9 @@ export const useNotificationStore = create<NotificationState>()(
       updateNotificationSettings: (patch) =>
         set((state: NotificationState) => {
           const nextSettings = { ...state.notificationSettings, ...patch };
-          let nextNotifications = state.notifications;
+          let nextNotifications = Array.isArray(state.notifications) ? state.notifications : [];
           if (typeof patch.maxItems === 'number') {
-            nextNotifications = state.notifications.slice(0, patch.maxItems!);
+            nextNotifications = nextNotifications.slice(0, patch.maxItems!);
           }
           const nextUnread = nextNotifications.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0);
           return {
@@ -659,7 +660,7 @@ export const useNotificationStore = create<NotificationState>()(
                 createdAt: now,
               }];
         set((s: NotificationState) => ({
-          notifications: [...items, ...s.notifications].slice(0, settings.maxItems),
+          notifications: [...items, ...(Array.isArray(s.notifications) ? s.notifications : [])].slice(0, settings.maxItems),
           unreadNotificationsCount: s.unreadNotificationsCount + items.length,
         }));
         if (settings.showPopups && items.length > 0) {
@@ -793,38 +794,57 @@ export const useNotificationStore = create<NotificationState>()(
       }) as any,
       merge: (persistedState: any, currentState: any) => {
         const base = { ...currentState, ...(persistedState || {}) };
-        base.unreadNotificationsCount = Array.isArray(base.notifications)
-          ? base.notifications.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0)
-          : 0;
+
+        // اطمینان از آرایه بودن: مقدار خراب/قدیمی نباید باعث
+        // «notifications.reduce is not a function» شود.
+        if (!Array.isArray(base.notifications)) base.notifications = [];
+        if (!Array.isArray(base.dismissedKeys)) base.dismissedKeys = [];
+
         base.notificationToasts = [];
         try {
-          if (!base.notifications || base.notifications.length === 0) {
+          if (base.notifications.length === 0) {
             const raw = localStorage.getItem('hamyar_notifications');
-            if (raw) base.notifications = JSON.parse(raw);
-          }
-        } catch {}
-        try {
-          if (!base.notificationSettings || !base.notificationSettings.types) {
-            const raw = localStorage.getItem('hamyar_notification_settings');
             if (raw) {
-              const parsed = JSON.parse(raw) as Partial<NotificationSettings>;
-              const savedTypes = Array.isArray(parsed.types) ? parsed.types : [];
-              const byId = new Map<string, NotificationTypeDef>();
-              DEFAULT_NOTIFICATION_TYPES.forEach(t => byId.set(t.id, t));
-              savedTypes.forEach(t => { if (t && typeof t.id === 'string') byId.set(t.id, t); });
-              base.notificationSettings = {
-                ...DEFAULT_NOTIFICATION_SETTINGS,
-                ...parsed,
-                maxItems: Math.min(500, Math.max(20, Number(parsed.maxItems) || 200)),
-                popupSeconds: Math.min(30, Math.max(2, Number(parsed.popupSeconds) || 6)),
-                types: [...byId.values()],
-              };
+              const parsed = JSON.parse(raw);
+              // فرمت قدیمی: آرایهٔ خالص اعلان‌ها. فرمت جدید persist:
+              // `{ state: { notifications }, version }` — همان چیزی که در
+              // `base.notifications` هست، پس نباید دوباره اینجا خوانده شود.
+              const legacyList = Array.isArray(parsed)
+                ? parsed
+                : (Array.isArray(parsed?.state?.notifications) ? parsed.state.notifications : null);
+              if (legacyList) base.notifications = legacyList;
             }
           }
         } catch {}
-        base.unreadNotificationsCount = Array.isArray(base.notifications)
-          ? base.notifications.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0)
-          : 0;
+        base.notifications = base.notifications.filter((n: unknown) => n && typeof n === 'object');
+
+        // همیشه تنظیمات را نرمال می‌کنیم، نه فقط وقتی خالی است: مقدار ذخیره‌شدهٔ
+        // قدیمی ممکن است `types` نداشته باشد و صفحهٔ اعلانات با
+        // «reading 'filter' of undefined» کاملاً سفید شود.
+        const persistedSettings = (base.notificationSettings || {}) as Partial<NotificationSettings>;
+        const byId = new Map<string, NotificationTypeDef>();
+        DEFAULT_NOTIFICATION_TYPES.forEach(t => byId.set(t.id, t));
+        (Array.isArray(persistedSettings.types) ? persistedSettings.types : [])
+          .forEach(t => { if (t && typeof t.id === 'string') byId.set(t.id, t); });
+        try {
+          const raw = localStorage.getItem('hamyar_notification_settings');
+          if (raw) {
+            const parsed = JSON.parse(raw) as Partial<NotificationSettings>;
+            (Array.isArray(parsed.types) ? parsed.types : [])
+              .forEach(t => { if (t && typeof t.id === 'string') byId.set(t.id, t); });
+          }
+        } catch {}
+        base.notificationSettings = {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          ...persistedSettings,
+          maxItems: Math.min(500, Math.max(20, Number(persistedSettings.maxItems) || 200)),
+          popupSeconds: Math.min(30, Math.max(2, Number(persistedSettings.popupSeconds) || 6)),
+          types: [...byId.values()],
+        };
+        base.unreadNotificationsCount = base.notifications.reduce(
+          (c: number, n: AdminNotification) => c + (n.read ? 0 : 1),
+          0,
+        );
         return base;
       },
     },
@@ -834,7 +854,9 @@ export const useNotificationStore = create<NotificationState>()(
 (() => {
   const computeUnread = () => {
     const st = useNotificationStore.getState();
-    const correct = st.notifications.reduce((c, n) => c + (n.read ? 0 : 1), 0);
+    // اگر به هر دلیلی مقدار ذخیره‌شده خراب باشد، اینجا نباید کل اپ بشکند.
+    const list = Array.isArray(st.notifications) ? st.notifications : [];
+    const correct = list.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0);
     if (correct !== st.unreadNotificationsCount) {
       useNotificationStore.setState({ unreadNotificationsCount: correct });
     }
