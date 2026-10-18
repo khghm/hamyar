@@ -1,4 +1,16 @@
 // Utility برای خروجی Excel با پشتیبانی کامل فارسی
+import stampImage from '../assets/stamp.jpg';
+
+/** آدرس مطلق مهر فروشنده برای پنجرهٔ چاپ (که base آن about:blank است). */
+function stampAbsoluteUrl(): string {
+  if (typeof window === 'undefined') return stampImage;
+  try {
+    return new URL(stampImage, window.location.origin).toString();
+  } catch {
+    return stampImage;
+  }
+}
+
 export function exportToExcel(filename: string, headers: string[], rows: string[][], title?: string) {
   // ساخت HTML با پشتیبانی کامل UTF-8 و فارسی
   let html = `
@@ -310,6 +322,17 @@ export function printInvoice(invoiceData: any) {
           padding-top: 5px;
           font-size: 12px;
         }
+
+        /* مهر فروشنده بالای خط امضا؛ رنگ‌ها در چاپ حفظ می‌شوند */
+        .stamp {
+          display: block;
+          margin: 0 auto 2px;
+          max-width: 170px;
+          max-height: 90px;
+          object-fit: contain;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
         
         .note {
           background: #fef3c7;
@@ -418,6 +441,8 @@ export function printInvoice(invoiceData: any) {
 
         <div class="signature">
           <div class="signature-box">
+            <img class="stamp" src="${stampAbsoluteUrl()}" alt="مهر فروشنده"
+                 onerror="this.style.display='none'" />
             <div class="signature-line">مهر و امضای فروشنده</div>
           </div>
           <div class="signature-box">
@@ -443,10 +468,30 @@ export function printInvoice(invoiceData: any) {
 
   printWindow.document.write(html);
   printWindow.document.close();
-  
-  // منتظر لود شدن فونت و سپس چاپ
-  setTimeout(() => {
-    printWindow.focus();
-    printWindow.print();
-  }, 500);
+
+  // چاپ بعد از لود شدن تصویر مهر (وگرنه ممکن است بدون مهر چاپ شود).
+  let printed = false;
+  const triggerPrint = () => {
+    if (printed) return;
+    printed = true;
+    setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch {
+        /* پنجره بسته شده است */
+      }
+    }, 150);
+  };
+
+  const stampImg = printWindow.document.querySelector('img.stamp') as HTMLImageElement | null;
+  if (stampImg && !stampImg.complete) {
+    stampImg.addEventListener('load', triggerPrint);
+    stampImg.addEventListener('error', triggerPrint);
+    // سقف انتظار: اگر تصویر لود نشود، چاپ متوقف نماند.
+    setTimeout(triggerPrint, 2500);
+  } else {
+    printWindow.addEventListener('load', triggerPrint);
+    setTimeout(triggerPrint, 800);
+  }
 }

@@ -21,6 +21,7 @@ import {
   markNotificationRead as apiMarkRead,
   markAllNotificationsRead as apiMarkAllRead,
   deleteNotification as apiDeleteNotif,
+  clearReadNotifications as apiClearRead,
   isServerNotificationId,
   toNotification,
 } from '../api/notifications';
@@ -440,29 +441,67 @@ export const useNotificationStore = create<NotificationState>()(
       },
 
       deleteNotification: (id) => {
-        set((state: NotificationState) => {
-          const target = state.notifications.find((n: AdminNotification) => n.id === id);
-          const delta = target && !target.read ? -1 : 0;
-          return {
-            notifications: state.notifications.filter((n: AdminNotification) => n.id !== id),
-            unreadNotificationsCount: Math.max(0, state.unreadNotificationsCount + delta),
-          };
+        const before = get().notifications;
+        const prevUnread = get().unreadNotificationsCount;
+        const target = before.find((n: AdminNotification) => n.id === id);
+        set({
+          notifications: before.filter((n: AdminNotification) => n.id !== id),
+          unreadNotificationsCount: Math.max(0, prevUnread - (target && !target.read ? 1 : 0)),
         });
-        if (get().hydrated && isServerNotificationId(id)) {
-          (async () => {
-            try {
-              await apiDeleteNotif(id);
-            } catch (e: any) {
-              console.warn('[notificationStore] deleteNotification sync failed:', e?.message || e);
+
+        // اعلان محلی (id غیر UUID) فقط در همین مرورگر وجود دارد.
+        if (!get().hydrated || !isServerNotificationId(id)) return;
+
+        (async () => {
+          try {
+            const res = await apiDeleteNotif(id);
+            if (!res.ok) throw new Error(res.error || 'حذف اعلان در سرور ناموفق بود');
+            // ۲۰۴ بدون حذف یعنی RLS اجازه نداده (مثلاً نشست منقضی شده).
+            if (res.deleted === false) {
+              throw new Error('این اعلان در سرور حذف نشد؛ احتمالاً نشست مدیریت منقضی شده است. دوباره وارد شوید.');
             }
-          })();
-        }
+          } catch (e: any) {
+            // برگرداندن اعلان: کاربر باید ببیند حذف واقعاً انجام نشده است.
+            set({ notifications: before, unreadNotificationsCount: prevUnread });
+            try {
+              get().pushNotification({
+                type: 'system',
+                priority: 'high',
+                title: 'حذف اعلان انجام نشد',
+                message: e?.message || 'خطا در ارتباط با سرور',
+                key: 'notif-del-err-' + id,
+              });
+            } catch {}
+          }
+        })();
       },
 
-      clearReadNotifications: () =>
-        set((state: NotificationState) => ({
-          notifications: state.notifications.filter((n: AdminNotification) => !n.read),
-        })),
+      clearReadNotifications: () => {
+        const before = get().notifications;
+        const prevUnread = get().unreadNotificationsCount;
+        const readCount = before.filter((n: AdminNotification) => n.read).length;
+        set({ notifications: before.filter((n: AdminNotification) => !n.read) });
+
+        if (!get().hydrated || readCount === 0) return;
+
+        (async () => {
+          try {
+            const res = await apiClearRead();
+            if (!res.ok) throw new Error(res.error || 'پاک‌سازی اعلان‌ها ناموفق بود');
+          } catch (e: any) {
+            set({ notifications: before, unreadNotificationsCount: prevUnread });
+            try {
+              get().pushNotification({
+                type: 'system',
+                priority: 'high',
+                title: 'پاک‌سازی اعلان‌ها انجام نشد',
+                message: e?.message || 'خطا در ارتباط با سرور',
+                key: 'notif-clear-err-' + Date.now(),
+              });
+            } catch {}
+          }
+        })();
+      },
 
       notificationToasts: [],
 

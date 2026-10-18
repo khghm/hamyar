@@ -106,7 +106,30 @@ export async function markAllNotificationsRead(
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
-export async function deleteNotification(id: string): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase.from('notifications').delete().eq('id', id);
-  return error ? { ok: false, error: error.message } : { ok: true };
+/**
+ * حذف یک اعلان از سرور.
+ *
+ * `select('id')` عمداً اضافه شده است: PostgREST برای DELETE‌ای که با RLS هیچ
+ * ردیفی را حذف نکند هم ۲۰۴ برمی‌گرداند و خطا نمی‌دهد؛ بدون این کار نمی‌شد فهمید
+ * حذف واقعاً انجام شده یا فقط از state محلی پاک شده است.
+ */
+export async function deleteNotification(id: string): Promise<{ ok: boolean; error?: string; deleted?: boolean }> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', id)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, deleted: Array.isArray(data) && data.length > 0 };
+}
+
+/** پاک کردن همهٔ اعلان‌های خوانده‌شده — این بار واقعاً روی سرور. */
+export async function clearReadNotifications(): Promise<{ ok: boolean; error?: string; deleted?: number }> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('read', true)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, deleted: Array.isArray(data) ? data.length : 0 };
 }
