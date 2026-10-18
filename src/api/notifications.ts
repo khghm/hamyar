@@ -107,6 +107,28 @@ export async function markAllNotificationsRead(
 }
 
 /**
+ * علامت‌گذاری چند اعلان مشخص به‌عنوان خوانده‌شده.
+ *
+ * «خواندن همه» باید دقیقاً همان ردیف‌هایی را بخواند که در پنل دیده می‌شوند؛
+ * نسخهٔ قبلی فقط `user_id = من` را می‌خواند، در حالی که لیست شامل اعلان‌های
+ * سایر کارمندان هم هست. نتیجه: «پاک کردن خوانده‌شده‌ها» بعد از آن هیچ کاری
+ * نمی‌کرد، چون آن ردیف‌ها روی سرور همچنان خوانده‌نشده بودند.
+ */
+export async function markNotificationsRead(
+  ids: string[],
+): Promise<{ ok: boolean; error?: string; updated?: number }> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return { ok: true, updated: 0 };
+  const { data, error } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .in('id', unique)
+    .select('id');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, updated: Array.isArray(data) ? data.length : 0 };
+}
+
+/**
  * حذف یک اعلان از سرور.
  *
  * `select('id')` عمداً اضافه شده است: PostgREST برای DELETE‌ای که با RLS هیچ

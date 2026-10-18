@@ -20,6 +20,7 @@ import {
   createNotification as apiCreateNotification,
   markNotificationRead as apiMarkRead,
   markAllNotificationsRead as apiMarkAllRead,
+  markNotificationsRead as apiMarkManyRead,
   deleteNotification as apiDeleteNotif,
   clearReadNotifications as apiClearRead,
   isServerNotificationId,
@@ -446,21 +447,25 @@ export const useNotificationStore = create<NotificationState>()(
       },
 
       markAllNotificationsRead: () => {
+        // فقط ردیف‌های سروری و خوانده‌نشده‌ای که همین حالا در پنل دیده می‌شوند.
+        const ids = get().notifications
+          .filter((n: AdminNotification) => !n.read && isServerNotificationId(n.id))
+          .map((n: AdminNotification) => n.id);
+
         set((state: NotificationState) => ({
           notifications: state.notifications.map((n: AdminNotification) => ({ ...n, read: true })),
           unreadNotificationsCount: 0,
         }));
-        const cs = getCrossStore();
-        const uid = cs.currentUser?.id;
-        if (get().hydrated && uid) {
-          (async () => {
-            try {
-              await apiMarkAllRead(uid);
-            } catch (e: any) {
-              console.warn('[notificationStore] markAllNotificationsRead sync failed:', e?.message || e);
-            }
-          })();
-        }
+
+        if (!get().hydrated) return;
+        (async () => {
+          try {
+            const res = await apiMarkManyRead(ids);
+            if (!res.ok) throw new Error(res.error || 'علامت‌گذاری اعلان‌ها ناموفق بود');
+          } catch (e: any) {
+            console.warn('[notificationStore] markAllNotificationsRead sync failed:', e?.message || e);
+          }
+        })();
       },
 
       deleteNotification: (id) => {
@@ -515,19 +520,57 @@ export const useNotificationStore = create<NotificationState>()(
         const newKeys: string[] = readOnes
           .map((n: AdminNotification & { dedupeKey?: string }) => n.dedupeKey)
           .filter((k: string | undefined): k is string => !!k && !get().dismissedKeys.includes(k));
-        set({
-          notifications: before.filter((n: AdminNotification) => !n.read),
-          ...(newKeys.length ? { dismissedKeys: [...get().dismissedKeys, ...newKeys].slice(-300) } : {}),
-        });
 
-        if (!get().hydrated || readCount === 0) return;
+        if (readCount > 0) {
+          set({
+            notifications: before.filter((n: AdminNotification) => !n.read),
+            ...(newKeys.length ? { dismissedKeys: [...get().dismissedKeys, ...newKeys].slice(-300) } : {}),
+          });
+        }
+
+        // حتی وقتی محلی هیچ «خوانده‌شده‌ای» نمی‌بینیم هم سرور را صدا می‌زنیم:
+        // ممکن است وضعیت محلی کهنه باشد یا ادمین دیگری آن‌ها را خوانده باشد.
+        if (!get().hydrated) return;
 
         (async () => {
           try {
             const res = await apiClearRead();
             if (!res.ok) throw new Error(res.error || 'پاک‌سازی اعلان‌ها ناموفق بود');
+            const deleted = res.deleted ?? 0;
+
+            // ۲۰۰ بدون حذف یعنی RLS اجازه نداده (نشست منقضی شده). نباید مثل
+            // موفقیت رفتار کنیم، وگرنه اعلان‌ها با رفرش برمی‌گردند.
+            if (readCount > 0 && deleted === 0) {
+              throw new Error('اعلان‌ها در سرور پاک نشدند؛ احتمالاً نشست مدیریت منقضی شده است. یک‌بار خارج و دوباره وارد شوید.');
+            }
+            if (readCount === 0 && deleted === 0) {
+              get().pushNotification({
+                type: 'system',
+                priority: 'normal',
+                title: 'اعلان خوانده‌شده‌ای وجود ندارد',
+                message: 'همهٔ اعلان‌ها خوانده‌نشده‌اند؛ اول با دکمهٔ تیک، اعلان‌های دلخواه را خوانده کنید.',
+                key: 'notif-clear-empty-' + Date.now(),
+              });
+              return;
+            }
+
+            // همگام‌سازی نهایی با سرور تا چیزی که دیده می‌شود دقیقاً همان چیزی
+            // باشد که در دیتابیس مانده است.
+            const cloud = await fetchNotifications().catch(() => null);
+            if (Array.isArray(cloud)) {
+              const localOnly = get().notifications.filter((n: AdminNotification) => !isServerNotificationId(n.id));
+              const merged = [...cloud, ...localOnly].slice(0, get().notificationSettings.maxItems);
+              set({
+                notifications: merged,
+                unreadNotificationsCount: merged.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0),
+              });
+            }
           } catch (e: any) {
-            set({ notifications: before, unreadNotificationsCount: prevUnread });
+            set({
+              notifications: before,
+              unreadNotificationsCount: prevUnread,
+              ...(newKeys.length ? { dismissedKeys: get().dismissedKeys.filter((k: string) => !newKeys.includes(k)) } : {}),
+            });
             try {
               get().pushNotification({
                 type: 'system',
