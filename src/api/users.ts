@@ -35,6 +35,9 @@ export function profileToUser(p: ProfileRow): User {
     loyaltyPoints: p.loyalty_points ?? 0,
     totalEarnedPoints: p.total_earned_points ?? p.loyalty_points ?? 0,
     level: (p.level as User['level']) || 'normal',
+    // موجودی کیف پول فقط در دیتابیس معتبر است؛ قبلاً این فیلد map نمی‌شد و UI
+    // همیشه عدد محلی (صفر) را نشان می‌داد.
+    walletBalance: Number(p.wallet_balance) || 0,
     favorites: [],
     selectedMedia: Array.isArray(p.selected_media) ? p.selected_media : [],
     createdAt: p.created_at || new Date().toISOString(),

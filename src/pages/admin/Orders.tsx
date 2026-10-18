@@ -3,6 +3,7 @@ import { useApp, Order } from '../../store';
 import { Plus, Search, Filter, Kanban, List, User, Clock, AlertCircle, DollarSign, Tag, X, Eye, CheckCircle, XCircle, Paperclip, ExternalLink, Briefcase, Link2 } from 'lucide-react';
 import { toJalaliString } from '../../utils/jalali';
 import { PROJECT_FIELD_LABELS, getProjectService } from '../../store';
+import { settleOrderPayment } from '../../api/orders';
 
 export default function AdminOrders() {
   const { darkMode, orders, setOrders, updateOrder, updateOrderStatus, deleteOrder, projects, setProjects, contentProjects } = useApp();
@@ -47,6 +48,36 @@ export default function AdminOrders() {
   // online orders and lets the admin approve/reject the documents. The linked
   // project / invoice stay in sync through the store (same order code).
   const [detailsOrder, setDetailsOrder] = useState<Order | null>(null);
+
+  // ثبت پرداخت: مبلغی که واقعاً از مشتری گرفته شده (کارت‌به‌کارت/POS/نقدی).
+  // برخلاف بقیهٔ ویرایش‌های این صفحه، این یکی سمت سرور انجام می‌شود تا عدد
+  // `paid` در دیتابیس هم ثبت شود و گزارش‌های مالی واقعی بمانند.
+  const [settlingId, setSettlingId] = useState<string | null>(null);
+  const registerPayment = async (o: Order) => {
+    const remaining = Math.max(0, (o.total || 0) - (o.paid || 0));
+    if (remaining <= 0 || settlingId) return;
+    const input = window.prompt(
+      `مبلغ دریافتی برای سفارش ${o.trackingCode} (تومان)\nمانده: ${remaining.toLocaleString('fa-IR')} تومان`,
+      String(remaining),
+    );
+    if (input === null) return;
+    const amount = Number(String(input).replace(/[^\d]/g, ''));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      window.alert('مبلغ وارد‌شده معتبر نیست.');
+      return;
+    }
+    setSettlingId(o.id);
+    const res = await settleOrderPayment(o.id, amount);
+    setSettlingId(null);
+    if (!res.ok) {
+      window.alert('ثبت پرداخت ناموفق بود: ' + (res.error || 'خطای نامشخص'));
+      return;
+    }
+    updateOrder(o.id, {
+      paid: res.paid ?? (o.paid || 0) + amount,
+      remaining: res.remaining ?? Math.max(0, (o.total || 0) - ((o.paid || 0) + amount)),
+    });
+  };
 
   const filtered = orders.filter(o => {
     if (filterStatus !== 'all' && o.status !== filterStatus) return false;
@@ -279,6 +310,15 @@ export default function AdminOrders() {
                                <Eye size={12} /> جزئیات
                              </button>
                            )}
+                           {(order.paid || 0) < (order.total || 0) && (
+                             <button
+                               onClick={() => registerPayment(order)}
+                               disabled={settlingId === order.id}
+                               className="flex-1 flex items-center justify-center gap-1 text-green-600 text-xs py-1 rounded hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+                             >
+                               <DollarSign size={12} /> {settlingId === order.id ? '…' : 'ثبت پرداخت'}
+                             </button>
+                           )}
                            {order.type === 'webdesign' && (
                              <button
                                onClick={() => {
@@ -428,6 +468,15 @@ export default function AdminOrders() {
                             className="text-purple-600 text-xs hover:underline flex items-center gap-1"
                           >
                             <Briefcase size={12} /> ایجاد پروژه
+                          </button>
+                        )}
+                        {(o.paid || 0) < (o.total || 0) && (
+                          <button
+                            onClick={() => registerPayment(o)}
+                            disabled={settlingId === o.id}
+                            className="text-green-600 text-xs hover:underline flex items-center gap-1 disabled:opacity-50"
+                          >
+                            <DollarSign size={12} /> {settlingId === o.id ? 'در حال ثبت…' : 'ثبت پرداخت'}
                           </button>
                         )}
                         <button onClick={() => deleteOrder(o.id)} className="text-red-500 text-xs hover:underline">حذف</button>
@@ -626,7 +675,21 @@ export default function AdminOrders() {
                 </div>
               </div>
 
-              <button onClick={() => setDetailsOrder(null)} className="mt-5 w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">بستن</button>
+              <div className="flex flex-col sm:flex-row gap-2 mt-5">
+                {(live.paid || 0) < (live.total || 0) && (
+                  <button
+                    onClick={() => registerPayment(live)}
+                    disabled={settlingId === live.id}
+                    className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <DollarSign size={16} />
+                    {settlingId === live.id
+                      ? 'در حال ثبت…'
+                      : `ثبت پرداخت (مانده: ${Math.max(0, (live.total || 0) - (live.paid || 0)).toLocaleString('fa-IR')} تومان)`}
+                  </button>
+                )}
+                <button onClick={() => setDetailsOrder(null)} className="flex-1 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">بستن</button>
+              </div>
             </div>
           </div>
         );

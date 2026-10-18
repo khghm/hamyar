@@ -1,17 +1,37 @@
 name = "hamyar"
 compatibility_date = "2026-01-01"
+main = "src/index.js"
 
 # ---------------------------------------------------------------------------
-# استقرار فقط-استاتیک (بدون Worker script).
+# استاتیک‌ها از dist سرو می‌شوند و `src/index.js` هم endpointهای پرداخت
+# زرین‌پال را دارد (/api/zarinpal/request و /api/zarinpal/verify) و هم fallback
+# مسیرهای SPA را برمی‌گرداند.
 #
-# `not_found_handling = "single-page-application"` حیاتی است: بدون آن، هر مسیری
-# که فایل استاتیک نباشد (مثل /admin یا /profile) با 404 خالی پاسخ می‌گیرد و
-# مرورگر خطای `net::ERR_HTTP_RESPONSE_CODE_FAILURE` می‌دهد — دقیقاً همان چیزی
-# که با حذف Worker و رفتن به حالت assets-only اتفاق افتاد.
+# متغیرهای عمومی (بدون secret):
+#   SUPABASE_HOST / SUPABASE_ANON_KEY / ZARINPAL_MODE
 #
-# با این تنظیم، Cloudflare خودش برای مسیرهای ناشناخته `index.html` را با کد ۲۰۰
-# برمی‌گرداند و React Router بقیهٔ کار را انجام می‌دهد.
+# Secretها (با `npx wrangler secret put <NAME>` تنظیم می‌شوند):
+#   SUPABASE_SERVICE_ROLE_KEY  ← فقط سمت سرور، هرگز در مرورگر
+#   ZARINPAL_MERCHANT_ID       ← در حالت sandbox خالی/تستی است
+#
+# برای رفتن به درگاه واقعی، فقط این دو را عوض کنید (بدون تغییر کد):
+#   wrangler secret put ZARINPAL_MERCHANT_ID     (مرچنت ۳۶ کاراکتری زرین‌پال)
+#   و در [vars] مقدار ZARINPAL_MODE را از sandbox به live تغییر دهید.
 # ---------------------------------------------------------------------------
+
+[vars]
+SUPABASE_HOST = "rcimwpsnekxsxeivpivm.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_a0tACiO-Z-n-1AIgh26m9A_lbJNpzLx"
+ZARINPAL_MODE = "sandbox"
+
 [assets]
 directory = "dist"
-not_found_handling = "single-page-application"
+# نام binding برای دسترسی Worker به فایل‌های استاتیک (env.ASSETS). بدون این خط،
+# Worker به assets دسترسی ندارد و مسیرهای SPA با خطای «Assets binding is not
+# configured» می‌شکنند.
+binding = "ASSETS"
+# با وجود Worker، fallback مسیرهای SPA را خود Worker انجام می‌دهد (بر اساس
+# هدر Accept). اگر اینجا «single-page-application» بگذاریم، ASSETS برای فایل
+# هش‌دارِ ناموجود هم index.html برمی‌گرداند و مرورگر به‌جای ۴۰۴، HTML با
+# MIME اشتباه می‌گیرد.
+not_found_handling = "none"

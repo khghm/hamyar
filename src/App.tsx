@@ -40,6 +40,7 @@ const NewsDetail = lazyRoute(() => import('./pages/NewsDetail'));
 const TrackOrder = lazyRoute(() => import('./pages/TrackOrder'));
 const FAQ = lazyRoute(() => import('./pages/FAQ'));
 const Cart = lazyRoute(() => import('./pages/Cart'));
+const PaymentCallback = lazyRoute(() => import('./pages/PaymentCallback'));
 
 const AdminDashboard = lazyRoute(() => import('./pages/admin/Dashboard'));
 const AdminOrders = lazyRoute(() => import('./pages/admin/Orders'));
@@ -100,6 +101,9 @@ function AppRoutes() {
   return (
     <Suspense fallback={<FullPageLoader />}>
       <Routes>
+        {/* بازگشت از درگاه پرداخت — بدون Layout تا نتیجه تمام‌صفحه باشد */}
+        <Route path="/payment/callback" element={<PaymentCallback />} />
+
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Home />} />

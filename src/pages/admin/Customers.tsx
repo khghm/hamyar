@@ -37,14 +37,16 @@ export default function AdminCustomers() {
     return digits.length >= 10 ? '0' + digits.slice(-10) : (p || '').toString();
   };
 
-  const filterCustomerOrders = (customer: Pick<User, 'id' | 'phone' | 'email' | 'name'>) => {
-    const p = normalizePhone(customer.phone);
+  const filterCustomerOrders = (customer: Pick<User, 'id' | 'phone' | 'email' | 'name'> & { supabaseUserId?: string }) => {
     const e = (customer.email || '').trim().toLowerCase();
     const n = (customer.name || '').trim();
     return orders.filter(o => {
+      // شناسهٔ Supabase مرجع اصلی است. مشتری‌ای که از localStorage قدیمی آمده
+      // ممکن است `id` محلی داشته باشد؛ برای همین `supabaseUserId` هم بررسی می‌شود.
       if (o.customerId === customer.id) return true;
-      if (p && normalizePhone(o.customerName) === p) return true;
-      if (p && o.customerName && normalizePhone(o.customerName) === p) return true;
+      if (customer.supabaseUserId && o.customerId === customer.supabaseUserId) return true;
+      // سفارش‌ها ستون شمارهٔ موبایل ندارند، پس مقایسهٔ شماره با `customerName`
+      // بی‌معنی بود (و باعث می‌شد سفارش‌های قدیمی هیچ‌وقت پیدا نشوند).
       if (e && o.customerName && o.customerName.trim().toLowerCase() === e) return true;
       if (n && (o.customerName || '').trim() === n) return true;
       return false;
@@ -145,15 +147,26 @@ export default function AdminCustomers() {
       ? (customersList.find(u => u.id === customerOrId) || { id: customerOrId, phone: '', email: '', name: '' })
       : customerOrId;
     const userOrders = filterCustomerOrders(customer);
-    const totalSpent = userOrders.reduce((sum, o) => sum + (o.paid || 0), 0);
+    // «مجموع خرید» ارزش سفارش‌هاست، نه مبلغ پرداخت‌شده. در دادهٔ واقعی
+    // `orders.paid` برای بسیاری از سفارش‌ها صفر می‌ماند (پرداخت خارج از سیستم
+    // ثبت می‌شود)، بنابراین جمع‌زدن `paid` همیشه صفر می‌داد. اگر `total` خالی
+    // بود به `paid` برمی‌گردیم.
+    const orderValue = (o: { total?: number; paid?: number }) => {
+      const total = Number(o.total) || 0;
+      return total > 0 ? total : (Number(o.paid) || 0);
+    };
+    const billableOrders = userOrders.filter(o => o.status !== 'cancelled');
+    const totalSpent = billableOrders.reduce((sum, o) => sum + orderValue(o), 0);
+    const paidAmount = billableOrders.reduce((sum, o) => sum + (Number(o.paid) || 0), 0);
     const totalOrders = userOrders.length;
     const completedOrders = userOrders.filter(o => o.status === 'delivered').length;
-    
+
     return {
       totalSpent,
+      paidAmount,
       totalOrders,
       completedOrders,
-      avgOrderValue: totalOrders > 0 ? totalSpent / totalOrders : 0
+      avgOrderValue: billableOrders.length > 0 ? totalSpent / billableOrders.length : 0
     };
   };
 
@@ -223,7 +236,7 @@ export default function AdminCustomers() {
             </thead>
             <tbody>
               {customers.map(c => {
-                const stats = getCustomerStats(c.id);
+                const stats = getCustomerStats(c);
                 return (
                   <tr key={c.id} className={`border-t ${darkMode ? 'border-slate-700' : 'border-gray-100'}`}>
                     <td className="p-3 font-medium">{c.name}</td>
@@ -422,8 +435,8 @@ export default function AdminCustomers() {
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 mb-4 overflow-x-auto">
+            {/* Tabs — روی موبایل می‌شکنند تا برچسب هیچ تبی بریده نشود */}
+            <div className="flex flex-wrap gap-2 mb-4">
               {[
                 { id: 'overview', label: 'نمای کلی', icon: Users },
                 { id: 'personas', label: 'پرسوناها', icon: UserCheck },
@@ -444,7 +457,7 @@ export default function AdminCustomers() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveDetailTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap shrink-0 transition-all ${
                       activeDetailTab === tab.id
                         ? 'bg-blue-600 text-white'
                         : darkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-slate-600 hover:bg-gray-200'

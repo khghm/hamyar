@@ -465,3 +465,32 @@ export async function deleteOrder(id: string): Promise<{ ok: boolean; error?: st
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+/**
+ * ثبت پولِ واقعاً دریافت‌شده روی یک سفارش (کارت‌به‌کارت، POS، نقدی).
+ *
+ * سرور (RPC `settle_order_payment`) در یک تراکنش: ردیف `payments` می‌سازد،
+ * `orders.paid/remaining` را به‌روز می‌کند، فاکتور را «پرداخت‌شده» می‌کند و
+ * لاگ فعالیت ثبت می‌کند. این تنها مسیری است که عدد `paid` را در دیتابیس
+ * واقعی می‌کند؛ بدون آن همهٔ سفارش‌ها صفر می‌مانند.
+ */
+export async function settleOrderPayment(
+  orderId: string,
+  amount?: number,
+  trace = '',
+): Promise<{ ok: boolean; error?: string; paid?: number; remaining?: number }> {
+  const { data, error } = await supabase.rpc('settle_order_payment', {
+    p_order_id: orderId,
+    p_amount: amount ?? null,
+    p_trace: trace,
+  });
+  if (error) return { ok: false, error: error.message };
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { out_paid?: number; out_remaining?: number }
+    | null;
+  return {
+    ok: true,
+    paid: row?.out_paid !== undefined ? Number(row.out_paid) : undefined,
+    remaining: row?.out_remaining !== undefined ? Number(row.out_remaining) : undefined,
+  };
+}

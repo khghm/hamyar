@@ -20,6 +20,7 @@ import {
   CONTENT_SERVICE_TYPE_MAP,
 } from '../domains/types';
 import { fetchOrders, placeOrder, placeCatalogOrder, changeOrderStatus, deleteOrder as deleteOrderApi } from '../api/orders';
+import { startOnlinePayment } from '../api/zarinpal';
 import { fetchInvoices, syncInvoices, syncInvoiceItems } from '../domains/finance/api';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from './authStore';
@@ -46,9 +47,33 @@ interface CrossStoreShim {
   awardPurchasePoints?: (userId: string | undefined, amount: number, trackingCode: string) => void;
 }
 
+/**
+ * بعد از ثبت سفارش، برای پرداخت آنلاین کاربر را به درگاه زرین‌پال می‌فرستد.
+ *
+ * سفارش در این لحظه «پرداخت‌نشده» است؛ فقط بعد از بازگشت از درگاه و تأیید
+ * سمت سرور (`/api/zarinpal/verify`) مبلغ روی سفارش و فاکتور ثبت می‌شود.
+ */
+async function redirectToGateway(orderId: string, cs: CrossStoreShim): Promise<boolean> {
+  const gateway = await startOnlinePayment(orderId);
+  if (gateway.ok && gateway.startUrl) {
+    window.location.assign(gateway.startUrl);
+    return true;
+  }
+  if (cs.pushNotification) {
+    cs.pushNotification({
+      type: 'payment',
+      priority: 'high',
+      title: 'اتصال به درگاه پرداخت ناموفق',
+      message: gateway.error || 'درگاه پرداخت در دسترس نیست؛ سفارش شما ثبت شد و می‌توانید بعداً از پروفایل پرداخت کنید.',
+      link: '/profile',
+      key: 'pay-gw-' + Date.now(),
+    });
+  }
+  return false;
+}
+
 const getCrossStore = (): CrossStoreShim => {
-  const out: CrossStoreShim = {};
-  try {
+  const out: CrossStoreShim = {};  try {
     const s = useAuthStore.getState();
     out.currentUser = s.currentUser;
     out.users = s.users;
@@ -608,7 +633,9 @@ export const useOrderStore = create<OrderState>()(
           }
           paidAmount = total;
         } else {
-          paidAmount = total;
+          // پرداخت آنلاین تا تأیید درگاه «پرداخت‌نشده» است؛ عدد واقعی را
+          // callback درگاه (verify) روی سرور ثبت می‌کند.
+          paidAmount = 0;
         }
 
         const now = new Date();
@@ -656,7 +683,7 @@ export const useOrderStore = create<OrderState>()(
           taxAmount: 0,
           total,
           note: `رسید پرداخت آنلاین سفارش ${trackingCode} – روش پرداخت: ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینتاپ'}${gatewayRef ? ` (کد پیگیری بانک: ${gatewayRef})` : ''}`,
-          status: 'paid',
+          status: paymentMethod === 'wallet' ? 'paid' : 'issued',
           createdAt: now.toISOString(),
         };
         set((state: OrderState) => ({
@@ -664,7 +691,7 @@ export const useOrderStore = create<OrderState>()(
           orders: state.orders.map((o: Order) => o.id === orderId ? { ...o, receiptInvoiceId: invoice.id } : o),
         }));
 
-        if (cs.pushSmsLog) cs.pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${service.name}» با کد رهگیری ${trackingCode} ثبت و پرداخت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان.`);
+        if (cs.pushSmsLog) cs.pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${service.name}» با کد رهگیری ${trackingCode} ثبت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان.`);
         if (cs.pushAuditLog) cs.pushAuditLog('ثبت سفارش آنلاین خدمات', `سفارش ${trackingCode} برای خدمت «${service.name}» به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''}`, 'سفارشات');
 
         (async () => {
@@ -722,6 +749,13 @@ export const useOrderStore = create<OrderState>()(
             if (cs.pushAuditLog) {
               cs.pushAuditLog('تایید سرور سفارش خدمت', `سفارش ${result.trackingCode} در سرور با موفقیت ثبت شد.`, 'سفارشات');
             }
+
+            // پرداخت آنلاین: کاربر باید به درگاه زرین‌پال برود. تا تأیید درگاه،
+            // سفارش «پرداخت‌نشده» می‌ماند و مقدار paid را سرور تعیین می‌کند.
+            if (paymentMethod === 'online') {
+              await redirectToGateway(result.orderId ?? orderId, cs);
+              return;
+            }
           } catch (e: any) {
             if (cs.setUsers && cs.setCurrentUser) {
               cs.setUsers(snapshot.users);
@@ -772,7 +806,9 @@ export const useOrderStore = create<OrderState>()(
           }
           paidAmount = total;
         } else {
-          paidAmount = total;
+          // پرداخت آنلاین تا تأیید درگاه «پرداخت‌نشده» است؛ عدد واقعی را
+          // callback درگاه (verify) روی سرور ثبت می‌کند.
+          paidAmount = 0;
         }
 
         const now = new Date();
@@ -830,7 +866,7 @@ export const useOrderStore = create<OrderState>()(
           taxAmount: 0,
           total,
           note: `رسید پرداخت آنلاین سفارش ${trackingCode} (${groupLabel}) – روش پرداخت: ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینتاپ'}${gatewayRef ? ` (کد پیگیری بانک: ${gatewayRef})` : ''}`,
-          status: 'paid',
+          status: paymentMethod === 'wallet' ? 'paid' : 'issued',
           createdAt: now.toISOString(),
         };
         set((state: OrderState) => ({
@@ -838,7 +874,7 @@ export const useOrderStore = create<OrderState>()(
           orders: state.orders.map((o: Order) => o.id === orderId ? { ...o, receiptInvoiceId: invoice.id } : o),
         }));
 
-        if (cs.pushSmsLog) cs.pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${projectService.title}» (${groupLabel}) با کد رهگیری ${trackingCode} ثبت و پرداخت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان. پروژه مربوطه در پنل مدیریت ایجاد شد.`);
+        if (cs.pushSmsLog) cs.pushSmsLog(currentUser.phone || formData.phone || '', `سفارش «${projectService.title}» (${groupLabel}) با کد رهگیری ${trackingCode} ثبت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان. پروژه مربوطه در پنل مدیریت ایجاد شد.`);
         if (cs.pushAuditLog) cs.pushAuditLog('ثبت سفارش آنلاین پروژه', `سفارش ${trackingCode} برای «${projectService.title}» (${groupLabel}) به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''} و پروژه مرتبط آن در بخش پروژه‌ها ایجاد گردید${projectService.group === 'content' ? '؛ همچنین تسک تولید محتوای آن در بخش «تیم تولید محتوا» ایجاد شد' : ''}`, 'سفارشات');
 
         (async () => {
@@ -898,6 +934,11 @@ export const useOrderStore = create<OrderState>()(
 
             if (cs.pushAuditLog) {
               cs.pushAuditLog('تایید سرور سفارش پروژه', `سفارش ${result.trackingCode} در سرور با موفقیت ثبت شد.`, 'سفارشات');
+            }
+
+            if (paymentMethod === 'online') {
+              await redirectToGateway(result.orderId ?? orderId, cs);
+              return;
             }
           } catch (e: any) {
             if (cs.setUsers && cs.setCurrentUser) {
@@ -985,7 +1026,9 @@ export const useOrderStore = create<OrderState>()(
           }
           paidAmount = total;
         } else {
-          paidAmount = total;
+          // پرداخت آنلاین تا تأیید درگاه «پرداخت‌نشده» است؛ عدد واقعی را
+          // callback درگاه (verify) روی سرور ثبت می‌کند.
+          paidAmount = 0;
         }
 
         const now = new Date();
@@ -1031,7 +1074,7 @@ export const useOrderStore = create<OrderState>()(
           taxAmount: 0,
           total,
           note: `رسید پرداخت آنلاین سفارش ${trackingCode} (فروشگاه) – روش پرداخت: ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینتاپ'}${gatewayRef ? ` (کد پیگیری بانک: ${gatewayRef})` : ''}`,
-          status: 'paid',
+          status: paymentMethod === 'wallet' ? 'paid' : 'issued',
           createdAt: now.toISOString(),
         };
         set((state: OrderState) => ({
@@ -1039,7 +1082,7 @@ export const useOrderStore = create<OrderState>()(
           orders: state.orders.map((o: Order) => o.id === orderId ? { ...o, receiptInvoiceId: invoice.id } : o),
         }));
 
-        if (cs.pushSmsLog) cs.pushSmsLog(customerPhone || '', `سفارش فروشگاه با کد رهگیری ${trackingCode} ثبت و پرداخت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان.`);
+        if (cs.pushSmsLog) cs.pushSmsLog(customerPhone || '', `سفارش فروشگاه با کد رهگیری ${trackingCode} ثبت شد. مجموع: ${total.toLocaleString('fa-IR')} تومان.`);
         if (cs.pushAuditLog) cs.pushAuditLog('ثبت سفارش فروشگاه', `سفارش ${trackingCode} به مبلغ ${total.toLocaleString('fa-IR')} تومان از طریق ${paymentMethod === 'wallet' ? 'کیف پول' : 'درگاه اینترنتی'} پرداخت شد${gatewayRef ? ` (رفرنس ${gatewayRef})` : ''}`, 'سفارشات');
 
         const rpcItems = orderItems
@@ -1101,6 +1144,11 @@ export const useOrderStore = create<OrderState>()(
 
               if (cs.pushAuditLog) {
                 cs.pushAuditLog('تایید سرور سفارش فروشگاه', `سفارش ${result.trackingCode} در سرور با موفقیت ثبت شد.`, 'سفارشات');
+              }
+
+              if (paymentMethod === 'online') {
+                await redirectToGateway(result.orderId ?? orderId, cs);
+                return;
               }
             } catch (e: any) {
               if (cs.setUsers && cs.setCurrentUser) {

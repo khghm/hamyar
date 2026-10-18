@@ -4,9 +4,10 @@ import {
   Heart, Star, Gift, Users, Copy, Film, Award, ChevronLeft, ShoppingCart, 
   Package, Eye, Clock, CheckCircle, TrendingUp, DollarSign, Calendar,
   User, Phone, Mail, Upload, Wallet, Trophy, Zap, CalendarCheck, History as LoyaltyHistory,
-  LifeBuoy, Plus, Send, RotateCcw
+  LifeBuoy, Plus, Send, RotateCcw, CreditCard
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { startOnlinePayment, startWalletTopUp } from '../api/zarinpal';
 import { toJalaliString } from '../utils/jalali';
 import TicketForm from '../components/TicketForm';
 import {
@@ -175,15 +176,43 @@ function MyTickets({ darkMode }: { darkMode: boolean }) {
 
 export default function Profile() {
   const {
-    darkMode, currentUser, mediaItems, orders, products, addToFavorites, selectMedia, updateAvatar, chargeWallet,
+    darkMode, currentUser, mediaItems, orders, products, addToFavorites, selectMedia, updateAvatar,
     updateCustomerProfile, gamificationConfig, redeemLoyaltyReward, getEarnedBadges, loyaltyTx,
   } = useApp();
   const [activeTab, setActiveTab] = useState<'overview' | 'media' | 'products' | 'orders' | 'tickets' | 'loyalty' | 'wallet'>('overview');
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [chargeAmount, setChargeAmount] = useState(0);
   const [birthDateDraft, setBirthDateDraft] = useState(currentUser?.birthDate?.slice(0, 10) || '');
+  const [payingId, setPayingId] = useState<string | null>(null);
 
   if (!currentUser) return null;
+
+  /** شارژ کیف پول از طریق درگاه زرین‌پال (مبلغ به تومان). */
+  const startTopUp = async () => {
+    if (!Number.isFinite(chargeAmount) || chargeAmount < 10000) {
+      window.alert('حداقل مبلغ شارژ ۱۰٬۰۰۰ تومان است.');
+      return;
+    }
+    setShowChargeModal(false);
+    const res = await startWalletTopUp(chargeAmount);
+    if (res.ok && res.startUrl) {
+      window.location.assign(res.startUrl);
+      return;
+    }
+    window.alert(res.error || 'اتصال به درگاه پرداخت ناموفق بود');
+  };
+
+  /** پرداخت دوبارهٔ سفارش پرداخت‌نشده از پروفایل (زرین‌پال). */
+  const payNow = async (orderId: string) => {
+    setPayingId(orderId);
+    const res = await startOnlinePayment(orderId);
+    if (res.ok && res.startUrl) {
+      window.location.assign(res.startUrl);
+      return;
+    }
+    setPayingId(null);
+    window.alert(res.error || 'اتصال به درگاه پرداخت ناموفق بود');
+  };
 
   const favMedia = mediaItems.filter(m => currentUser.favorites.includes(m.id));
   const selectedMedia = mediaItems.filter(m => currentUser.selectedMedia.includes(m.id));
@@ -362,7 +391,7 @@ export default function Profile() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
-                <span>برای شارژ کیف پول، پس از ثبت درخواست، با شما تماس گرفته خواهد شد.</span>
+                <span>شارژ کیف پول از طریق درگاه امن زرین‌پال انجام می‌شود و مبلغ بلافاصله پس از پرداخت اضافه می‌شود.</span>
               </li>
             </ul>
           </div>
@@ -609,12 +638,27 @@ export default function Profile() {
                         </span>
                       </div>
                     </div>
-                    <Link 
-                      to={`/track?code=${order.trackingCode}`} 
-                      className="text-blue-600 text-sm hover:underline flex items-center gap-1"
-                    >
-                      <Eye size={14} /> پیگیری سفارش
-                    </Link>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <Link 
+                        to={`/track?code=${order.trackingCode}`} 
+                        className="text-blue-600 text-sm hover:underline flex items-center gap-1"
+                      >
+                        <Eye size={14} /> پیگیری سفارش
+                      </Link>
+                      {(order.paid || 0) < (order.total || 0) && order.status !== 'cancelled' && (
+                        <button
+                          type="button"
+                          onClick={() => payNow(order.id)}
+                          disabled={payingId === order.id}
+                          className="text-green-600 text-sm hover:underline flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <CreditCard size={14} />
+                          {payingId === order.id
+                            ? 'در حال انتقال به درگاه…'
+                            : `پرداخت آنلاین (${((order.total || 0) - (order.paid || 0)).toLocaleString('fa-IR')} ت)`}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -855,25 +899,17 @@ export default function Profile() {
 
               <div className={`p-4 rounded-lg ${darkMode ? 'bg-green-900/20 border border-green-800' : 'bg-green-50 border border-green-200'}`}>
                 <p className="text-sm text-green-700 dark:text-green-300">
-                  <strong>توجه:</strong> پس از ثبت درخواست شارژ، با شما تماس گرفته خواهد شد و پس از تأیید پرداخت، مبلغ به کیف پول شما اضافه می‌شود.
+                  <strong>توجه:</strong> با کلیک روی «پرداخت و شارژ کیف پول» به درگاه امن زرین‌پال منتقل می‌شوید و
+                  مبلغ بلافاصله پس از تأیید پرداخت، به کیف پول شما اضافه می‌شود.
                 </p>
               </div>
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    if (chargeAmount > 0) {
-                      chargeWallet(chargeAmount);
-                      alert(`درخواست شارژ ${chargeAmount.toLocaleString('fa-IR')} تومان ثبت شد. پس از تأیید، به کیف پول شما اضافه خواهد شد.`);
-                      setShowChargeModal(false);
-                      setChargeAmount(0);
-                    } else {
-                      alert('لطفاً مبلغ معتبر وارد کنید');
-                    }
-                  }}
+                  onClick={() => { void startTopUp(); }}
                   className="flex-1 py-3 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 transition-all"
                 >
-                  ثبت درخواست شارژ
+                  پرداخت و شارژ کیف پول
                 </button>
                 <button
                   onClick={() => { setShowChargeModal(false); setChargeAmount(0); }}

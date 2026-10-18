@@ -77,17 +77,20 @@ export default function AdminLayout() {
 
   return (
     <div className={`min-h-screen flex ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-100 text-slate-800'}`}>
-      {/* Sidebar */}
-      <aside 
+      {/* Sidebar
+          روی موبایل وقتی بسته است اصلاً رندر نمی‌شود (`hidden`). قبلاً با
+          `translate-x-full` بیرون از صفحه نگه داشته می‌شد؛ همان عنصرِ جابه‌جاشده
+          باعث می‌شد روی گوشی‌های باریک، نوار باریکی از سایدبار داخل صفحه دیده
+          شود و با محتوا همپوشانی کند. */}
+      <aside
         className={`
-          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0 lg:w-0 lg:overflow-hidden'} 
-          transition-transform duration-300 ease-in-out
-          fixed lg:relative 
-          right-0 top-0 
-          w-72 sm:w-64 
-          h-screen 
-          z-50 
-          ${darkMode ? 'bg-slate-800 border-l border-slate-700' : 'bg-white border-l border-gray-200'} 
+          ${sidebarOpen ? 'drawer-in block' : 'hidden lg:block lg:w-0 lg:overflow-hidden'}
+          fixed lg:relative
+          right-0 top-0
+          w-72 sm:w-64
+          h-screen
+          z-50
+          ${darkMode ? 'bg-slate-800 border-l border-slate-700' : 'bg-white border-l border-gray-200'}
           shadow-2xl lg:shadow-xl
           overflow-y-auto
         `}
@@ -160,17 +163,20 @@ export default function AdminLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen w-full">
         {/* Header */}
-        <header className={`sticky top-0 z-40 h-14 flex items-center justify-between px-3 sm:px-4 ${darkMode ? 'bg-slate-800/95 border-b border-slate-700' : 'bg-white/95 border-b border-gray-200'} backdrop-blur-md`}>
-          <div className="flex items-center gap-2 sm:gap-3">
+        <header className={`sticky top-0 z-40 h-14 flex items-center justify-between gap-2 px-3 sm:px-4 ${darkMode ? 'bg-slate-800/95 border-b border-slate-700' : 'bg-white/95 border-b border-gray-200'} backdrop-blur-md`}>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
-              className={`p-2 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
+              aria-label="باز و بسته کردن منو"
+              className={`p-2 rounded-lg shrink-0 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}
             >
               <Menu size={20} />
             </button>
-            <h1 className="font-bold text-xs sm:text-sm truncate">کافی نت همیار - پنل مدیریت</h1>
+            <h1 className="font-bold text-xs sm:text-sm truncate">
+              <span className="hidden sm:inline">کافی نت همیار - </span>پنل مدیریت
+            </h1>
           </div>
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
             {/* زنگوله اعلان‌ها – هر اعلان با رنگ مخصوص نوع خودش */}
             <NotificationBell />
             {currentUser && (

@@ -17,6 +17,25 @@
 html {
   direction: rtl;
   scroll-behavior: smooth;
+  /* هیچ صفحه‌ای نباید کل سند را افقی اسکرول کند. بدون این، یک عنوان بلند یا
+     جدول عریض باعث می‌شود کروم موبایل «عرض چیدمان» را بزرگ‌تر از صفحه کند و
+     در نتیجه عناصر خارج از صفحه (مثل سایدبار بسته‌شده) به‌صورت نواری داخل
+     تصویر دیده شوند. جدول‌های عریض خودشان داخل کانتینر `overflow-x-auto`
+     اسکرول می‌شوند. */
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+/* اسلاید سایدبار موبایل؛ فقط زیر ۱۰۲۴px اجرا می‌شود تا در دسکتاپ پرش نداشته باشیم. */
+@media (max-width: 1023px) {
+  .drawer-in {
+    animation: hamyar-drawer-in 0.25s ease-out;
+  }
+}
+
+@keyframes hamyar-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 body {
