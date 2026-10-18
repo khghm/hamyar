@@ -212,11 +212,19 @@ export async function fetchInvoices(): Promise<Invoice[]> {
 
   // `invoice_items.invoice_id` یک uuid است، پس نگاشت از راه شمارهٔ سطر برگشتی
   // انجام می‌شود: همهٔ شناسه‌های فاکتور یک‌جا خوانده می‌شوند.
+  //
+  // فاکتورهای قدیمی `sku` ندارند و `invoiceMapper.fromRow` برایشان `id` را همان
+  // uuid می‌گذارد؛ بنابراین کلید دوم (`h.id → h.id`) لازم است، وگرنه هیچ قلمی به
+  // فاکتور الصاق نمی‌شد و جدول فاکتور چاپی خالی می‌ماند.
   const { data: heads } = await supabase.from('invoices').select('id, sku');
-  const uuidBySku = new Map((heads ?? []).map(h => [h.sku, h.id]));
+  const idByKey = new Map<string, string>();
+  for (const h of heads ?? []) {
+    idByKey.set(h.id, h.id);
+    if (h.sku) idByKey.set(h.sku, h.id);
+  }
 
   return invoices.map(inv => {
-    const uuid = uuidBySku.get(inv.id);
+    const uuid = idByKey.get(inv.id);
     const items = uuid ? byInvoice.get(uuid) : undefined;
     return items ? { ...inv, items } : inv;
   });

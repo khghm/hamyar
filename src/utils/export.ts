@@ -1,5 +1,6 @@
 // Utility برای خروجی Excel با پشتیبانی کامل فارسی
 import stampImage from '../assets/stamp.jpg';
+import logoImage from '../assets/logo.png';
 
 /** آدرس مطلق مهر فروشنده برای پنجرهٔ چاپ (که base آن about:blank است). */
 function stampAbsoluteUrl(): string {
@@ -8,6 +9,16 @@ function stampAbsoluteUrl(): string {
     return new URL(stampImage, window.location.origin).toString();
   } catch {
     return stampImage;
+  }
+}
+
+/** آدرس مطلق لوگو برای پنجرهٔ چاپ. */
+function logoAbsoluteUrl(): string {
+  if (typeof window === 'undefined') return logoImage;
+  try {
+    return new URL(logoImage, window.location.origin).toString();
+  } catch {
+    return logoImage;
   }
 }
 
@@ -186,6 +197,26 @@ export function printInvoice(invoiceData: any) {
           font-size: 28px;
           margin-bottom: 5px;
         }
+
+        /* لوگو کنار نام برند در گوشهٔ بالای فاکتور */
+        .brand-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .brand-logo {
+          width: 62px;
+          height: 62px;
+          object-fit: contain;
+          flex: 0 0 auto;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        .brand-text h1 {
+          margin-bottom: 4px;
+        }
         
         .logo-section p {
           color: #6b7280;
@@ -361,7 +392,13 @@ export function printInvoice(invoiceData: any) {
       <div class="invoice-container">
         <div class="header">
           <div class="logo-section">
-            <h1>کافی نت همیار</h1>
+            <div class="brand-row">
+              <img class="brand-logo" src="${logoAbsoluteUrl()}" alt="لوگوی کافی نت همیار"
+                   onerror="this.style.display='none'" />
+              <div class="brand-text">
+                <h1>کافی نت همیار</h1>
+              </div>
+            </div>
             <p>
               مرکز خدمات و فروش دیجیتال<br>
               تلفن: 021-36432665 | موبایل: 09913911880<br>

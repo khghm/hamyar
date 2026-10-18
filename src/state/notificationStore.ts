@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, StateStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import type {
   User,
   AdminNotification,
@@ -190,6 +190,14 @@ const playNotificationPing = () => {
 
 interface NotificationState {
   notifications: AdminNotification[];
+  /**
+   * کلیدهای اعلان‌هایی که ادمین حذف کرده است.
+   *
+   * بعضی اعلان‌ها (مثل «رسید تحویل صادر شد») هنگام هر بارگذاری دوباره ساخته
+   * می‌شوند و `dedupeKey` یکسان دارند؛ بدون این فهرست، حذف‌کردنشان بی‌اثر بود و
+   * بعد از رفرش برمی‌گشتند.
+   */
+  dismissedKeys: string[];
   setNotifications: (n: AdminNotification[]) => void;
   unreadNotificationsCount: number;
   pushNotification: (input: { type: NotificationType; title: string; message: string; link?: string; priority?: NotificationPriority; key?: string }) => void;
@@ -258,7 +266,16 @@ const notificationStorage: StateStorage = {
   getItem: (name) => {
     try {
       const saved = localStorage.getItem(name);
-      if (saved) return saved;
+      if (saved) {
+        // مقدار خراب (مثلاً "[object Object]" از نسخه‌های قبلی) نباید کل
+        // بازیابی را بشکند.
+        try {
+          JSON.parse(saved);
+          return saved;
+        } catch {
+          localStorage.removeItem(name);
+        }
+      }
     } catch {}
     try {
       const legacyNotifs = localStorage.getItem('hamyar_notifications');
@@ -289,7 +306,9 @@ const notificationStorage: StateStorage = {
     } catch {}
     return null;
   },
-  setItem: (name, value) => localStorage.setItem(name, value),
+  // `persist` ممکن است مقدار را به‌صورت رشته بدهد؛ اگر شیء داد هم خراب نشود.
+  setItem: (name, value) =>
+    localStorage.setItem(name, typeof value === 'string' ? value : JSON.stringify(value)),
   removeItem: (name) => localStorage.removeItem(name),
 };
 
@@ -297,6 +316,7 @@ export const useNotificationStore = create<NotificationState>()(
   persist(
     (set, get): NotificationState => ({
       notifications: [],
+      dismissedKeys: [],
       setNotifications: (notifications) => set({ notifications }),
 
       unreadNotificationsCount: 0,
@@ -352,6 +372,8 @@ export const useNotificationStore = create<NotificationState>()(
         const def = settings.types.find((t: NotificationTypeDef) => t.id === type);
         if (def && !def.enabled) return;
         if (key && get().notifications.some((n: AdminNotification & { dedupeKey?: string }) => n.dedupeKey === key)) return;
+        // اگر ادمین همین اعلان را قبلاً حذف کرده، دوباره ساخته نشود.
+        if (key && get().dismissedKeys.includes(key)) return;
         const now = new Date().toISOString();
         const n: AdminNotification & { dedupeKey?: string } = {
           id: 'ntf' + Date.now() + Math.random().toString(36).slice(2, 6),
@@ -444,9 +466,13 @@ export const useNotificationStore = create<NotificationState>()(
         const before = get().notifications;
         const prevUnread = get().unreadNotificationsCount;
         const target = before.find((n: AdminNotification) => n.id === id);
+        const dismissedKey = (target as (AdminNotification & { dedupeKey?: string }) | undefined)?.dedupeKey;
         set({
           notifications: before.filter((n: AdminNotification) => n.id !== id),
           unreadNotificationsCount: Math.max(0, prevUnread - (target && !target.read ? 1 : 0)),
+          ...(dismissedKey && !get().dismissedKeys.includes(dismissedKey)
+            ? { dismissedKeys: [...get().dismissedKeys, dismissedKey].slice(-300) }
+            : {}),
         });
 
         // اعلان محلی (id غیر UUID) فقط در همین مرورگر وجود دارد.
@@ -462,7 +488,11 @@ export const useNotificationStore = create<NotificationState>()(
             }
           } catch (e: any) {
             // برگرداندن اعلان: کاربر باید ببیند حذف واقعاً انجام نشده است.
-            set({ notifications: before, unreadNotificationsCount: prevUnread });
+            set({
+              notifications: before,
+              unreadNotificationsCount: prevUnread,
+              ...(dismissedKey ? { dismissedKeys: get().dismissedKeys.filter((k: string) => k !== dismissedKey) } : {}),
+            });
             try {
               get().pushNotification({
                 type: 'system',
@@ -479,8 +509,15 @@ export const useNotificationStore = create<NotificationState>()(
       clearReadNotifications: () => {
         const before = get().notifications;
         const prevUnread = get().unreadNotificationsCount;
-        const readCount = before.filter((n: AdminNotification) => n.read).length;
-        set({ notifications: before.filter((n: AdminNotification) => !n.read) });
+        const readOnes = before.filter((n: AdminNotification) => n.read);
+        const readCount = readOnes.length;
+        const newKeys: string[] = readOnes
+          .map((n: AdminNotification & { dedupeKey?: string }) => n.dedupeKey)
+          .filter((k: string | undefined): k is string => !!k && !get().dismissedKeys.includes(k));
+        set({
+          notifications: before.filter((n: AdminNotification) => !n.read),
+          ...(newKeys.length ? { dismissedKeys: [...get().dismissedKeys, ...newKeys].slice(-300) } : {}),
+        });
 
         if (!get().hydrated || readCount === 0) return;
 
@@ -745,10 +782,14 @@ export const useNotificationStore = create<NotificationState>()(
     }),
     {
       name: 'hamyar_notifications',
-      storage: notificationStorage as any,
+      // `createJSONStorage` لازم است: بدون آن، persist مقدار را به‌صورت شیء به
+      // setItem می‌داد و localStorage به "[object Object]" تبدیل می‌شد؛ نتیجه
+      // این بود که اعلان‌های محلی و کلیدهای حذف‌شده هرگز ذخیره نمی‌شدند.
+      storage: createJSONStorage(() => notificationStorage) as any,
       partialize: (state: any) => ({
         notifications: state.notifications,
         notificationSettings: state.notificationSettings,
+        dismissedKeys: state.dismissedKeys,
       }) as any,
       merge: (persistedState: any, currentState: any) => {
         const base = { ...currentState, ...(persistedState || {}) };
