@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../store';
 import { 
   Heart, Star, Gift, Users, Copy, Film, Award, ChevronLeft, ShoppingCart, 
@@ -7,7 +7,9 @@ import {
   LifeBuoy, Plus, Send, RotateCcw, CreditCard
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { startOnlinePayment, startWalletTopUp } from '../api/zarinpal';
+import { startOnlinePayment, startWalletTopUp, reconcilePayments } from '../api/zarinpal';
+import { useAuthStore } from '../state/authStore';
+import { useOrderStore } from '../state/orderStore';
 import { toJalaliString } from '../utils/jalali';
 import TicketForm from '../components/TicketForm';
 import {
@@ -184,6 +186,20 @@ export default function Profile() {
   const [chargeAmount, setChargeAmount] = useState(0);
   const [birthDateDraft, setBirthDateDraft] = useState(currentUser?.birthDate?.slice(0, 10) || '');
   const [payingId, setPayingId] = useState<string | null>(null);
+
+  // اگر پرداختی در درگاه انجام شده ولی کاربر به صفحهٔ بازگشت نرسیده باشد، با
+  // ورود به پروفایل یک‌بار بازبینی و تسویه می‌شود.
+  useEffect(() => {
+    let alive = true;
+    reconcilePayments()
+      .then((res) => {
+        if (!alive || !res.ok || res.settled <= 0) return;
+        void useAuthStore.getState().refreshProfile?.();
+        void useOrderStore.getState().refresh?.();
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   if (!currentUser) return null;
 

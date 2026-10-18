@@ -108,6 +108,8 @@ interface OrderState {
   invoices: Invoice[];
   hydrated: boolean;
   hydrate: () => Promise<void>;
+  /** بازخوانی اجباری سفارش‌ها (بعد از پرداخت موفق، بدون رفرش کامل صفحه). */
+  refresh: () => Promise<void>;
   setOrders: (o: Order[]) => void;
   setInvoices: (i: Invoice[]) => void;
   updateOrder: (id: string, patch: Partial<Order>) => void;
@@ -319,6 +321,13 @@ export const useOrderStore = create<OrderState>()(
       },
 
       setOrders: (o) => set({ orders: o }),
+
+      refresh: async () => {
+        // hydrate خودش نتیجه را با دادهٔ محلی merge می‌کند؛ برای اجرای دوباره
+        // فقط فلگ را برمی‌گردانیم.
+        set({ hydrated: false });
+        await get().hydrate();
+      },
       setInvoices: (invoices) => {
         const prev = get().invoices;
         set({ invoices });

@@ -89,8 +89,7 @@ export async function startWalletTopUp(amount: number): Promise<StartPaymentResu
   }
 }
 
-/** تأیید تراکنش بعد از بازگشت از درگاه. */
-export async function verifyOnlinePayment(authority: string, status: string): Promise<VerifyPaymentResult> {
+/** تأیید تراکنش بعد از بازگشت از درگاه. */export async function verifyOnlinePayment(authority: string, status: string): Promise<VerifyPaymentResult> {
   try {
     const res = await postJson('/api/zarinpal/verify', { authority, status });
     const data = await res.json().catch(() => ({}));
@@ -108,5 +107,23 @@ export async function verifyOnlinePayment(authority: string, status: string): Pr
     };
   } catch {
     return { ok: false, error: 'خطای شبکه در تأیید پرداخت' };
+  }
+}
+
+/**
+ * بازبینی پرداخت‌های معلق.
+ *
+ * اگر کاربر بعد از پرداخت و قبل از رسیدن به صفحهٔ بازگشت، تب را ببندد یا شبکه
+ * قطع شود، تراکنش `pending` می‌ماند. این تابع (روی Worker) آن‌ها را با زرین‌پال
+ * یک‌بار چک می‌کند و پرداخت‌های واقعی را تسویه می‌کند.
+ */
+export async function reconcilePayments(): Promise<{ ok: boolean; checked: number; settled: number }> {
+  try {
+    const res = await postJson('/api/zarinpal/reconcile', {});
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, checked: 0, settled: 0 };
+    return { ok: true, checked: Number(data.checked) || 0, settled: Number(data.settled) || 0 };
+  } catch {
+    return { ok: false, checked: 0, settled: 0 };
   }
 }

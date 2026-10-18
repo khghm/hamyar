@@ -209,8 +209,13 @@ async function handleWalletTopUp(env, request) {
 
 // ----------------------------------------------------------------- verify ---
 async function handleVerifyPayment(env, request) {
+  // تأیید پرداخت عمداً به نشست مرورگر گره نخورده است: اگر کاربر هنگام بازگشت
+  // از درگاه نشستش منقضی/پاک شده باشد، نباید پولش گم شود. `authority` یک
+  // شناسهٔ تصادفی ۳۶ کاراکتری وابسته به همان ردیف payments است و زرین‌پال
+  // مرجع نهایی موفقیت تراکنش است؛ پس:
+  //   - اگر JWT معتبر باشد → مالکیت بررسی می‌شود
+  //   - اگر نباشد → فقط همان تراکنشِ مشخص تأیید می‌شود (idempotent و بی‌خطر)
   const user = await requireUser(env, request);
-  if (!user) return json({ ok: false, error: 'برای تأیید پرداخت باید وارد حساب شوید' }, 401);
 
   const body = await request.json().catch(() => ({}));
   const authority = String(body.authority || '').trim();
@@ -223,28 +228,40 @@ async function handleVerifyPayment(env, request) {
   );
   const payment = Array.isArray(rows) ? rows[0] : null;
   if (!payment) return json({ ok: false, error: 'تراکنش یافت نشد' }, 404);
-  if (payment.user_id !== user.id) return json({ ok: false, error: 'این تراکنش متعلق به شما نیست' }, 403);
+  if (user && payment.user_id !== user.id) {
+    return json({ ok: false, error: 'این تراکنش متعلق به شما نیست' }, 403);
+  }
 
+  const result = await settlePayment(env, payment, status, authority);
+  return json(result, result.httpCode || 200);
+}
+
+/**
+ * تسویهٔ یک ردیف پرداخت.
+ *
+ * idempotent است: اگر ردیف قبلاً `paid` شده باشد دوباره شارژ/تسویه نمی‌شود.
+ * برای هر دو حالت استفاده می‌شود: بازگشت از درگاه (verify) و بازبینی
+ * پرداخت‌های معلق (reconcile).
+ */
+async function settlePayment(env, payment, status, authority) {
   const isWallet = !payment.order_id;
-  const alreadyPaid = payment.status === 'paid';
 
   if (status && status !== 'OK') {
     await supabaseFetch(env, `/rest/v1/payments?id=eq.${payment.id}`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'failed' }),
     });
-    return json({ ok: false, error: 'پرداخت توسط شما لغو شد', cancelled: true });
+    return { ok: false, error: 'پرداخت توسط شما لغو شد', cancelled: true };
   }
 
-  // اگر قبلاً تأیید شده، دوباره پول اضافه نمی‌کنیم (idempotent).
-  if (alreadyPaid) {
-    return json({
+  if (payment.status === 'paid') {
+    return {
       ok: true,
       alreadyVerified: true,
       kind: isWallet ? 'wallet' : 'order',
       orderId: payment.order_id,
       amount: Number(payment.amount),
-    });
+    };
   }
 
   const zp = zarinpalConfig(env);
@@ -265,11 +282,12 @@ async function handleVerifyPayment(env, request) {
       method: 'PATCH',
       body: JSON.stringify({ status: 'failed' }),
     });
-    return json({
+    return {
       ok: false,
       error: (zj && zj.errors && zj.errors.message) || 'تأیید پرداخت ناموفق بود',
       code,
-    }, 402);
+      httpCode: 402,
+    };
   }
 
   const refId = String((zj && zj.data && zj.data.ref_id) || '');
@@ -291,14 +309,14 @@ async function handleVerifyPayment(env, request) {
       method: 'PATCH',
       body: JSON.stringify({ status: 'paid', paid_at: new Date().toISOString() }),
     });
-    return json({
+    return {
       ok: true,
       kind: 'wallet',
       refId,
       amount: Number(payment.amount),
       balance: typeof balance === 'number' ? balance : Number(balance),
       code,
-    });
+    };
   }
 
   // `verify_payment` (service-role only) پرداخت را paid می‌کند، سفارش و فاکتور
@@ -308,7 +326,7 @@ async function handleVerifyPayment(env, request) {
     body: JSON.stringify({ p_gateway_ref: authority, p_success: true, p_trace: refId }),
   });
 
-  return json({
+  return {
     ok: true,
     kind: 'order',
     refId: refId || null,
@@ -316,7 +334,39 @@ async function handleVerifyPayment(env, request) {
     code,
     orderId: payment.order_id,
     alreadyVerified: code === 101,
-  });
+  };
+}
+
+/**
+ * بازبینی پرداخت‌های معلق کاربر.
+ *
+ * اگر کاربر بعد از پرداخت، قبل از رسیدن به صفحهٔ callback تب را ببندد یا شبکه
+ * قطع شود، ردیف پرداخت `pending` می‌ماند و پول/سفارش تسویه نمی‌شود. این
+ * endpoint هنگام ورود به پروفایل صدا زده می‌شود و هر پرداخت معلق را یک‌بار
+ * با زرین‌پال تأیید می‌کند (اگر واقعاً پرداخت نشده باشد، failed می‌شود).
+ */
+async function handleReconcile(env, request) {
+  const user = await requireUser(env, request);
+  if (!user) return json({ ok: false, error: 'برای بازبینی پرداخت‌ها باید وارد شوید' }, 401);
+
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await supabaseFetch(
+    env,
+    `/rest/v1/payments?user_id=eq.${user.id}&status=eq.pending&created_at=gte.${encodeURIComponent(since)}` +
+      `&select=id,user_id,order_id,amount,status,gateway_ref&order=created_at.desc&limit=10`,
+  );
+
+  let settled = 0;
+  for (const p of Array.isArray(rows) ? rows : []) {
+    try {
+      const r = await settlePayment(env, p, 'OK', p.gateway_ref);
+      if (r.ok && !r.alreadyVerified) settled += 1;
+    } catch {
+      /* یک تراکنش خراب نباید بقیه را متوقف کند */
+    }
+  }
+
+  return json({ ok: true, checked: Array.isArray(rows) ? rows.length : 0, settled });
 }
 
 // ----------------------------------------------------------------- assets ---
@@ -383,6 +433,9 @@ export default {
       }
       if (url.pathname === '/api/zarinpal/verify' && request.method === 'POST') {
         return await handleVerifyPayment(env, request);
+      }
+      if (url.pathname === '/api/zarinpal/reconcile' && request.method === 'POST') {
+        return await handleReconcile(env, request);
       }
       if (url.pathname.startsWith('/api/')) {
         return json({ ok: false, error: 'not found' }, 404);

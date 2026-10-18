@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp, ADMIN_PAGE_PERMISSIONS } from './store';
+import { useAuthStore } from './state/authStore';
 import PublicLayout from './components/PublicLayout';
 import AdminLayout from './components/AdminLayout';
 import { FullPageLoader } from './components/FullPageLoader';
@@ -97,6 +98,9 @@ function Guarded({ path, children }: { path: string; children: React.ReactNode }
 
 function AppRoutes() {
   const { currentUser, adminLoggedIn } = useApp();
+  // تا وقتی پروفایل از سرور بازیابی نشده، به /auth هدایت نکنیم؛ وگرنه بعد از
+  // بازگشت از درگاه (یا هر رفرش کند) کاربر «لاگ‌اوت» به نظر می‌رسد.
+  const authHydrated = useAuthStore((s) => s.hydrated);
 
   return (
     <Suspense fallback={<FullPageLoader />}>
@@ -118,7 +122,11 @@ function AppRoutes() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/news" element={<News />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/profile" element={currentUser && currentUser.role === 'customer' ? <Profile /> : <Navigate to="/auth" />} />
+          <Route path="/profile" element={
+            !authHydrated
+              ? <FullPageLoader />
+              : currentUser && currentUser.role === 'customer' ? <Profile /> : <Navigate to="/auth" />
+          } />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/media/:id" element={<MediaDetail />} />
           {/* Details/order page for every item of طراحی سایت & تولید محتوا */}

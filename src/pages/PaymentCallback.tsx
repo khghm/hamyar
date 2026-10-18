@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, XCircle, Loader2, ShoppingBag, Receipt, RotateCw, Wallet } from 'lucide-react';
 import { verifyOnlinePayment } from '../api/zarinpal';
+import { useAuthStore } from '../state/authStore';
+import { useOrderStore } from '../state/orderStore';
 
 type State =
   | { kind: 'verifying' }
@@ -39,6 +41,10 @@ export default function PaymentCallback() {
     (async () => {
       const result = await verifyOnlinePayment(authority, status);
       if (result.ok) {
+        // موجودی کیف پول و وضعیت سفارش‌ها را از سرور تازه می‌کنیم تا با
+        // ناوبری داخلی (بدون رفرش کامل) عدد کهنه دیده نشود.
+        void useAuthStore.getState().refreshProfile?.();
+        void useOrderStore.getState().refresh?.();
         setState({
           kind: 'success',
           refId: result.refId,

@@ -179,6 +179,11 @@ interface AuthState {
   loginWithSession: (email: string) => Promise<{ ok: boolean; error?: string }>;
   hydrated: boolean;
   hydrate: () => Promise<void>;
+  /**
+   * بازخوانی پروفایل از سرور (موجودی کیف پول، امتیاز، سطح).
+   * بعد از پرداخت/شارژ لازم است، وگرنه تا رفرش بعدی عدد کهنه می‌ماند.
+   */
+  refreshProfile: () => Promise<void>;
 }
 
 const updateUserBoth = (state: AuthState, updater: (u: User) => User): Partial<AuthState> => {
@@ -199,6 +204,36 @@ const normalizeUser = (u: User | null): User | null => {
   };
 };
 
+/**
+ * ادغام پروفایل سرور با کاربر موجود.
+ *
+ * مقادیر سرور (موجودی کیف پول، امتیاز، سطح، نام/تلفن) مرجع‌اند؛ فیلدهای محلی
+ * فقط وقتی نگه داشته می‌شوند که سرور مقداری برایشان نداشته باشد. اگر کاربر
+ * محلی اصلاً وجود نداشته باشد یا متعلق به شخص دیگری باشد، نسخهٔ سرور برمی‌گردد
+ * (به‌جای null شدن و «لاگ‌اوت» به نظر رسیدن).
+ */
+const mergeServerProfile = (existing: User | null, fromServer: User): User => {
+  if (!existing) return fromServer;
+  const samePerson =
+    existing.supabaseUserId === fromServer.supabaseUserId ||
+    existing.id === fromServer.id ||
+    (!!existing.email && existing.email === fromServer.email);
+  if (!samePerson) return fromServer;
+
+  return {
+    ...existing,
+    ...fromServer,
+    role: existing.role || fromServer.role,
+    avatar: fromServer.avatar || existing.avatar,
+    favorites: (existing.favorites && existing.favorites.length) ? existing.favorites : fromServer.favorites,
+    selectedMedia: (existing.selectedMedia && existing.selectedMedia.length) ? existing.selectedMedia : fromServer.selectedMedia,
+    createdAt: existing.createdAt || fromServer.createdAt,
+    inviteCode: existing.inviteCode || fromServer.inviteCode,
+    invitedBy: existing.invitedBy || fromServer.invitedBy,
+    invitedCount: fromServer.invitedCount ?? existing.invitedCount,
+  } as User;
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get): AuthState => ({
@@ -217,27 +252,42 @@ export const useAuthStore = create<AuthState>()(
           if (profile) {
             const fromServer = profileToUser(profile);
             const cur = get();
-            const existingCurrent = cur.currentUser;
-            const existingUsers = cur.users;
-
-            const mergedCurrent = existingCurrent
-              ? (existingCurrent.supabaseUserId === profile.id || existingCurrent.id === profile.id || existingCurrent.email === profile.email
-                  ? { ...existingCurrent, ...fromServer, avatar: fromServer.avatar || existingCurrent.avatar, favorites: existingCurrent.favorites || fromServer.favorites, selectedMedia: existingCurrent.selectedMedia || fromServer.selectedMedia, createdAt: existingCurrent.createdAt || fromServer.createdAt, inviteCode: existingCurrent.inviteCode || fromServer.inviteCode, invitedBy: existingCurrent.invitedBy || fromServer.invitedBy, invitedCount: fromServer.invitedCount ?? existingCurrent.invitedCount, role: existingCurrent.role || fromServer.role } as User
-                  : existingCurrent)
-              : null;
-
-            const mergedUsers = existingUsers.map((u: User) => {
-              if (u.supabaseUserId === profile.id || u.id === profile.id || u.email === profile.email) {
-                return { ...u, ...fromServer, avatar: fromServer.avatar || u.avatar, favorites: u.favorites || fromServer.favorites, selectedMedia: u.selectedMedia || fromServer.selectedMedia, createdAt: u.createdAt || fromServer.createdAt, inviteCode: u.inviteCode || fromServer.inviteCode, invitedBy: u.invitedBy || fromServer.invitedBy, invitedCount: fromServer.invitedCount ?? u.invitedCount, role: u.role || fromServer.role } as User;
-              }
-              return u;
-            });
-            set({ currentUser: mergedCurrent, users: mergedUsers });
+            // اگر کاربر محلی وجود نداشته باشد (مثلاً بعد از بازگشت از درگاه که
+            // ذخیرهٔ محلی خالی شده) کاربر از روی پروفایل سرور ساخته می‌شود؛
+            // قبلاً در این حالت `currentUser` عمداً null می‌ماند و کاربر
+            // «لاگ‌اوت» به نظر می‌رسید.
+            const mergedCurrent = mergeServerProfile(cur.currentUser, fromServer);
+            const rest = cur.users.filter((u: User) =>
+              !(u.supabaseUserId === profile.id || u.id === profile.id || u.email === profile.email)
+            );
+            set({ currentUser: mergedCurrent, users: [...rest, mergedCurrent] });
           }
         } catch (e: any) {
           console.warn('[authStore] hydrate failed:', e?.message || e);
         }
         set({ hydrated: true });
+      },
+
+      refreshProfile: async () => {
+        try {
+          const profile = await fetchCurrentProfile();
+          if (!profile) return;
+          const fromServer = profileToUser(profile);
+          const cur = get();
+          if (!cur.currentUser) {
+            set({ currentUser: fromServer });
+            return;
+          }
+          const merged = mergeServerProfile(cur.currentUser, fromServer);
+          set({
+            currentUser: merged,
+            users: cur.users.map((u: User) =>
+              (u.id === merged.id || u.supabaseUserId === fromServer.supabaseUserId) ? merged : u
+            ),
+          });
+        } catch (e: any) {
+          console.warn('[authStore] refreshProfile failed:', e?.message || e);
+        }
       },
 
       setCurrentUser: (u) => set((state: AuthState) => ({
