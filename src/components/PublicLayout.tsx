@@ -154,7 +154,11 @@ export default function PublicLayout() {
             {/* About */}
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">H</div>
+                {aboutContent.logo ? (
+                  <img src={aboutContent.logo} alt="لوگوی کافی نت همیار" className="w-10 h-10 object-contain" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">H</div>
+                )}
                 <span className="font-bold text-lg">کافی نت همیار</span>
               </div>
               <p className={`text-sm leading-7 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
