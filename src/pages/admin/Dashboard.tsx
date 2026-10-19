@@ -21,11 +21,13 @@ export default function AdminDashboard() {
   // گروه مدیا هستند. تشخیص آن‌ها بر اساس projectServiceId (همان الگویی که
   // در بخش سفارشات کاربرد دارد) تا درآمدشان در دسته «کپی مدیا» جمع شود.
   const isContentOrder = (o: Order) =>
-    o.type === 'service' && !!o.projectServiceId && o.projectServiceId.startsWith('ps-ct');
+    o.type === 'service' && (!!o.contentProjectId || (!!o.projectServiceId && o.projectServiceId.startsWith('ps-ct')));
 
   // درآمد از فاکتورهای پرداخت‌شده/صادرشده محاسبه می‌شود (همان منبعی که
   // بخش مالی از آن استفاده می‌کند) تا اعداد داشبورد و حسابداری مطابقت داشته باشند.
-  const paidInvoices = invoices.filter(inv => inv.status === 'paid' || inv.status === 'issued');
+  const paidInvoices = invoices.filter(
+    inv => (inv.status === 'paid' || inv.status === 'issued') && inv.type !== 'media',
+  );
   const totalRevenue = paidInvoices.reduce((s, inv) => s + (inv.total || 0), 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const profit = totalRevenue - totalExpenses;
@@ -79,15 +81,14 @@ export default function AdminDashboard() {
   // دسته‌بندی درست سفارشات (تولید محتوا به عنوان جریان جداگانه، نه زیر کپی مدیا).
   // هر فاکتور را به order مرتبطش مپ می‌کنیم تا تشخیص «تولید محتوا» انجام شود.
   const orderById = new Map(orders.map(o => [o.id, o] as const));
-  const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'media' | 'product' | 'webdesign' | 'content' => {
-    if (i.type === 'media' || i.type === 'product' || i.type === 'webdesign') return i.type;
+  const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'product' | 'webdesign' | 'content' => {
+    if (i.type === 'product' || i.type === 'webdesign') return i.type;
     const linked = i.orderId ? orderById.get(i.orderId) : undefined;
     if (linked && isContentOrder(linked)) return 'content';
     return 'service';
   };
   const revenueByType = {
     service: paidInvoices.filter(i => invoiceFlow(i) === 'service').reduce((s, i) => s + (i.total || 0), 0),
-    media: paidInvoices.filter(i => invoiceFlow(i) === 'media').reduce((s, i) => s + (i.total || 0), 0),
     product: paidInvoices.filter(i => invoiceFlow(i) === 'product').reduce((s, i) => s + (i.total || 0), 0),
     webdesign: paidInvoices.filter(i => invoiceFlow(i) === 'webdesign').reduce((s, i) => s + (i.total || 0), 0),
     content: paidInvoices.filter(i => invoiceFlow(i) === 'content').reduce((s, i) => s + (i.total || 0), 0),
@@ -171,7 +172,6 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             {[
               { label: 'خدمات کافی‌نت', value: revenueByType.service, color: 'bg-blue-500', link: '/admin/services' },
-              { label: 'کپی مدیا', value: revenueByType.media, color: 'bg-purple-500', link: '/admin/media' },
               { label: 'فروش کالا', value: revenueByType.product, color: 'bg-green-500', link: '/admin/products' },
               { label: 'طراحی سایت', value: revenueByType.webdesign, color: 'bg-orange-500', link: '/admin/projects' },
               { label: 'تولید محتوا', value: revenueByType.content, color: 'bg-pink-500', link: '/admin/content-team' },
@@ -402,3 +402,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+

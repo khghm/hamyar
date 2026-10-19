@@ -3,15 +3,8 @@ import stampImage from '../assets/stamp.jpg';
 import logoImage from '../assets/logo.png';
 import { toJalaliString } from './jalali';
 import { useCatalogStore } from '../state/catalogStore';
-
-/** برچسب فارسی نوع فاکتور برای نسخهٔ چاپی. */
-const INVOICE_TYPE_LABELS: Record<string, string> = {
-  service: 'خدمات',
-  product: 'کالا',
-  webdesign: 'طراحی سایت',
-  combined: 'ترکیبی',
-  media: 'مدیا',
-};
+import { useOrderStore } from '../state/orderStore';
+import { invoiceTypeLabel } from './invoiceType';
 
 const SHOP_ADDRESS =
   'تهران شهرستان قرچک خیابان گوهردشت خیابان امین آباد جنب مسجد بنی فاطمه پلاک 180';
@@ -219,6 +212,24 @@ export function exportToExcel(filename: string, headers: string[], rows: string[
 }
 
 // Utility برای چاپ فاکتور
+/**
+ * برچسب نوع فاکتور با در نظر گرفتن سفارش مرتبط.
+ *
+ * سفارش‌های «تولید محتوا» با `type=service` ذخیره می‌شوند؛ برای اینکه فاکتور
+ * چاپی‌شان «خدمات» نشان ندهد، سفارشِ متصل را از استور می‌خوانیم.
+ */
+function invoiceTypeLabelFor(invoice: any): string {
+  let linkedOrder: { type?: string; projectServiceId?: string } | undefined;
+  try {
+    if (invoice?.orderId) {
+      linkedOrder = useOrderStore.getState().orders.find(o => o.id === invoice.orderId);
+    }
+  } catch {
+    linkedOrder = undefined;
+  }
+  return invoiceTypeLabel(invoice?.type, linkedOrder);
+}
+
 export function printInvoice(invoiceData: any) {
   const printWindow = window.open('', '_blank', 'width=800,height=900');
   if (!printWindow) {
@@ -501,7 +512,7 @@ export function printInvoice(invoiceData: any) {
             <h2>فاکتور فروش</h2>
             <p><strong>شماره فاکتور:</strong> ${invoiceData.invoiceNumber}</p>
             <p><strong>تاریخ صدور:</strong> ${invoiceDateJalali(invoiceData.date)}</p>
-            <p><strong>نوع فاکتور:</strong> ${INVOICE_TYPE_LABELS[invoiceData.type] || invoiceData.type || '—'}</p>
+            <p><strong>نوع فاکتور:</strong> ${invoiceTypeLabelFor(invoiceData)}</p>
             ${invoiceData.dueDate ? `<p><strong>مهلت پرداخت:</strong> ${invoiceDateJalali(invoiceData.dueDate)}</p>` : ''}
           </div>
         </div>
@@ -624,3 +635,4 @@ export function printInvoice(invoiceData: any) {
     setTimeout(triggerPrint, 800);
   }
 }
+

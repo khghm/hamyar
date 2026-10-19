@@ -49,12 +49,15 @@ export default function AdminAnalytics() {
         return true;
       });
 
-    const paidInvoices = filteredInvoices.filter(inv => inv.status === 'paid' || inv.status === 'issued');
+    // «کپی مدیا» درآمدی برای سایت ندارد؛ از محاسبات آماری/مالی حذف است.
+    const paidInvoices = filteredInvoices.filter(
+      inv => (inv.status === 'paid' || inv.status === 'issued') && inv.type !== 'media',
+    );
     const totalRevenue = paidInvoices.reduce((s, inv) => s + (inv.total || 0), 0);
     const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
     const profit = totalRevenue - totalExpenses;
     const totalOrders = filteredOrders.length;
-    const totalInvoices = filteredInvoices.length;
+    const totalInvoices = filteredInvoices.filter(inv => inv.type !== 'media').length;
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     const totalCustomers = users.filter(u => u.role === 'customer').length;
     
@@ -62,27 +65,26 @@ export default function AdminAnalytics() {
     // گروه جداگانه‌ای هستند. تشخیص آن‌ها بر اساس projectServiceId (همان الگویی که
     // در بخش سفارشات کاربرد دارد) تا درآمدشان از «خدمات کافی‌نت» جداسازی شود.
     const isContentOrder = (o: Order) =>
-      o.type === 'service' && !!o.projectServiceId && o.projectServiceId.startsWith('ps-ct');
+      o.type === 'service' && (!!o.contentProjectId || (!!o.projectServiceId && o.projectServiceId.startsWith('ps-ct')));
 
     // آمار به تفکیک جریان (بر اساس فاکتورهای پرداخت‌شده)
     const orderById = new Map(filteredOrders.map(o => [o.id, o] as const));
-    const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'media' | 'product' | 'webdesign' | 'content' => {
-      if (i.type === 'media' || i.type === 'product' || i.type === 'webdesign') return i.type;
+    const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'product' | 'webdesign' | 'content' => {
+      if (i.type === 'product' || i.type === 'webdesign') return i.type;
       const linked = i.orderId ? orderById.get(i.orderId) : undefined;
       if (linked && isContentOrder(linked)) return 'content';
       return 'service';
     };
     const revenueByType = {
       service: paidInvoices.filter(i => invoiceFlow(i) === 'service').reduce((s, i) => s + (i.total || 0), 0),
-      media: paidInvoices.filter(i => invoiceFlow(i) === 'media').reduce((s, i) => s + (i.total || 0), 0),
       product: paidInvoices.filter(i => invoiceFlow(i) === 'product').reduce((s, i) => s + (i.total || 0), 0),
       webdesign: paidInvoices.filter(i => invoiceFlow(i) === 'webdesign').reduce((s, i) => s + (i.total || 0), 0),
       content: paidInvoices.filter(i => invoiceFlow(i) === 'content').reduce((s, i) => s + (i.total || 0), 0),
     };
 
-    // آمار به تفکیک کانال
+    // آمار به تفکیک کانال (بدون سفارش‌های کپی مدیا که درآمدی برای سایت ندارند)
     const revenueByChannel: Record<string, number> = {};
-    filteredOrders.forEach(o => {
+    filteredOrders.filter(o => o.type !== 'media').forEach(o => {
       revenueByChannel[o.channel] = (revenueByChannel[o.channel] || 0) + o.paid;
     });
 
@@ -287,7 +289,6 @@ export default function AdminAnalytics() {
           <div className="space-y-3">
             {[
               { label: 'خدمات کافی‌نت', value: stats.revenueByType.service, color: 'bg-blue-500' },
-              { label: 'کپی مدیا', value: stats.revenueByType.media, color: 'bg-purple-500' },
               { label: 'فروش کالا', value: stats.revenueByType.product, color: 'bg-green-500' },
               { label: 'طراحی سایت', value: stats.revenueByType.webdesign, color: 'bg-orange-500' },
               { label: 'تولید محتوا', value: stats.revenueByType.content, color: 'bg-pink-500' },
@@ -474,3 +475,4 @@ export default function AdminAnalytics() {
     </div>
   );
 }
+

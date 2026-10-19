@@ -157,6 +157,9 @@ export const invoiceMapper: CollectionMapper<Invoice> = {
   fromRow: (r) => ({
     id: r.sku ?? r.id,
     invoiceNumber: r.invoice_number ?? '',
+    // پیوند با سفارش: برای تشخیص «تولید محتوا» در چاپ/لیست فاکتور لازم است
+    // (سفارش‌های تولید محتوا در دیتابیس type=service دارند).
+    orderId: r.order_id ?? undefined,
     // اقلام در `fetchInvoices` جدا خوانده و به این رکورد الصاق می‌شوند.
     items: [],
     date: fromDbDate(r.date),

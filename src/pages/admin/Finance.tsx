@@ -24,12 +24,16 @@ export default function AdminFinance() {
     });
   }, [expenses, filter, dateRange]);
 
-  const paidInvoices = invoices.filter(inv => inv.status === 'paid' || inv.status === 'issued');
+  // «کپی مدیا» درآمدی برای سایت ایجاد نمی‌کند؛ از همهٔ محاسبات مالی حذف است.
+  const paidInvoices = invoices.filter(
+    inv => (inv.status === 'paid' || inv.status === 'issued') && inv.type !== 'media',
+  );
   const totalIncome = paidInvoices.reduce((s, inv) => s + (inv.total || 0), 0);
   const totalExpense = filteredExpenses.reduce((s, e) => s + e.amount, 0);
   const profit = totalIncome - totalExpense;
-  const totalInvoiceAmount = invoices.reduce((s, inv) => s + (inv.total || 0), 0);
-  const pendingInvoiceAmount = invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'issued').reduce((s, inv) => s + (inv.total || 0), 0);
+  const countedInvoices = invoices.filter(inv => inv.type !== 'media');
+  const totalInvoiceAmount = countedInvoices.reduce((s, inv) => s + (inv.total || 0), 0);
+  const pendingInvoiceAmount = countedInvoices.filter(inv => inv.status !== 'paid' && inv.status !== 'issued').reduce((s, inv) => s + (inv.total || 0), 0);
 
   // آمار به تفکیک دسته
   const expensesByCategory = useMemo(() => {
@@ -44,19 +48,18 @@ export default function AdminFinance() {
   // گروه جداگانه‌ای هستند. تشخیص آن‌ها بر اساس projectServiceId (همان الگویی که
   // در بخش سفارشات کاربرد دارد) تا درآمدشان از «خدمات کافی‌نت» جداسازی شود.
   const isContentOrder = (o: Order) =>
-    o.type === 'service' && !!o.projectServiceId && o.projectServiceId.startsWith('ps-ct');
+    o.type === 'service' && (!!o.contentProjectId || (!!o.projectServiceId && o.projectServiceId.startsWith('ps-ct')));
 
   // درآمد به تفکیک جریان (بر اساس فاکتورهای پرداخت‌شده)
   const orderById = new Map(orders.map(o => [o.id, o] as const));
-  const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'media' | 'product' | 'webdesign' | 'content' => {
-    if (i.type === 'media' || i.type === 'product' || i.type === 'webdesign') return i.type;
+  const invoiceFlow = (i: typeof paidInvoices[number]): 'service' | 'product' | 'webdesign' | 'content' => {
+    if (i.type === 'product' || i.type === 'webdesign') return i.type;
     const linked = i.orderId ? orderById.get(i.orderId) : undefined;
     if (linked && isContentOrder(linked)) return 'content';
     return 'service';
   };
   const incomeByType = useMemo(() => ({
     service: paidInvoices.filter(i => invoiceFlow(i) === 'service').reduce((s, i) => s + (i.total || 0), 0),
-    media: paidInvoices.filter(i => invoiceFlow(i) === 'media').reduce((s, i) => s + (i.total || 0), 0),
     product: paidInvoices.filter(i => invoiceFlow(i) === 'product').reduce((s, i) => s + (i.total || 0), 0),
     webdesign: paidInvoices.filter(i => invoiceFlow(i) === 'webdesign').reduce((s, i) => s + (i.total || 0), 0),
     content: paidInvoices.filter(i => invoiceFlow(i) === 'content').reduce((s, i) => s + (i.total || 0), 0),
@@ -173,10 +176,9 @@ export default function AdminFinance() {
       {/* Income by Type */}
       <div className={`p-5 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
         <h3 className="font-bold mb-4 flex items-center gap-2"><BarChart3 size={18} /> درآمد به تفکیک جریان</h3>
-<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: 'خدمات', value: incomeByType.service, color: 'bg-blue-500' },
-              { label: 'کپی مدیا', value: incomeByType.media, color: 'bg-purple-500' },
               { label: 'فروش کالا', value: incomeByType.product, color: 'bg-green-500' },
               { label: 'طراحی سایت', value: incomeByType.webdesign, color: 'bg-orange-500' },
               { label: 'تولید محتوا', value: incomeByType.content, color: 'bg-pink-500' },
@@ -322,3 +324,4 @@ export default function AdminFinance() {
     </div>
   );
 }
+

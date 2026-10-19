@@ -4,6 +4,7 @@ import { Plus, X, Edit, Trash2, Eye, Printer, FileText, Download, Search, Filter
 import { printInvoice, exportToExcel } from '../../utils/export';
 import JalaliDatePicker from '../../components/JalaliDatePicker';
 import { toJalaliString } from '../../utils/jalali';
+import { invoiceTypeLabel } from '../../utils/invoiceType';
 
 export default function AdminInvoices() {
   const { darkMode, invoices, setInvoices, orders, products, services } = useApp();
@@ -44,8 +45,13 @@ export default function AdminInvoices() {
     draft: 'پیش‌نویس',
     issued: 'صادر شده',
     paid: 'پرداخت شده',
-    cancelled: 'لغو شده'
+    cancelled: 'لغو شده',
   };
+
+  // برچسب نوع فاکتور با در نظر گرفتن سفارش مرتبط (سفارش تولید محتوا در
+  // دیتابیس type=service دارد و باید «تولید محتوا» نمایش داده شود).
+  const orderById = new Map(orders.map(o => [o.id, o] as const));
+  const labelFor = (inv: Invoice) => invoiceTypeLabel(inv.type, inv.orderId ? orderById.get(inv.orderId) : undefined);
 
   const statusColors: Record<string, string> = {
     draft: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
@@ -174,7 +180,7 @@ export default function AdminInvoices() {
       inv.invoiceNumber,
       inv.date,
       inv.customerName,
-      typeLabels[inv.type],
+      labelFor(inv),
       inv.total.toLocaleString('fa-IR'),
       statusLabels[inv.status]
     ]);
@@ -279,7 +285,7 @@ export default function AdminInvoices() {
                   <td className="p-3 font-medium">{inv.customerName}</td>
                   <td className="p-3">
                     <span className={`px-2 py-0.5 rounded text-xs ${darkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>
-                      {typeLabels[inv.type]}
+                      {labelFor(inv)}
                     </span>
                   </td>
                   <td className="p-3 font-bold">{inv.total.toLocaleString('fa-IR')}</td>
@@ -462,3 +468,4 @@ export default function AdminInvoices() {
     </div>
   );
 }
+

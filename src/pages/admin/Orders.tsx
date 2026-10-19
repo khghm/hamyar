@@ -50,7 +50,7 @@ export default function AdminOrders() {
   // Orders created through the public wizard of «تولید محتوا» carry a
   // projectServiceId (ps-ct-*) while keeping the technical type "service" –
   // show them with their own label so admins can tell the two apart.
-  const isContentOrder = (o: Order) => o.type === 'service' && !!o.projectServiceId && o.projectServiceId.startsWith('ps-ct');
+  const isContentOrder = (o: Order) => o.type === 'service' && (!!o.contentProjectId || (!!o.projectServiceId && o.projectServiceId.startsWith('ps-ct')));
   const orderTypeLabel = (o: Order) => (isContentOrder(o) ? 'تولید محتوا' : typeLabels[o.type]);
 
   // Details modal state – shows the supplementary info + uploaded documents of
@@ -685,3 +685,4 @@ export default function AdminOrders() {
     </div>
   );
 }
+
