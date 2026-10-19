@@ -67,6 +67,254 @@ async function requireUser(env, request) {
   return user && user.id ? user : null;
 }
 
+// --------------------------------------------------------- phone OTP login ---
+/**
+ * ورود مشتری با شماره موبایل (کد یک‌بارمصرف).
+ *
+ * جریان:
+ *   1) POST /api/otp/request  { phone }      → کد ۶ رقمی ساخته، هش و ذخیره
+ *      می‌شود و با کاوه‌نگار پیامک می‌شود.
+ *   2) POST /api/otp/verify   { phone, code } → کد بررسی می‌شود، کاربر
+ *      Supabase Auth (با ایمیل داخلی <phone>@phone.hamyar.local) پیدا/ساخته
+ *      می‌شود و یک `token_hash` مجیک‌لینک برمی‌گردد تا کلاینت با
+ *      `supabase.auth.verifyOtp` نشست واقعی بگیرد (RLS دست‌نخورده می‌ماند).
+ *
+ * چرا اینجا و نه Edge Function: استقرار Edge Function به دسترسی مدیریتی
+ * Supabase نیاز دارد؛ Worker همین حالا کلید service_role را دارد.
+ *
+ * متغیرهای محیطی (wrangler):
+ *   KAVENEGAR_API_KEY  ← secret؛ تا وقتی تنظیم نشده، پیامک ارسال نمی‌شود
+ *   KAVENEGAR_SENDER   ← اختیاری، شمارهٔ فرستندهٔ خط خدماتی
+ *   KAVENEGAR_TEMPLATE ← اختیاری، نام الگوی verify/lookup (پیشنهادی)
+ *   OTP_DEV_MODE       ← "1" فقط برای تست: کد را در پاسخ برمی‌گرداند
+ *   OTP_PEPPER         ← اختیاری، نمک هش کدها (پیش‌فرض: کلید service_role)
+ */
+const OTP_TTL_SECONDS = 120;
+const OTP_RESEND_SECONDS = 60;
+const OTP_MAX_PER_WINDOW = 3;
+const OTP_WINDOW_MINUTES = 10;
+const OTP_MAX_ATTEMPTS = 5;
+
+const otpDevMode = (env) => String(env.OTP_DEV_MODE || '') === '1';
+
+/** شمارهٔ ایرانی را به قالب محلی `09xxxxxxxxx` نرمال می‌کند. */
+function normalizePhone(input) {
+  let s = String(input == null ? '' : input).trim();
+  const fa = '۰۱۲۳۴۵۶۷۸۹';
+  const ar = '٠١٢٣٤٥٦٧٨٩';
+  s = s.replace(/[۰-۹]/g, (d) => String(fa.indexOf(d)))
+       .replace(/[٠-٩]/g, (d) => String(ar.indexOf(d)))
+       .replace(/[^\d+]/g, '');
+  if (s.startsWith('+98')) s = '0' + s.slice(3);
+  else if (s.startsWith('0098')) s = '0' + s.slice(4);
+  else if (s.startsWith('98') && s.length === 12) s = '0' + s.slice(2);
+  else if (s.length === 10 && s.startsWith('9')) s = '0' + s;
+  return /^09\d{9}$/.test(s) ? s : '';
+}
+
+async function hashOtp(env, phone, code) {
+  const pepper = env.OTP_PEPPER || env.SUPABASE_SERVICE_ROLE_KEY || 'hamyar-otp';
+  const data = new TextEncoder().encode(`${phone}:${code}:${pepper}`);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function randomOtp() {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String(100000 + (buf[0] % 900000));
+}
+
+/** ارسال پیامک با کاوه‌نگار (الگو در اولویت، وگرنه پیامک ساده). */
+async function sendKavenegar(env, phone, code) {
+  const key = String(env.KAVENEGAR_API_KEY || '').trim();
+  if (!key) return { ok: false, missing: true };
+  const base = `https://api.kavenegar.com/v1/${encodeURIComponent(key)}`;
+
+  try {
+    if (env.KAVENEGAR_TEMPLATE) {
+      const url = `${base}/verify/lookup.json?receptor=${encodeURIComponent(phone)}&token=${encodeURIComponent(code)}&template=${encodeURIComponent(env.KAVENEGAR_TEMPLATE)}`;
+      const res = await fetch(url);
+      const body = await res.json().catch(() => ({}));
+      const status = body && body.return ? Number(body.return.status) : 0;
+      if (!res.ok || (status && status !== 200)) {
+        return { ok: false, error: (body && body.return && body.return.message) || `HTTP ${res.status}` };
+      }
+      return { ok: true };
+    }
+
+    const message = `کد ورود شما به کافی نت همیار: ${code}\nاین کد را در اختیار دیگران قرار ندهید.`;
+    let url = `${base}/sms/send.json?receptor=${encodeURIComponent(phone)}&message=${encodeURIComponent(message)}`;
+    if (env.KAVENEGAR_SENDER) url += `&sender=${encodeURIComponent(env.KAVENEGAR_SENDER)}`;
+    const res = await fetch(url);
+    const body = await res.json().catch(() => ({}));
+    const status = body && body.return ? Number(body.return.status) : 0;
+    if (!res.ok || (status && status !== 200)) {
+      return { ok: false, error: (body && body.return && body.return.message) || `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e && e.message) || 'network error' };
+  }
+}
+
+async function handleOtpRequest(env, request) {
+  const body = await request.json().catch(() => ({}));
+  const phone = normalizePhone(body.phone);
+  if (!phone) return json({ ok: false, error: 'شماره موبایل معتبر نیست (مثال: 09121234567)' }, 400);
+
+  const ip = request.headers.get('CF-Connecting-IP') || '';
+
+  // محدودیت: ۳ درخواست در ۱۰ دقیقه برای هر شماره + فاصلهٔ ۶۰ ثانیه بین ارسال‌ها
+  const since = new Date(Date.now() - OTP_WINDOW_MINUTES * 60 * 1000).toISOString();
+  let recent = [];
+  try {
+    recent = await supabaseFetch(
+      env,
+      `/rest/v1/phone_otp_codes?phone=eq.${phone}&created_at=gte.${encodeURIComponent(since)}&select=id,created_at&order=created_at.desc`,
+    );
+  } catch {
+    recent = [];
+  }
+  const list = Array.isArray(recent) ? recent : [];
+  if (list.length >= OTP_MAX_PER_WINDOW) {
+    return json({ ok: false, error: 'تعداد درخواست‌ها زیاد است؛ چند دقیقه بعد دوباره تلاش کنید', retryAfter: 300 }, 429);
+  }
+  if (list[0]) {
+    const elapsed = (Date.now() - new Date(list[0].created_at).getTime()) / 1000;
+    if (elapsed < OTP_RESEND_SECONDS) {
+      const wait = Math.ceil(OTP_RESEND_SECONDS - elapsed);
+      return json({ ok: false, error: `${wait} ثانیه دیگر می‌توانید کد جدید بگیرید`, retryAfter: wait }, 429);
+    }
+  }
+
+  const code = randomOtp();
+  const codeHash = await hashOtp(env, phone, code);
+  const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000).toISOString();
+
+  const inserted = await supabaseFetch(env, '/rest/v1/phone_otp_codes', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code_hash: codeHash, expires_at: expiresAt, ip }),
+  }).catch(() => null);
+  const rowId = Array.isArray(inserted) ? inserted[0]?.id : inserted?.id;
+
+  const sms = await sendKavenegar(env, phone, code);
+  if (sms.missing) {
+    if (otpDevMode(env)) {
+      return json({ ok: true, dev: true, code, expiresIn: OTP_TTL_SECONDS, resendIn: OTP_RESEND_SECONDS });
+    }
+    if (rowId) {
+      await supabaseFetch(env, `/rest/v1/phone_otp_codes?id=eq.${rowId}`, { method: 'DELETE' }).catch(() => {});
+    }
+    return json({
+      ok: false,
+      error: 'سامانهٔ پیامک هنوز فعال نشده است. لطفاً با پشتیبانی تماس بگیرید یا با ایمیل وارد شوید.',
+      code: 'sms_not_configured',
+    }, 503);
+  }
+  if (!sms.ok) {
+    if (rowId) {
+      await supabaseFetch(env, `/rest/v1/phone_otp_codes?id=eq.${rowId}`, { method: 'DELETE' }).catch(() => {});
+    }
+    return json({ ok: false, error: 'ارسال پیامک ناموفق بود؛ دوباره تلاش کنید', code: 'sms_failed' }, 502);
+  }
+
+  return json({ ok: true, expiresIn: OTP_TTL_SECONDS, resendIn: OTP_RESEND_SECONDS });
+}
+
+/** کاربر Auth را با شماره پیدا می‌کند یا می‌سازد و پروفایلش را کامل می‌کند. */
+async function findOrCreatePhoneUser(env, phone) {
+  const profiles = await supabaseFetch(env, `/rest/v1/profiles?phone=eq.${phone}&select=id&limit=1`).catch(() => []);
+  const existing = Array.isArray(profiles) ? profiles[0] : null;
+
+  if (existing && existing.id) {
+    const user = await supabaseFetch(env, `/auth/v1/admin/users/${existing.id}`).catch(() => null);
+    if (user && user.email) return { uid: existing.id, email: user.email, isNew: false };
+  }
+
+  // ایمیل داخلی: کاربر هرگز آن را نمی‌بیند؛ فقط شناسهٔ Auth است.
+  const internalEmail = `${phone}@phone.hamyar.local`;
+  let created = null;
+  try {
+    created = await supabaseFetch(env, '/auth/v1/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: internalEmail,
+        password: crypto.randomUUID() + crypto.randomUUID(),
+        email_confirm: true,
+        user_metadata: { phone, display_name: phone, auth_method: 'phone' },
+      }),
+    });
+  } catch (e) {
+    // اگر قبلاً ساخته شده (مثلاً در تلاش قبلی)، همان را برمی‌داریم
+    const again = await supabaseFetch(env, `/rest/v1/profiles?phone=eq.${phone}&select=id&limit=1`).catch(() => []);
+    const row = Array.isArray(again) ? again[0] : null;
+    if (!row) throw e;
+    const user = await supabaseFetch(env, `/auth/v1/admin/users/${row.id}`).catch(() => null);
+    if (!user || !user.email) throw e;
+    return { uid: row.id, email: user.email, isNew: false };
+  }
+
+  const uid = created && created.id;
+  if (!uid) throw new Error('ساخت حساب کاربری ناموفق بود');
+
+  // پروفایل را با شماره کامل می‌کنیم (تريگر ممکن است نام/ایمیل را ساخته باشد)
+  await supabaseFetch(env, `/rest/v1/profiles?id=eq.${uid}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ phone, display_name: phone }),
+  }).catch(() => {});
+
+  return { uid, email: internalEmail, isNew: true };
+}
+
+async function handleOtpVerify(env, request) {
+  const body = await request.json().catch(() => ({}));
+  const phone = normalizePhone(body.phone);
+  const code = String(body.code == null ? '' : body.code).replace(/\D/g, '');
+  if (!phone) return json({ ok: false, error: 'شماره موبایل معتبر نیست' }, 400);
+  if (code.length !== 6) return json({ ok: false, error: 'کد ۶ رقمی را کامل وارد کنید' }, 400);
+
+  const rows = await supabaseFetch(
+    env,
+    `/rest/v1/phone_otp_codes?phone=eq.${phone}&consumed_at=is.null&select=id,code_hash,expires_at,attempts&order=created_at.desc&limit=1`,
+  ).catch(() => []);
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row) return json({ ok: false, error: 'کدی برای این شماره صادر نشده است؛ دوباره درخواست دهید' }, 400);
+
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    return json({ ok: false, error: 'کد منقضی شده است؛ کد جدید بگیرید' }, 400);
+  }
+  if (Number(row.attempts) >= OTP_MAX_ATTEMPTS) {
+    return json({ ok: false, error: 'تعداد تلاش‌ها بیش از حد مجاز است؛ کد جدید بگیرید' }, 429);
+  }
+
+  const expected = await hashOtp(env, phone, code);
+  if (expected !== row.code_hash) {
+    await supabaseFetch(env, `/rest/v1/phone_otp_codes?id=eq.${row.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ attempts: Number(row.attempts) + 1 }),
+    }).catch(() => {});
+    return json({ ok: false, error: 'کد وارد شده درست نیست' }, 400);
+  }
+
+  await supabaseFetch(env, `/rest/v1/phone_otp_codes?id=eq.${row.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ consumed_at: new Date().toISOString() }),
+  }).catch(() => {});
+
+  const { email, isNew, uid } = await findOrCreatePhoneUser(env, phone);
+
+  // مجیک‌لینک یک‌بارمصرف → کلاینت با verifyOtp نشست واقعی می‌گیرد
+  const link = await supabaseFetch(env, '/auth/v1/admin/generate_link', {
+    method: 'POST',
+    body: JSON.stringify({ type: 'magiclink', email }),
+  });
+  const tokenHash = (link && link.properties && link.properties.hashed_token) || (link && link.hashed_token);
+  if (!tokenHash) return json({ ok: false, error: 'ایجاد نشست ناموفق بود؛ دوباره تلاش کنید' }, 500);
+
+  return json({ ok: true, token_hash: tokenHash, email, is_new: isNew, user_id: uid });
+}
+
 // ---------------------------------------------------------------- request ---
 async function handleRequestPayment(env, request) {
   const user = await requireUser(env, request);
@@ -423,7 +671,19 @@ export default {
     try {
       if (url.pathname === '/api/health') {
         const zp = zarinpalConfig(env);
-        return json({ ok: true, gateway: 'zarinpal', mode: zp.sandbox ? 'sandbox' : 'live' });
+        const sms = String(env.KAVENEGAR_API_KEY || '').trim();
+        return json({
+          ok: true,
+          gateway: 'zarinpal',
+          mode: zp.sandbox ? 'sandbox' : 'live',
+          phoneAuth: sms ? 'configured' : (otpDevMode(env) ? 'dev' : 'not-configured'),
+        });
+      }
+      if (url.pathname === '/api/otp/request' && request.method === 'POST') {
+        return await handleOtpRequest(env, request);
+      }
+      if (url.pathname === '/api/otp/verify' && request.method === 'POST') {
+        return await handleOtpVerify(env, request);
       }
       if (url.pathname === '/api/zarinpal/request' && request.method === 'POST') {
         return await handleRequestPayment(env, request);

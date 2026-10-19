@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
 import { resetPasswordForEmail, signInCustomer, signUpCustomer, fetchCurrentProfile } from '../api/auth';
+import { requestPhoneOtp, verifyPhoneOtp, normalizeIranPhone } from '../api/otp';
 import { supabase } from '../lib/supabase';
 import { Mail, Lock, User, Gift, Phone } from 'lucide-react';
 
@@ -28,6 +29,60 @@ export default function Auth() {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // ---- ورود با شماره موبایل (OTP) ----
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
+  const [otpStep, setOtpStep] = useState<'phone' | 'code'>('phone');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpInfo, setOtpInfo] = useState('');
+  const [devCode, setDevCode] = useState('');
+  const [resendIn, setResendIn] = useState(0);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = setInterval(() => setResendIn(v => (v > 0 ? v - 1 : 0)), 1000);
+    return () => clearInterval(timer);
+  }, [resendIn > 0]);
+
+  const handleSendOtp = async () => {
+    setError('');
+    setOtpInfo('');
+    setDevCode('');
+    setOtpLoading(true);
+    const res = await requestPhoneOtp(phone);
+    setOtpLoading(false);
+    if (!res.ok) {
+      setError(res.error || 'ارسال کد ناموفق بود');
+      if (res.retryAfter) setResendIn(res.retryAfter);
+      return;
+    }
+    setOtpStep('code');
+    setOtpCode('');
+    setResendIn(res.resendIn || 60);
+    setOtpInfo(`کد ۶ رقمی به ${normalizeIranPhone(phone)} پیامک شد.`);
+    if (res.devCode) setDevCode(res.devCode);
+  };
+
+  const handleVerifyOtp = async () => {
+    setError('');
+    setOtpLoading(true);
+    const res = await verifyPhoneOtp(phone, otpCode);
+    if (!res.ok) {
+      setOtpLoading(false);
+      setError(res.error || 'کد وارد‌شده درست نیست');
+      return;
+    }
+    try {
+      const session = await loginWithSession(res.email || '');
+      setOtpLoading(false);
+      if (session.ok) navigate('/profile', { replace: true });
+      else navigate('/', { replace: true });
+    } catch {
+      setOtpLoading(false);
+      navigate('/', { replace: true });
+    }
+  };
 
   // Check for existing session on mount (e.g., after email confirmation redirect)
   useEffect(() => {
@@ -150,6 +205,107 @@ export default function Auth() {
 
         {mode === 'customer' ? (
           <div className="space-y-4">
+            {/* روش ورود مشتری: شماره موبایل (پیش‌فرض) یا ایمیل */}
+            <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-slate-600">
+              {([
+                { id: 'phone', label: 'ورود با موبایل' },
+                { id: 'email', label: 'ایمیل و رمز عبور' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => { setAuthMethod(opt.id); setError(''); setOtpStep('phone'); setOtpInfo(''); }}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-all ${authMethod === opt.id ? 'bg-blue-600 text-white' : darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-50 text-slate-600'}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {authMethod === 'phone' ? (
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold text-center">ورود / ثبت‌نام</h2>
+                <p className={`text-sm text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  کد ورود برای شمارهٔ موبایل شما پیامک می‌شود؛ نیازی به ایمیل نیست.
+                </p>
+
+                {otpStep === 'phone' ? (
+                  <>
+                    <div className="relative">
+                      <Phone size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        dir="ltr"
+                        placeholder="09121234567"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSendOtp(); }}
+                        className={`w-full pr-10 pl-4 py-3 rounded-xl border text-left ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`}
+                      />
+                    </div>
+                    <button
+                      onClick={handleSendOtp}
+                      disabled={otpLoading || !normalizeIranPhone(phone)}
+                      className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all disabled:opacity-50"
+                    >
+                      {otpLoading ? 'در حال ارسال…' : 'دریافت کد ورود'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className={`text-xs text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {otpInfo}
+                      {' '}
+                      <button onClick={() => { setOtpStep('phone'); setOtpCode(''); setError(''); }} className="text-blue-600 hover:underline">
+                        تغییر شماره
+                      </button>
+                    </p>
+
+                    <div className="relative">
+                      <Lock size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        dir="ltr"
+                        maxLength={6}
+                        placeholder="- - - - - -"
+                        value={otpCode}
+                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        onKeyDown={e => { if (e.key === 'Enter') handleVerifyOtp(); }}
+                        className={`w-full pr-10 pl-4 py-3 rounded-xl border text-center tracking-[0.6em] text-lg font-bold ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`}
+                      />
+                    </div>
+
+                    {devCode && (
+                      <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs text-center">
+                        حالت آزمایشی (بدون پیامک): کد شما <span className="font-mono font-bold">{devCode}</span>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleVerifyOtp}
+                      disabled={otpLoading || otpCode.length !== 6}
+                      className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all disabled:opacity-50"
+                    >
+                      {otpLoading ? 'در حال بررسی…' : 'تأیید و ورود'}
+                    </button>
+
+                    <button
+                      onClick={handleSendOtp}
+                      disabled={otpLoading || resendIn > 0}
+                      className={`w-full text-sm ${darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'} disabled:opacity-50`}
+                    >
+                      {resendIn > 0 ? `ارسال مجدد کد (${resendIn})` : 'ارسال مجدد کد'}
+                    </button>
+                  </>
+                )}
+
+                <p className={`text-xs text-center leading-6 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                  با ورود، شمارهٔ موبایل شما به‌عنوان شناسهٔ حساب ثبت می‌شود.
+                </p>
+              </div>
+            ) : (
+            <div className="space-y-4">
             <h2 className="text-xl font-bold text-center mb-2">
               {isRegister ? 'ثبت‌نام' : 'ورود'}
             </h2>
@@ -221,6 +377,8 @@ export default function Auth() {
                 {isRegister ? 'قبلاً حساب دارید؟ ورود' : 'حساب ندارید؟ ثبت‌نام'}
               </button>
             </div>
+            </div>
+            )}
           </div>
         ) : (
           /* Admin login (Supabase Auth + staff_accounts) */

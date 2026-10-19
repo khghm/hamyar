@@ -13,6 +13,10 @@ main = "src/index.js"
 # Secretها (با `npx wrangler secret put <NAME>` تنظیم می‌شوند):
 #   SUPABASE_SERVICE_ROLE_KEY  ← فقط سمت سرور، هرگز در مرورگر
 #   ZARINPAL_MERCHANT_ID       ← در حالت sandbox خالی/تستی است
+#   KAVENEGAR_API_KEY          ← کلید سرویس پیامک کاوه‌نگار (ورود با موبایل)
+#   KAVENEGAR_SENDER           ← اختیاری: شمارهٔ خط فرستنده
+#   KAVENEGAR_TEMPLATE         ← اختیاری: نام الگوی verify/lookup (پیشنهادی)
+#   OTP_PEPPER                 ← اختیاری: نمک هش کدهای یک‌بارمصرف
 #
 # برای رفتن به درگاه واقعی، فقط این دو را عوض کنید (بدون تغییر کد):
 #   wrangler secret put ZARINPAL_MERCHANT_ID     (مرچنت ۳۶ کاراکتری زرین‌پال)
@@ -23,6 +27,10 @@ main = "src/index.js"
 SUPABASE_HOST = "rcimwpsnekxsxeivpivm.supabase.co"
 SUPABASE_ANON_KEY = "sb_publishable_a0tACiO-Z-n-1AIgh26m9A_lbJNpzLx"
 ZARINPAL_MODE = "sandbox"
+# ورود مشتری با شماره موبایل (OTP):
+#   با OTP_DEV_MODE="1" کد در پاسخ /api/otp/request برگردانده می‌شود (فقط برای
+#   تست، بدون ارسال پیامک). در محیط واقعی همیشه "0" باشد و کلید کاوه‌نگار ست شود.
+OTP_DEV_MODE = "0"
 
 [assets]
 directory = "dist"

@@ -1,0 +1,102 @@
+# ورود مشتری با شماره موبایل (OTP + کاوه‌نگار)
+
+این سند دقیقاً همان چیزی است که برای «روشن‌کردن» ورود پیامکی لازم است.
+
+## وضعیت فعلی
+
+- زیرساخت کامل پیاده‌سازی شده و روی Cloudflare Worker فعال است.
+- تا وقتی کلید کاوه‌نگار تنظیم نشده، درخواست کد با پیام روشن
+  «سامانهٔ پیامک هنوز فعال نشده است…» رد می‌شود و مشتری می‌تواند از
+  «ایمیل و رمز عبور» استفاده کند.
+- ورود ادمین/کارمندان (ایمیل + رمز عبور Supabase) هیچ تغییری نکرده است.
+
+## معماری
+
+```
+مرورگر ──POST /api/otp/request──▶ Worker (Cloudflare)
+                                   ├─ محدودیت نرخ (۳ در ۱۰ دقیقه، ۶۰ ثانیه فاصله)
+                                   ├─ تولید کد ۶ رقمی + هش SHA-256
+                                   ├─ INSERT در phone_otp_codes (فقط service_role)
+                                   └─ کاوه‌نگار: verify/lookup یا sms/send
+
+مرورگر ──POST /api/otp/verify───▶ Worker
+                                   ├─ بررسی کد/انقضا/تعداد تلاش
+                                   ├─ پیدا/ساخت کاربر Auth با ایمیل داخلی
+                                   │  <phone>@phone.hamyar.local
+                                   ├─ کامل‌کردن profiles.phone
+                                   └─ generate_link (magiclink) → token_hash
+
+مرورگر: supabase.auth.verifyOtp({ token_hash }) → نشست واقعی Supabase (RLS دست‌نخورده)
+```
+
+- کدها **هش‌شده** ذخیره می‌شوند؛ متن کد هیچ‌جا در دیتابیس نیست.
+- جدول `phone_otp_codes` RLS فعال و **بدون هیچ policy** است؛ فقط Worker با
+  service_role به آن دسترسی دارد.
+- ایمیل داخلی `<phone>@phone.hamyar.local` فقط شناسهٔ Auth است و به کاربر
+  نمایش داده نمی‌شود.
+
+## راه‌اندازی (فقط روزی که کلید خریداری شد)
+
+1. **خرید کلید کاوه‌نگار** و گرفتن `API Key` از پنل.
+2. ثبت کلید به‌عنوان secret روی Worker:
+   ```bash
+   npx wrangler secret put KAVENEGAR_API_KEY
+   ```
+3. (پیشنهادی) الگوی OTP در پنل کاوه‌نگار بسازید (مثلاً `hamyar-otp` با
+   متغیر `%token%`) و نامش را ست کنید:
+   ```bash
+   npx wrangler secret put KAVENEGAR_TEMPLATE
+   ```
+   اگر الگو ست نشود، پیامک ساده (`sms/send`) ارسال می‌شود و باید خط فرستنده
+   فعال داشته باشید:
+   ```bash
+   npx wrangler secret put KAVENEGAR_SENDER
+   ```
+4. مطمئن شوید `OTP_DEV_MODE` در `wrangler.toml` روی `"0"` است (پیش‌فرض).
+5. انتشار:
+   ```bash
+   npm run build
+   npx wrangler deploy
+   ```
+6. بررسی سلامت:
+   ```bash
+   curl https://<domain>/api/health
+   # {"ok":true,...,"phoneAuth":"configured"}
+   ```
+7. تست واقعی: ورود با شمارهٔ خودتان در صفحهٔ «ورود / ثبت‌نام» → «ورود با موبایل».
+
+## متغیرها
+
+| نام | نوع | توضیح |
+|---|---|---|
+| `KAVENEGAR_API_KEY` | secret | کلید کاوه‌نگار (بدون آن: حالت not-configured) |
+| `KAVENEGAR_TEMPLATE` | secret | نام الگوی verify/lookup (اختیاری) |
+| `KAVENEGAR_SENDER` | secret | شمارهٔ خط فرستنده برای sms/send (اختیاری) |
+| `OTP_PEPPER` | secret | نمک هش کدها (پیش‌فرض: کلید service_role) |
+| `OTP_DEV_MODE` | var | `"1"` فقط برای تست: کد در پاسخ برمی‌گردد. **در تولید `"0"`** |
+| `SUPABASE_SERVICE_ROLE_KEY` | secret | از قبل برای پرداخت‌ها تنظیم شده است |
+
+## مقدارهای داخلی
+
+- عمر کد: **۱۲۰ ثانیه**
+- فاصلهٔ ارسال مجدد: **۶۰ ثانیه**
+- حداکثر درخواست: **۳** در ۱۰ دقیقه برای هر شماره
+- حداکثر تلاش برای هر کد: **۵**
+
+## نکتهٔ مهاجرت مشتریان قبلی
+
+اگر مشتری‌ای قبلاً با ایمیل ثبت‌نام کرده و شماره‌اش در `profiles.phone` ثبت
+شده باشد، با ورود پیامکی **همان حساب** باز می‌شود (Worker اول پروفایل را با
+شماره پیدا می‌کند و مجیک‌لینک همان کاربر را می‌سازد)؛ سفارش‌ها و کیف پول از
+دست نمی‌رود. اگر شماره‌ای در پروفایل‌ها نباشد، حساب جدید ساخته می‌شود.
+
+## تست بدون پیامک
+
+برای تست محلی:
+
+```bash
+# .dev.vars (در .gitignore است)
+printf 'OTP_DEV_MODE=1\nSUPABASE_HOST=...\nSUPABASE_ANON_KEY=...\nSUPABASE_SERVICE_ROLE_KEY=...\n' > .dev.vars
+npx wrangler dev --port 8787
+# سپس http://127.0.0.1:8787/auth → ورود با موبایل → کد در همان صفحه نمایش داده می‌شود
+```
