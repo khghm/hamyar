@@ -141,10 +141,29 @@ export async function updateStaffAccount(
 }
 
 /**
- * Deletes a staff account server-side: the `staff_accounts` row and the
- * matching `auth.users` row. The server-side RPC (`delete_staff_account`,
- * migration 023) enforces the permission check, so the client never needs the
- * service_role key.
+ * به‌روزرسانی اعتبارنامهٔ ورود کارمند (نام کاربری و/یا رمز عبور).
+ *
+ * رمز عبور در `auth.users` به‌صورت bcrypt ذخیره می‌شود و کلاینت به service_role
+ * دسترسی ندارد؛ پس عملیات در تابع `admin_update_staff_credentials` (migration
+ * 038، SECURITY DEFINER با بررسی perm35) انجام می‌شود.
+ */
+export async function setStaffCredentials(
+  staffId: string,
+  opts: { username?: string; password?: string },
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('admin_update_staff_credentials', {
+    p_staff_id: staffId,
+    p_username: opts.username ?? null,
+    p_password: opts.password ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * حذف کارمند در سمت سرور: ردیف `staff_accounts` و کاربر `auth.users`.
+ * تابع سمت سرور (`delete_staff_account`، migration 023) مجوز را بررسی می‌کند،
+ * پس کلاینت هرگز به service_role نیاز ندارد.
  */
 export async function deleteStaffAccount(
   staffId: string,

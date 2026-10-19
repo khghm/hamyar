@@ -350,6 +350,17 @@ export const useRbacStore = create<RbacState>()(
           const { data, error } = await supabase.auth.signInWithPassword({ email: candidate, password });
           if (!error && data?.user) { authUser = data.user; break; }
         }
+
+        // اگر ادمین همین لحظه رمز/نام کاربری را عوض کرده باشد، GoTrue ممکن است
+        // تا چند صد میلی‌ثانیه نسخهٔ قبلی را در کش داشته باشد؛ یک بار دیگر با
+        // فاصلهٔ کوتاه تلاش می‌کنیم تا کاربر مجبور به رفرش نشود.
+        if (!authUser) {
+          await new Promise(resolve => setTimeout(resolve, 700));
+          for (const candidate of candidates) {
+            const { data, error } = await supabase.auth.signInWithPassword({ email: candidate, password });
+            if (!error && data?.user) { authUser = data.user; break; }
+          }
+        }
         if (!authUser) return false;
 
         // Check staff_accounts for this auth user
@@ -400,6 +411,15 @@ export const useRbacStore = create<RbacState>()(
           createdAt: new Date().toISOString(),
         };
         establishAdminSession(su, role.name, permIds);
+
+        // اعلان‌ها فقط برای همین کاربر واکشی شوند؛ قبل از ورود، hydrate با
+        // نشست مهمان اجرا شده و ردیف‌های همهٔ کارمندان را دیده بود (تکرار اعلان).
+        try {
+          const { useNotificationStore } = await import('./notificationStore');
+          useNotificationStore.setState({ hydrated: false });
+          await useNotificationStore.getState().hydrate();
+        } catch {}
+
         return true;
       },
 

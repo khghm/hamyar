@@ -228,6 +228,16 @@ let notificationRealtimeUnsub: (() => void) | null = null;
 let notificationVisibilityUnsub: (() => void) | null = null;
 let notificationRefreshInFlight = false;
 
+/**
+ * شناسهٔ کاربر Supabase Auth که اعلان‌ها برایش واکشی شده‌اند.
+ *
+ * یک رویداد مثل «سفارش جدید» در دیتابیس برای هر کارمند یک ردیف می‌سازد تا
+ * نشان خوانده‌نشدهٔ هر کس جدا باشد. پنل باید فقط ردیف خودِ کاربر (+ اعلان‌های
+ * سراسری با user_id تهی) را نشان دهد؛ این شناسه در hydrate پر می‌شود و هم
+ * فیلتر واکشی و هم فیلتر آپدیت‌های زنده از آن استفاده می‌کنند.
+ */
+let currentRecipientId: string | null = null;
+
 const debouncedNotificationRefresh = debounce(() => {
   refreshNotificationsFromServer();
 }, 400);
@@ -236,8 +246,20 @@ async function refreshNotificationsFromServer() {
   if (notificationRefreshInFlight) return;
   notificationRefreshInFlight = true;
   try {
+    // اگر بعد از hydrate وارد شده باشیم، شناسهٔ گیرنده را همین‌جا تازه می‌کنیم
+    // تا فیلتر «فقط اعلان‌های خودم» درست اعمال شود.
+    if (!currentRecipientId) {
+      try {
+        const { data } = await supabase.auth.getUser();
+        currentRecipientId = data?.user?.id ?? null;
+      } catch {}
+    }
     const cloud = await fetchNotifications().catch(() => null);
     if (!Array.isArray(cloud)) return;
+    // فقط اعلان‌های همین کاربر + اعلان‌های سراسری (نه ردیف‌های سایر کارمندان)
+    const visibleCloud = currentRecipientId
+      ? cloud.filter((n: AdminNotification) => !n.userId || n.userId === currentRecipientId)
+      : cloud;
     const curr = useNotificationStore.getState().notifications;
     const maxItems = useNotificationStore.getState().notificationSettings.maxItems;
     const byKey = new Map<string, AdminNotification>();
@@ -245,7 +267,7 @@ async function refreshNotificationsFromServer() {
       const k = (n as any).dedupeKey || n.id;
       byKey.set(k, n);
     }
-    for (const c of cloud) {
+    for (const c of visibleCloud) {
       if (!c || !c.id) continue;
       const k = (c as any).dedupeKey || c.id;
       const existing = byKey.get(k);
@@ -329,9 +351,27 @@ export const useNotificationStore = create<NotificationState>()(
           const cloud = await fetchNotifications();
           if (Array.isArray(cloud) && cloud.length > 0) {
             const maxItems = get().notificationSettings.maxItems;
+
+            /**
+             * هر رویداد (مثلاً «سفارش جدید») در دیتابیس یک ردیف برای هر کارمند
+             * می‌سازد تا نشان «خوانده‌نشده» هر کس جدا باشد. پنل قبلاً همهٔ این
+             * ردیف‌ها را نشان می‌داد و یک سفارش به‌صورت ۱۰ اعلان تکراری دیده
+             * می‌شد. اینجا فقط اعلان‌های همین کاربر + اعلان‌های سراسری
+             * (user_id تهی) نگه داشته می‌شود.
+             */
+            let uid: string | null = null;
+            try {
+              const { data: authData } = await supabase.auth.getUser();
+              uid = authData?.user?.id ?? null;
+            } catch { uid = null; }
+            currentRecipientId = uid;
+            const visibleCloud = uid
+              ? cloud.filter((n: AdminNotification) => !n.userId || n.userId === uid)
+              : cloud;
+
             set((s: NotificationState) => {
               const localList = Array.isArray(s.notifications) ? s.notifications : [];
-              const merged = [...cloud, ...localList.filter(n => !isServerNotificationId(n.id))];
+              const merged = [...visibleCloud, ...localList.filter(n => !isServerNotificationId(n.id))];
               const seen = new Set<string>();
               const deduped = merged.filter(n => {
                 const k = (n as any).dedupeKey || n.id;
@@ -534,7 +574,13 @@ export const useNotificationStore = create<NotificationState>()(
 
         (async () => {
           try {
-            const res = await apiClearRead();
+            let uid: string | null = null;
+            try {
+              const { data: authData } = await supabase.auth.getUser();
+              uid = authData?.user?.id ?? null;
+            } catch { uid = null; }
+
+            const res = await apiClearRead(uid);
             if (!res.ok) throw new Error(res.error || 'پاک‌سازی اعلان‌ها ناموفق بود');
             const deleted = res.deleted ?? 0;
 
@@ -558,8 +604,11 @@ export const useNotificationStore = create<NotificationState>()(
             // باشد که در دیتابیس مانده است.
             const cloud = await fetchNotifications().catch(() => null);
             if (Array.isArray(cloud)) {
+              const visibleCloud = uid
+                ? cloud.filter((n: AdminNotification) => !n.userId || n.userId === uid)
+                : cloud;
               const localOnly = get().notifications.filter((n: AdminNotification) => !isServerNotificationId(n.id));
-              const merged = [...cloud, ...localOnly].slice(0, get().notificationSettings.maxItems);
+              const merged = [...visibleCloud, ...localOnly].slice(0, get().notificationSettings.maxItems);
               set({
                 notifications: merged,
                 unreadNotificationsCount: merged.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0),
@@ -788,6 +837,11 @@ export const useNotificationStore = create<NotificationState>()(
             if (!newRow) return;
             const incoming = toNotification(newRow);
             if (!incoming || !incoming.id) return;
+
+            // فقط اعلان‌های همین کاربر + اعلان‌های سراسری؛ وگرنه ردیف‌های
+            // کارمندان دیگر هم زنده به لیست اضافه می‌شد و یک رویداد به شکل
+            // چند اعلان تکراری دیده می‌شد.
+            if (currentRecipientId && incoming.userId && incoming.userId !== currentRecipientId) return;
 
             const idx = st.notifications.findIndex(n => n.id === incoming.id);
             if (idx === -1) {

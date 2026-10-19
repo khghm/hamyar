@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp, Role, SystemUser } from '../../store';
-import { updateStaffAccount } from '../../api/rbac';
+import { updateStaffAccount, setStaffCredentials } from '../../api/rbac';
 import { Shield, Users, Key, Plus, X, Edit, Trash2, Check, Lock, Unlock, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
 export default function AdminRBAC() {
@@ -15,6 +15,7 @@ export default function AdminRBAC() {
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
   const [createdInfo, setCreatedInfo] = useState<{ username: string; password: string; email: string } | null>(null);
+  const [editedInfo, setEditedInfo] = useState<{ username: string; passwordChanged: boolean; loginChanged: boolean } | null>(null);
 
   const tabs = [
     { id: 'roles', label: 'نقش‌ها', icon: Shield },
@@ -85,6 +86,26 @@ export default function AdminRBAC() {
       });
       if (!res.ok) { setFormError(res.error || 'خطا در به‌روزرسانی'); return; }
 
+      // اعتبارنامهٔ ورود (نام کاربری/رمز عبور) در Supabase Auth ذخیره می‌شود؛
+      // بدون این فراخوانی، کارمند با اطلاعات جدید نمی‌توانست وارد شود.
+      const newPassword = (userForm.password || '').trim();
+      if (newPassword && newPassword.length < 6) {
+        setFormError('رمز عبور باید حداقل ۶ کاراکتر باشد');
+        return;
+      }
+      const credentialsChanged =
+        uname.trim() !== (target.username || '').trim() || newPassword.length > 0;
+      if (credentialsChanged) {
+        const credRes = await setStaffCredentials(editUserId, {
+          username: uname,
+          ...(newPassword ? { password: newPassword } : {}),
+        });
+        if (!credRes.ok) {
+          setFormError(credRes.error || 'به‌روزرسانی نام کاربری/رمز عبور ناموفق بود');
+          return;
+        }
+      }
+
       // Update local state
       const updated: SystemUser = { ...target, ...userForm, username: uname } as SystemUser;
       setSystemUsers(systemUsers.map(u => u.id === editUserId ? updated : u));
@@ -93,6 +114,12 @@ export default function AdminRBAC() {
         ? { ...u, username: updated.username, name: updated.name, phone: updated.phone || '', roleId: updated.roleId }
         : u));
       setShowUserForm(false);
+      setFormError('');
+      setEditedInfo({
+        username: uname,
+        passwordChanged: newPassword.length > 0,
+        loginChanged: credentialsChanged,
+      });
       return;
     }
     // New staff account – created through the store so it can sign in right away
@@ -171,6 +198,30 @@ export default function AdminRBAC() {
             </p>
           </div>
           <button onClick={() => setCreatedInfo(null)} className={`p-1 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-emerald-100'}`} title="بستن">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* پیام موفقیت ویرایش کاربر */}
+      {editedInfo && (
+        <div className={`flex items-start gap-3 p-4 rounded-xl border ${darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
+          <CheckCircle size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm text-blue-700 dark:text-blue-400">تغییرات کاربر ذخیره شد</p>
+            {editedInfo.loginChanged ? (
+              <p className={`text-xs mt-1 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                اطلاعات ورود به‌روزرسانی شد؛ از این پس با نام کاربری
+                {' '}<span className="font-mono font-semibold">{editedInfo.username}</span>
+                {editedInfo.passwordChanged ? ' و رمز عبور جدید' : ' و همان رمز عبور قبلی'} وارد می‌شود.
+              </p>
+            ) : (
+              <p className={`text-xs mt-1 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                اطلاعات کاربر (نام، نقش، وضعیت و تلفن) به‌روزرسانی شد.
+              </p>
+            )}
+          </div>
+          <button onClick={() => setEditedInfo(null)} className={`p-1 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-blue-100'}`} title="بستن">
             <X size={16} />
           </button>
         </div>

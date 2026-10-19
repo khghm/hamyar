@@ -306,7 +306,29 @@ export const useOrderStore = create<OrderState>()(
               if (!ci || !ci.id) continue;
               byId.set(ci.id, { ...(byId.get(ci.id) || {}), ...ci });
             }
-            return Array.from(byId.values()).sort((a, b) => (b.createdAt || b.date || '').localeCompare(a.createdAt || a.date || ''));
+
+            // نسخه‌های محلیِ رسیدهای تحویل که سرور هم همان شماره را دارد حذف
+            // می‌شوند؛ وگرنه یک رسید در پنل دو بار دیده می‌شد (یکی با شناسهٔ
+            // `inv…` محلی و یکی با شناسهٔ سروری).
+            const cloudNumbers = new Set(
+              cloud.map(ci => (ci.invoiceNumber || '').trim()).filter(Boolean),
+            );
+            const deduped = Array.from(byId.values()).filter(inv => {
+              const num = (inv.invoiceNumber || '').trim();
+              if (!num || !cloudNumbers.has(num)) return true;
+              return !String(inv.id).startsWith('inv');
+            });
+
+            const seenNumbers = new Set<string>();
+            const unique = deduped.filter(inv => {
+              const num = (inv.invoiceNumber || '').trim();
+              if (!num) return true;
+              if (seenNumbers.has(num)) return false;
+              seenNumbers.add(num);
+              return true;
+            });
+
+            return unique.sort((a, b) => (b.createdAt || b.date || '').localeCompare(a.createdAt || a.date || ''));
           };
 
           set({
@@ -544,10 +566,10 @@ export const useOrderStore = create<OrderState>()(
           cs.pushAuditLog('تغییر وضعیت سفارش', `سفارش ${order.trackingCode} از «${ORDER_STATUS_LABELS[order.status as OrderStatus] || order.status}» به «${ORDER_STATUS_LABELS[status as OrderStatus] || status}» تغییر یافت`, 'سفارشات');
         }
 
-        let deliveryReceiptId: string | undefined;
         if (isDelivered && !wasDelivered) {
-          issueDeliveryReceipt(order);
-          deliveryReceiptId = (get().orders.find((o: Order) => o.id === id) as Order | undefined)?.receiptInvoiceId;
+          // صدور رسید تحویل فقط سمت سرور انجام می‌شود (`change_order_status`
+          // با محافظ `receipt_invoice_id is null`). قبلاً کلاینت هم یک رسید
+          // محلی می‌ساخت و نتیجه‌اش چند فاکتور/اعلان تکراری برای یک سفارش بود.
           if (cs.awardPurchasePoints) {
             cs.awardPurchasePoints(order.customerId, order.paid || order.total, order.trackingCode);
           }
@@ -579,9 +601,24 @@ export const useOrderStore = create<OrderState>()(
                 orders: s.orders.map(o => o.id === id ? { ...o, stockDeducted: true } : o),
               }));
             }
-            if (result.receiptIssued && deliveryReceiptId) {
+
+            // رسید/فاکتور تحویل را سرور صادر کرده است؛ لیست فاکتورها و
+            // receiptInvoiceId را از سرور تازه می‌کنیم تا لینک درست شود.
+            if (isDelivered) {
+              const freshInvoices = await fetchInvoices().catch(() => null);
+              if (Array.isArray(freshInvoices)) {
+                useOrderStore.setState({ invoices: freshInvoices });
+              }
+              try { await get().refresh(); } catch {}
               if (cs.pushNotification) {
-                cs.pushNotification({ type: 'payment', title: 'رسید تحویل تایید شد', message: `رسید سفارش ${result.trackingCode || order.trackingCode} در سرور ثبت شد.`, link: '/admin/invoices', priority: 'normal', key: 'rcpt-ok-' + id });
+                cs.pushNotification({
+                  type: 'payment',
+                  title: 'رسید تحویل صادر شد',
+                  message: `رسید تحویل سفارش ${result.trackingCode || order.trackingCode} صادر شد و در فاکتورها ثبت شد.`,
+                  link: '/admin/invoices',
+                  priority: 'normal',
+                  key: 'rcpt-ok-' + id,
+                });
               }
             }
           } catch (e: any) {
@@ -1221,59 +1258,12 @@ export const useOrderStore = create<OrderState>()(
               orders: s.orders.map((x: any) => x.id === o.id ? { ...x, stockDeducted: true } : x),
             }));
           }
-          if (becameDelivered && !o.receiptInvoiceId) {
-            issueDeliveryReceipt(o);
-          }
+          // رسید تحویل فقط در سرور صادر می‌شود؛ اینجا فاکتور محلی نمی‌سازیم.
         });
       },
     },
   ),
 );
-
-const issueDeliveryReceipt = (order: Order) => {
-  const state = useOrderStore.getState();
-  if (order.receiptInvoiceId && state.invoices.some(inv => inv.id === order.receiptInvoiceId)) return;
-  const now = new Date();
-  const cs = getCrossStore();
-  const customerFromStore = cs.users?.find((u: any) => u.id === order.customerId);
-  const fallbackName = order.customerName
-    || customerFromStore?.name
-    || customerFromStore?.phone
-    || (order as any).formData?.fullName
-    || 'مشتری';
-  const invoice: Invoice = {
-    id: 'inv' + Date.now() + Math.random().toString(36).slice(2, 6),
-    invoiceNumber: 'RCPT-' + now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '-' + order.trackingCode.replace(/[^A-Za-z0-9]/g, ''),
-    orderId: order.id,
-    type: order.type === 'product' ? 'product' : order.type === 'media' ? 'media' : order.type === 'webdesign' ? 'webdesign' : 'service',
-    date: now.toISOString(),
-    customerName: fallbackName,
-    items: (order.items && order.items.length > 0)
-      ? order.items.map((it: any) => ({
-          name: it.name || 'محصول',
-          quantity: Number(it.quantity) || 1,
-          unit: 'عدد',
-          price: Number(it.price) || 0,
-        }))
-      : [{ name: order.description || 'خدمات ارائه‌شده', quantity: 1, unit: 'خدمت', price: order.total }],
-    subtotal: order.total,
-    discount: 0,
-    discountType: 'fixed',
-    discountAmount: 0,
-    tax: 0,
-    taxAmount: 0,
-    total: order.total,
-    note: `رسید تحویل سفارش ${order.trackingCode}`,
-    status: order.remaining <= 0 ? 'paid' : 'issued',
-    createdAt: now.toISOString(),
-  };
-  useOrderStore.setState(s => ({
-    invoices: [invoice, ...s.invoices],
-    orders: s.orders.map(o => o.id === order.id ? { ...o, receiptInvoiceId: invoice.id } : o),
-  }));
-  if (cs.pushAuditLog) cs.pushAuditLog('صدور رسید', `رسید «${invoice.invoiceNumber}» برای سفارش ${order.trackingCode} صادر شد`, 'فاکتورها');
-  if (cs.pushNotification) cs.pushNotification({ type: 'payment', title: 'رسید تحویل صادر شد', message: `رسید «${invoice.invoiceNumber}» برای سفارش ${order.trackingCode} به مبلغ ${order.total.toLocaleString('fa-IR')} تومان صادر شد.`, link: '/admin/invoices', priority: 'normal', key: 'rcpt-' + invoice.id });
-};
 
 const applyProductStockAtDelivery = (order: Order, delivered: boolean) => {
   if (order.type !== 'product') return;
@@ -1317,9 +1307,7 @@ useOrderStore.subscribe((state: OrderState) => {
       }));
       if (cs.pushAuditLog) cs.pushAuditLog('بازگشت موجودی انبار', `وضعیت سفارش ${o.trackingCode} از «تحویل شد» خارج شد و موجودی به انبار بازگشت`, 'محصولات');
     }
-    if (becameDelivered && !o.receiptInvoiceId) {
-      issueDeliveryReceipt(o);
-    }
+    // رسید تحویل فقط سمت سرور صادر می‌شود؛ ساخت رسید محلی حذف شده است.
   });
 
   if (cs.setProjects) {

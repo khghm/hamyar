@@ -8,8 +8,14 @@ import { Mail, Lock, User, Gift, Phone } from 'lucide-react';
 const INVITE_BONUS = 50;
 
 export default function Auth() {
-  const { darkMode, login, loginWithSession, adminLogin } = useApp();
+  const { darkMode, login, loginWithSession, adminLogin, adminLoggedIn } = useApp();
   const navigate = useNavigate();
+
+  // اگر نشست مدیریت از قبل فعال است (مثلاً رفرش یا بازگشت از پنل)، مستقیم
+  // وارد پنل شود و در صفحهٔ ورود نماند.
+  useEffect(() => {
+    if (adminLoggedIn) navigate('/admin', { replace: true });
+  }, [adminLoggedIn, navigate]);
   const [mode, setMode] = useState<'customer' | 'admin'>('customer');
   const [isRegister, setIsRegister] = useState(false);
   const [showForgot, setShowForgot] = useState(false);

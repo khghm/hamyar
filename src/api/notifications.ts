@@ -145,13 +145,19 @@ export async function deleteNotification(id: string): Promise<{ ok: boolean; err
   return { ok: true, deleted: Array.isArray(data) && data.length > 0 };
 }
 
-/** پاک کردن همهٔ اعلان‌های خوانده‌شده — این بار واقعاً روی سرور. */
-export async function clearReadNotifications(): Promise<{ ok: boolean; error?: string; deleted?: number }> {
-  const { data, error } = await supabase
-    .from('notifications')
-    .delete()
-    .eq('read', true)
-    .select('id');
+/**
+ * پاک کردن همهٔ اعلان‌های خوانده‌شده — این بار واقعاً روی سرور.
+ *
+ * اگر `userId` داده شود، حذف به اعلان‌های همان کاربر + اعلان‌های سراسری محدود
+ * می‌شود؛ وگرنه «پاک کردن خوانده‌شده‌ها» ردیف‌های خوانده‌شدهٔ سایر کارمندان را
+ * هم پاک می‌کرد.
+ */
+export async function clearReadNotifications(
+  userId?: string | null,
+): Promise<{ ok: boolean; error?: string; deleted?: number }> {
+  let query = supabase.from('notifications').delete().eq('read', true);
+  if (userId) query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+  const { data, error } = await query.select('id');
   if (error) return { ok: false, error: error.message };
   return { ok: true, deleted: Array.isArray(data) ? data.length : 0 };
 }

@@ -3,10 +3,15 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { RouteLoading } from './FullPageLoader';
 import { useApp } from '../store';
 import { track } from '../utils/analytics';
-import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart, MessageCircle, Send, Instagram } from 'lucide-react';
+import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart, MessageCircle, Send, Instagram, Shield } from 'lucide-react';
 
 export default function PublicLayout() {
-  const { darkMode, toggleDarkMode, currentUser, logout, cartItems, aboutContent } = useApp();
+  const { darkMode, toggleDarkMode, currentUser, logout, cartItems, aboutContent, adminLoggedIn, systemUsers, currentAdminId } = useApp();
+  // کارمند واردشده با Supabase Auth پروفایل مشتری ندارد؛ برای همین منوی کاربر
+  // باید با نشست مدیریت هم نمایش داده شود وگرنه راهی به پنل نیست.
+  const adminProfile = adminLoggedIn ? systemUsers.find(u => u.id === currentAdminId) : undefined;
+  const accountName = currentUser?.name || adminProfile?.name || (adminLoggedIn ? 'کاربر مدیریت' : '');
+  const isSignedIn = !!currentUser || !!adminLoggedIn;
   // مقادیر تماس/شبکه‌های اجتماعی از «تنظیمات → درباره ما» می‌آیند و اگر خالی
   // باشند به مقادیر پیش‌فرض قبلی برمی‌گردیم.
   const contactPhone = aboutContent.phone || '02136432665';
@@ -88,18 +93,22 @@ export default function PublicLayout() {
                 </Link>
               )}
 
-              {currentUser ? (
+              {isSignedIn ? (
                 <div className="relative">
                   <button onClick={() => setUserMenuOpen(!userMenuOpen)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}>
                     <User size={18} />
-                    <span className="hidden sm:block">{currentUser.name}</span>
+                    <span className="hidden sm:block">{accountName}</span>
                     <ChevronDown size={14} />
                   </button>
                   {userMenuOpen && (
                     <div className={`absolute left-0 mt-2 w-48 rounded-lg shadow-xl py-2 z-50 ${darkMode ? 'bg-slate-700 border border-slate-600' : 'bg-white border border-gray-200'}`}>
-                      <Link to="/profile" onClick={() => setUserMenuOpen(false)} className={`block px-4 py-2 text-sm ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'}`}>پروفایل من</Link>
-                      {currentUser?.role === 'admin' && (
-                        <Link to="/admin" onClick={() => setUserMenuOpen(false)} className={`block px-4 py-2 text-sm ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'}`}>پنل مدیریت</Link>
+                      {currentUser && (
+                        <Link to="/profile" onClick={() => setUserMenuOpen(false)} className={`block px-4 py-2 text-sm ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'}`}>پروفایل من</Link>
+                      )}
+                      {(currentUser?.role === 'admin' || adminLoggedIn) && (
+                        <Link to="/admin" onClick={() => setUserMenuOpen(false)} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'}`}>
+                          <Shield size={14} /> پنل مدیریت
+                        </Link>
                       )}
                       <button onClick={() => { logout(); setUserMenuOpen(false); }} className={`block w-full text-right px-4 py-2 text-sm ${darkMode ? 'hover:bg-slate-600' : 'hover:bg-gray-50'} text-red-500`}>خروج</button>
                     </div>
