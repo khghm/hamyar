@@ -73,6 +73,8 @@ export type PhoneLoginResult = {
   error?: string;
   email?: string;
   isNew?: boolean;
+  /** نام واقعی ثبت نشده و باید از کاربر پرسیده شود. */
+  needsName?: boolean;
 };
 
 /** بررسی کد و ساخت نشست Supabase. */
@@ -82,7 +84,7 @@ export async function verifyPhoneOtp(phone: string, code: string): Promise<Phone
   if (!normalized) return { ok: false, error: 'شماره موبایل معتبر نیست' };
   if (cleanCode.length !== 6) return { ok: false, error: 'کد ۶ رقمی را کامل وارد کنید' };
 
-  const data = await postOtp<{ ok: boolean; error?: string; token_hash?: string; email?: string; is_new?: boolean }>(
+  const data = await postOtp<{ ok: boolean; error?: string; token_hash?: string; email?: string; is_new?: boolean; needs_name?: boolean }>(
     'verify',
     { phone: normalized, code: cleanCode },
   );
@@ -100,5 +102,5 @@ export async function verifyPhoneOtp(phone: string, code: string): Promise<Phone
     return { ok: false, error: 'ورود انجام نشد؛ دوباره تلاش کنید' };
   }
 
-  return { ok: true, email: data.email, isNew: !!data.is_new };
+  return { ok: true, email: data.email, isNew: !!data.is_new, needsName: !!data.needs_name };
 }

@@ -86,16 +86,19 @@ export async function resetPasswordForEmail(email: string): Promise<{ ok: boolea
  * Updates the display name + optional phone on the customer's profile.
  */
 export async function updateCustomerProfile(
-  updates: { displayName?: string; phone?: string | null; birthDate?: string | null },
+  updates: { displayName?: string; phone?: string | null; birthDate?: string | null; avatarUrl?: string | null },
 ): Promise<{ ok: boolean; error?: string }> {
   const user = (await supabase.auth.getUser()).data.user;
   if (!user) return { ok: false, error: 'کاربر یافت نمی‌شود' };
 
-  const { error } = await supabase.from('profiles').update({
-    display_name: updates.displayName,
-    phone: updates.phone,
-    birth_date: updates.birthDate,
-  }).eq('id', user.id);
+  // نقش authenticated مجوز UPDATE روی جدول profiles ندارد؛ نوشتن از طریق این
+  // تابع SECURITY DEFINER انجام می‌شود که فقط ردیف خودِ کاربر را عوض می‌کند.
+  const { error } = await supabase.rpc('update_my_profile', {
+    p_display_name: updates.displayName ?? null,
+    p_avatar_url: updates.avatarUrl ?? null,
+    p_phone: updates.phone ?? null,
+    p_birth_date: updates.birthDate ?? null,
+  });
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };

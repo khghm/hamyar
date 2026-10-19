@@ -163,6 +163,38 @@ async function handleOtpRequest(env, request) {
   const phone = normalizePhone(body.phone);
   if (!phone) return json({ ok: false, error: 'شماره موبایل معتبر نیست (مثال: 09121234567)' }, 400);
 
+  /**
+   * شمارهٔ تستی (OTP_TEST_PHONE):
+   * فقط همین یک شماره پیامک نمی‌گیرد و کد (ثابت یا تصادفی) در پاسخ برمی‌گردد.
+   * برای اینکه قابل سوءاستفاده نباشد، شماره باید یک شمارهٔ ساختگی و بدون
+   * مشتری واقعی باشد؛ با خالی‌کردن متغیر، این مسیر کاملاً بسته می‌شود.
+   */
+  const testPhone = normalizePhone(env.OTP_TEST_PHONE || '');
+  const isTestPhone = !!testPhone && phone === testPhone;
+  const testCode = String(env.OTP_TEST_CODE || '').match(/^\d{6}$/) ? String(env.OTP_TEST_CODE) : '';
+
+  if (isTestPhone) {
+    const code = testCode || randomOtp();
+    const codeHash = await hashOtp(env, phone, code);
+    await supabaseFetch(env, '/rest/v1/phone_otp_codes', {
+      method: 'POST',
+      body: JSON.stringify({
+        phone,
+        code_hash: codeHash,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        ip: request.headers.get('CF-Connecting-IP') || '',
+      }),
+    }).catch(() => {});
+    return json({
+      ok: true,
+      dev: true,
+      test: true,
+      code,
+      expiresIn: 1800,
+      resendIn: 0,
+    });
+  }
+
   const ip = request.headers.get('CF-Connecting-IP') || '';
 
   // محدودیت: ۳ درخواست در ۱۰ دقیقه برای هر شماره + فاصلهٔ ۶۰ ثانیه بین ارسال‌ها
@@ -224,12 +256,17 @@ async function handleOtpRequest(env, request) {
 
 /** کاربر Auth را با شماره پیدا می‌کند یا می‌سازد و پروفایلش را کامل می‌کند. */
 async function findOrCreatePhoneUser(env, phone) {
-  const profiles = await supabaseFetch(env, `/rest/v1/profiles?phone=eq.${phone}&select=id&limit=1`).catch(() => []);
+  const profiles = await supabaseFetch(env, `/rest/v1/profiles?phone=eq.${phone}&select=id,display_name&limit=1`).catch(() => []);
   const existing = Array.isArray(profiles) ? profiles[0] : null;
 
   if (existing && existing.id) {
     const user = await supabaseFetch(env, `/auth/v1/admin/users/${existing.id}`).catch(() => null);
-    if (user && user.email) return { uid: existing.id, email: user.email, isNew: false };
+    if (user && user.email) {
+      // نام نباید شمارهٔ موبایل باشد؛ اگر هست، از کاربر پرسیده می‌شود.
+      const name = String(existing.display_name || '').trim();
+      const needsName = !name || name === phone;
+      return { uid: existing.id, email: user.email, isNew: false, needsName };
+    }
   }
 
   // ایمیل داخلی: کاربر هرگز آن را نمی‌بیند؛ فقط شناسهٔ Auth است.
@@ -264,7 +301,19 @@ async function findOrCreatePhoneUser(env, phone) {
     body: JSON.stringify({ phone, display_name: phone }),
   }).catch(() => {});
 
-  return { uid, email: internalEmail, isNew: true };
+  return { uid, email: internalEmail, isNew: true, needsName: true };
+}
+
+/** صدور نشست برای شماره: کاربر Auth + مجیک‌لینک یک‌بارمصرف. */
+async function issuePhoneSession(env, phone) {
+  const { email, isNew, uid, needsName } = await findOrCreatePhoneUser(env, phone);
+  const link = await supabaseFetch(env, '/auth/v1/admin/generate_link', {
+    method: 'POST',
+    body: JSON.stringify({ type: 'magiclink', email }),
+  });
+  const tokenHash = (link && link.properties && link.properties.hashed_token) || (link && link.hashed_token);
+  if (!tokenHash) return null;
+  return { ok: true, token_hash: tokenHash, email, is_new: isNew, needs_name: !!needsName, user_id: uid };
 }
 
 async function handleOtpVerify(env, request) {
@@ -273,6 +322,15 @@ async function handleOtpVerify(env, request) {
   const code = String(body.code == null ? '' : body.code).replace(/\D/g, '');
   if (!phone) return json({ ok: false, error: 'شماره موبایل معتبر نیست' }, 400);
   if (code.length !== 6) return json({ ok: false, error: 'کد ۶ رقمی را کامل وارد کنید' }, 400);
+
+  // شمارهٔ تستی: کد ثابت بدون نیاز به ردیف OTP (فقط همان یک شماره)
+  const testPhone = normalizePhone(env.OTP_TEST_PHONE || '');
+  const testCode = String(env.OTP_TEST_CODE || '').match(/^\d{6}$/) ? String(env.OTP_TEST_CODE) : '';
+  if (testPhone && phone === testPhone && testCode && code === testCode) {
+    const session = await issuePhoneSession(env, phone);
+    if (!session) return json({ ok: false, error: 'ایجاد نشست ناموفق بود؛ دوباره تلاش کنید' }, 500);
+    return json(session);
+  }
 
   const rows = await supabaseFetch(
     env,
@@ -302,17 +360,9 @@ async function handleOtpVerify(env, request) {
     body: JSON.stringify({ consumed_at: new Date().toISOString() }),
   }).catch(() => {});
 
-  const { email, isNew, uid } = await findOrCreatePhoneUser(env, phone);
-
-  // مجیک‌لینک یک‌بارمصرف → کلاینت با verifyOtp نشست واقعی می‌گیرد
-  const link = await supabaseFetch(env, '/auth/v1/admin/generate_link', {
-    method: 'POST',
-    body: JSON.stringify({ type: 'magiclink', email }),
-  });
-  const tokenHash = (link && link.properties && link.properties.hashed_token) || (link && link.hashed_token);
-  if (!tokenHash) return json({ ok: false, error: 'ایجاد نشست ناموفق بود؛ دوباره تلاش کنید' }, 500);
-
-  return json({ ok: true, token_hash: tokenHash, email, is_new: isNew, user_id: uid });
+  const session = await issuePhoneSession(env, phone);
+  if (!session) return json({ ok: false, error: 'ایجاد نشست ناموفق بود؛ دوباره تلاش کنید' }, 500);
+  return json(session);
 }
 
 // ---------------------------------------------------------------- request ---

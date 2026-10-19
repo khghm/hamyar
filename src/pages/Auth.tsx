@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../store';
-import { resetPasswordForEmail, signInCustomer, signUpCustomer, fetchCurrentProfile } from '../api/auth';
+import { resetPasswordForEmail, signInCustomer, signUpCustomer, fetchCurrentProfile, updateCustomerProfile as updateCustomerProfileApi } from '../api/auth';
 import { requestPhoneOtp, verifyPhoneOtp, normalizeIranPhone } from '../api/otp';
 import { supabase } from '../lib/supabase';
 import { Mail, Lock, User, Gift, Phone } from 'lucide-react';
@@ -9,7 +9,7 @@ import { Mail, Lock, User, Gift, Phone } from 'lucide-react';
 const INVITE_BONUS = 50;
 
 export default function Auth() {
-  const { darkMode, login, loginWithSession, adminLogin, adminLoggedIn } = useApp();
+  const { darkMode, login, loginWithSession, adminLogin, adminLoggedIn, currentUser } = useApp();
   const navigate = useNavigate();
 
   // اگر نشست مدیریت از قبل فعال است (مثلاً رفرش یا بازگشت از پنل)، مستقیم
@@ -17,6 +17,16 @@ export default function Auth() {
   useEffect(() => {
     if (adminLoggedIn) navigate('/admin', { replace: true });
   }, [adminLoggedIn, navigate]);
+
+  // بعد از ورود با موبایل، هدایت را در افکت انجام می‌دهیم تا استور حتماً
+  // به‌روزرسانی شده باشد؛ وگرنه گارد /profile قبل از ست‌شدن currentUser اجرا
+  // می‌شود و کاربر به /auth برمی‌گردد.
+  const [awaitProfile, setAwaitProfile] = useState(false);
+  useEffect(() => {
+    if (awaitProfile && currentUser?.role === 'customer') {
+      navigate('/profile', { replace: true });
+    }
+  }, [awaitProfile, currentUser, navigate]);
   const [mode, setMode] = useState<'customer' | 'admin'>('customer');
   const [isRegister, setIsRegister] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
@@ -32,12 +42,14 @@ export default function Auth() {
 
   // ---- ورود با شماره موبایل (OTP) ----
   const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
-  const [otpStep, setOtpStep] = useState<'phone' | 'code'>('phone');
+  const [otpStep, setOtpStep] = useState<'phone' | 'code' | 'name'>('phone');
   const [otpCode, setOtpCode] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpInfo, setOtpInfo] = useState('');
   const [devCode, setDevCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  const [fullName, setFullName] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
 
   useEffect(() => {
     if (resendIn <= 0) return;
@@ -73,15 +85,43 @@ export default function Auth() {
       setError(res.error || 'کد وارد‌شده درست نیست');
       return;
     }
-    try {
-      const session = await loginWithSession(res.email || '');
+    // کاربر تازه‌ساخته‌شده نام ندارد؛ قبل از ورود، نامش را می‌پرسیم تا در پنل
+    // مدیریت (بخش مشتریان) به‌جای شماره، نام واقعی دیده شود.
+    if (res.needsName) {
       setOtpLoading(false);
-      if (session.ok) navigate('/profile', { replace: true });
+      setPendingEmail(res.email || '');
+      setOtpStep('name');
+      return;
+    }
+    await finishPhoneLogin(res.email || '');
+  };
+
+  const finishPhoneLogin = async (email: string) => {
+    try {
+      const session = await loginWithSession(email);
+      setOtpLoading(false);
+      if (session.ok) setAwaitProfile(true);
       else navigate('/', { replace: true });
     } catch {
       setOtpLoading(false);
       navigate('/', { replace: true });
     }
+  };
+
+  const handleSaveName = async () => {
+    const name = fullName.trim();
+    if (name.length < 3) {
+      setError('نام و نام خانوادگی را کامل وارد کنید');
+      return;
+    }
+    setError('');
+    setOtpLoading(true);
+    try {
+      await updateCustomerProfileApi({ displayName: name });
+    } catch {
+      /* نام بعداً از پروفایل قابل ویرایش است */
+    }
+    await finishPhoneLogin(pendingEmail);
   };
 
   // Check for existing session on mount (e.g., after email confirmation redirect)
@@ -251,7 +291,7 @@ export default function Auth() {
                       {otpLoading ? 'در حال ارسال…' : 'دریافت کد ورود'}
                     </button>
                   </>
-                ) : (
+                ) : otpStep === 'code' ? (
                   <>
                     <p className={`text-xs text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                       {otpInfo}
@@ -296,6 +336,30 @@ export default function Auth() {
                       className={`w-full text-sm ${darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'} disabled:opacity-50`}
                     >
                       {resendIn > 0 ? `ارسال مجدد کد (${resendIn})` : 'ارسال مجدد کد'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className={`text-sm text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      برای تکمیل حساب، نام و نام خانوادگی خود را وارد کنید.
+                    </p>
+                    <div className="relative">
+                      <User size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="نام و نام خانوادگی"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); }}
+                        className={`w-full pr-10 pl-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`}
+                      />
+                    </div>
+                    <button
+                      onClick={handleSaveName}
+                      disabled={otpLoading || fullName.trim().length < 3}
+                      className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all disabled:opacity-50"
+                    >
+                      {otpLoading ? 'در حال ذخیره…' : 'تکمیل ثبت‌نام و ورود'}
                     </button>
                   </>
                 )}

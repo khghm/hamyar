@@ -38,6 +38,8 @@ export function profileToUser(p: ProfileRow): User {
     // موجودی کیف پول فقط در دیتابیس معتبر است؛ قبلاً این فیلد map نمی‌شد و UI
     // همیشه عدد محلی (صفر) را نشان می‌داد.
     walletBalance: Number(p.wallet_balance) || 0,
+    // عکس پروفایل: قبلاً این فیلد نگاشت نمی‌شد و آواتار همیشه نمایش داده نمی‌شد.
+    avatar: p.avatar_url || undefined,
     favorites: [],
     selectedMedia: Array.isArray(p.selected_media) ? p.selected_media : [],
     createdAt: p.created_at || new Date().toISOString(),

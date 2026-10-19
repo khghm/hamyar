@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { startOnlinePayment, startWalletTopUp, reconcilePayments } from '../api/zarinpal';
+import { uploadImageToSupabase } from '../api/storage';
+import { updateCustomerProfile as updateCustomerProfileApi } from '../api/auth';
 import { useAuthStore } from '../state/authStore';
 import { useOrderStore } from '../state/orderStore';
 import { toJalaliString } from '../utils/jalali';
@@ -186,6 +188,42 @@ export default function Profile() {
   const [chargeAmount, setChargeAmount] = useState(0);
   const [birthDateDraft, setBirthDateDraft] = useState(currentUser?.birthDate?.slice(0, 10) || '');
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(currentUser?.name || '');
+
+  /** آپلود واقعی آواتار در Storage + ذخیرهٔ آدرس در پروفایل. */
+  const handleAvatarUpload = async (file: File) => {
+    if (!file || avatarUploading) return;
+    setAvatarUploading(true);
+    try {
+      const { url, error } = await uploadImageToSupabase('avatars', file);
+      if (!url) {
+        alert('آپلود عکس ناموفق بود: ' + (error || 'خطای نامشخص'));
+        return;
+      }
+      const res = await updateCustomerProfileApi({ avatarUrl: url });
+      if (!res.ok) {
+        alert('ذخیرهٔ عکس ناموفق بود: ' + (res.error || 'خطای نامشخص'));
+        return;
+      }
+      updateAvatar(url);
+    } catch (e: any) {
+      alert('ذخیرهٔ عکس ناموفق بود: ' + (e?.message || 'خطای شبکه'));
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const saveName = () => {
+    const name = (nameDraft || '').trim();
+    if (name.length < 3) {
+      alert('نام و نام خانوادگی را کامل وارد کنید');
+      return;
+    }
+    updateCustomerProfile({ name });
+    setEditingName(false);
+  };
 
   // اگر پرداختی در درگاه انجام شده ولی کاربر به صفحهٔ بازگشت نرسیده باشد، با
   // ورود به پروفایل یک‌بار بازبینی و تسویه می‌شود.
@@ -272,27 +310,51 @@ export default function Profile() {
                 {currentUser.name.charAt(0)}
               </div>
             )}
-            <label className="absolute bottom-0 right-0 p-2 rounded-full bg-blue-600 text-white cursor-pointer hover:bg-blue-700 transition-all">
-              <Upload size={16} />
-              <input 
-                type="file" 
+            <label className="absolute bottom-0 right-0 p-2 rounded-full bg-blue-600 text-white cursor-pointer hover:bg-blue-700 transition-all disabled:opacity-60" title="تغییر عکس پروفایل">
+              <Upload size={16} className={avatarUploading ? 'animate-pulse' : ''} />
+              <input
+                type="file"
                 accept="image/*"
+                disabled={avatarUploading}
                 onChange={e => {
                   const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                      updateAvatar(ev.target?.result as string);
-                    };
-                    reader.readAsDataURL(file);
-                  }
+                  if (file) handleAvatarUpload(file);
+                  e.target.value = '';
                 }}
-                className="hidden" 
+                className="hidden"
               />
             </label>
+            {avatarUploading && (
+              <span className="absolute -bottom-6 right-0 text-[10px] text-blue-600 whitespace-nowrap">در حال آپلود…</span>
+            )}
           </div>
           <div className="text-center md:text-right flex-1">
-            <h1 className="text-2xl font-bold mb-1">{currentUser.name}</h1>
+            {editingName ? (
+              <div className="flex items-center gap-2 justify-center md:justify-start mb-1">
+                <input
+                  type="text"
+                  value={nameDraft}
+                  onChange={e => setNameDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+                  placeholder="نام و نام خانوادگی"
+                  className={`px-3 py-1.5 rounded-lg border text-lg font-bold ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`}
+                  autoFocus
+                />
+                <button onClick={saveName} className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700">ذخیره</button>
+                <button onClick={() => { setEditingName(false); setNameDraft(currentUser.name || ''); }} className={`px-3 py-1.5 rounded-lg text-sm ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-600'}`}>لغو</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 justify-center md:justify-start">
+                <h1 className="text-2xl font-bold mb-1">{currentUser.name || 'بدون نام'}</h1>
+                <button
+                  onClick={() => { setNameDraft(currentUser.name || ''); setEditingName(true); }}
+                  className={`px-2 py-1 rounded-lg text-xs ${darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-gray-100 text-slate-500'}`}
+                  title="ویرایش نام"
+                >
+                  ✎ ویرایش
+                </button>
+              </div>
+            )}
             <p className={`text-sm mb-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{currentUser.phone}</p>
             <div className="flex items-center gap-3 justify-center md:justify-start flex-wrap">
               <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${levelColors[currentUser.level]}`}>
