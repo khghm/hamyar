@@ -330,14 +330,33 @@ export const useRbacStore = create<RbacState>()(
       },
 
       adminLogin: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error || !data.user) return false;
+        const raw = (email || '').trim();
+        if (!raw || !password) return false;
+
+        /**
+         * ورود با «نام کاربری» یا «ایمیل».
+         *
+         * کارمندهایی که ادمین بدون ایمیل می‌سازد، در Supabase Auth با آدرس
+         * داخلی `<username>@staff.local` ثبت می‌شوند. قبلاً همین شناسهٔ خام
+         * (نام کاربری) مستقیم به signInWithPassword می‌رفت و GoTrue خطای
+         * 400 «Invalid login credentials» می‌داد.
+         */
+        const candidates = raw.includes('@')
+          ? [raw]
+          : [`${raw.toLowerCase()}@staff.local`, raw];
+
+        let authUser: { id: string } | null = null;
+        for (const candidate of candidates) {
+          const { data, error } = await supabase.auth.signInWithPassword({ email: candidate, password });
+          if (!error && data?.user) { authUser = data.user; break; }
+        }
+        if (!authUser) return false;
 
         // Check staff_accounts for this auth user
         const { data: staff, error: staffErr } = await supabase
           .from('staff_accounts')
           .select('id, role_id, display_name, username, active')
-          .eq('auth_uid', data.user.id)
+          .eq('auth_uid', authUser.id)
           .maybeSingle();
 
         if (staffErr || !staff || !staff.active) {
@@ -390,6 +409,14 @@ export const useRbacStore = create<RbacState>()(
         if (!(data.password || '')) return { ok: false, error: 'رمز عبور را وارد کنید' };
         if (!data.roleId) return { ok: false, error: 'یک نقش را انتخاب کنید' };
 
+        // شمارهٔ موبایل الزامی است: در staff_accounts هم NOT NULL است و هم کلید
+        // یکتای شناسایی، و تابع create-staff هم فقط قالب 09xxxxxxxxx را می‌پذیرد.
+        const phone = (data.phone || '').replace(/\D/g, '');
+        if (!/^09\d{9}$/.test(phone)) {
+          return { ok: false, error: 'شماره موبایل معتبر وارد کنید (مثال: 09121234567)' };
+        }
+        const email = (data.email || '').trim().toLowerCase() || `${uname.toLowerCase()}@staff.local`;
+
         // Get current session for authorization
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return { ok: false, error: 'نشست معتبر نیست، دوباره وارد شوید' };
@@ -402,8 +429,8 @@ export const useRbacStore = create<RbacState>()(
             'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            email: data.email || `${uname}@staff.local`,
-            phone: data.phone || '',
+            email,
+            phone,
             password: data.password,
             name: data.name || uname,
             role: data.roleId, // role ID

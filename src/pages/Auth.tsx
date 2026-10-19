@@ -110,10 +110,14 @@ export default function Auth() {
   };
 
   const handleAdminLogin = async () => {
+    if (!email.trim() || !password) {
+      setError('نام کاربری (یا ایمیل) و رمز عبور را وارد کنید');
+      return;
+    }
     if (await adminLogin(email, password)) {
       navigate('/admin');
     } else {
-      setError('ایمیل یا رمز عبور اشتباه است');
+      setError('نام کاربری/ایمیل یا رمز عبور اشتباه است — یا حساب غیرفعال است');
     }
   };
 
@@ -217,11 +221,11 @@ export default function Auth() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-center mb-2">ورود مدیریت</h2>
             <p className={`text-sm text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              با ایمیل و رمز عبور Supabase Auth وارد شوید
+              با نام کاربری (یا ایمیل) و رمز عبور وارد شوید
             </p>
             <div className="relative">
               <Mail size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="email" placeholder="ایمیل ادمین" value={email} onChange={e => setEmail(e.target.value)}
+              <input type="text" inputMode="text" autoComplete="username" placeholder="نام کاربری یا ایمیل" value={email} onChange={e => setEmail(e.target.value)}
                 className={`w-full pr-10 pl-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-700 border-slate-600 text-white placeholder-slate-400' : 'bg-gray-50 border-gray-200 placeholder-gray-400'}`} />
             </div>
             <div className="relative">

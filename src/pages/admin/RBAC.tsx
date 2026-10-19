@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp, Role, SystemUser } from '../../store';
 import { updateStaffAccount } from '../../api/rbac';
-import { Shield, Users, Key, Plus, X, Edit, Trash2, Check, Lock, Unlock, Eye, EyeOff } from 'lucide-react';
+import { Shield, Users, Key, Plus, X, Edit, Trash2, Check, Lock, Unlock, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
 export default function AdminRBAC() {
   const { darkMode, permissions, roles, setRoles, systemUsers, setSystemUsers, createStaffUser, users: usersList, setUsers } = useApp();
@@ -14,6 +14,7 @@ export default function AdminRBAC() {
   const [userForm, setUserForm] = useState<Partial<SystemUser>>({ username: '', password: '', name: '', email: '', phone: '', roleId: '', active: true });
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
+  const [createdInfo, setCreatedInfo] = useState<{ username: string; password: string; email: string } | null>(null);
 
   const tabs = [
     { id: 'roles', label: 'نقش‌ها', icon: Shield },
@@ -73,10 +74,14 @@ export default function AdminRBAC() {
         setFormError('این نام کاربری قبلاً ثبت شده است'); return;
       }
       // Update via API (server-side)
+      const editPhone = (userForm.phone || '').replace(/\D/g, '');
+      if (editPhone && !/^09\d{9}$/.test(editPhone)) { setFormError('شماره موبایل معتبر وارد کنید (مثال: 09121234567)'); return; }
       const res = await updateStaffAccount(editUserId, {
         display_name: userForm.name || '',
         role_id: userForm.roleId || '',
         active: userForm.active ?? true,
+        username: uname,
+        ...(editPhone ? { phone: editPhone } : {}),
       });
       if (!res.ok) { setFormError(res.error || 'خطا در به‌روزرسانی'); return; }
 
@@ -91,16 +96,27 @@ export default function AdminRBAC() {
       return;
     }
     // New staff account – created through the store so it can sign in right away
+    const phone = (userForm.phone || '').replace(/\D/g, '');
+    if (!/^09\d{9}$/.test(phone)) {
+      setFormError('شماره موبایل معتبر وارد کنید (مثال: 09121234567) — این شماره برای ورود و شناسایی کارمند لازم است');
+      return;
+    }
+    if ((userForm.email || '').trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((userForm.email || '').trim())) {
+      setFormError('ایمیل وارد‌شده معتبر نیست');
+      return;
+    }
     const res = await createStaffUser({
       username: uname,
       password: userForm.password || '',
       name: userForm.name || '',
       roleId: userForm.roleId || '',
       email: userForm.email,
-      phone: userForm.phone,
+      phone,
     });
     if (!res.ok) { setFormError(res.error || 'خطا در ایجاد کاربر'); return; }
     setShowUserForm(false);
+    setFormError('');
+    setCreatedInfo({ username: uname, password: userForm.password || '', email: (userForm.email || '').trim() });
   };
 
   const togglePermission = (permId: string) => {
@@ -140,6 +156,25 @@ export default function AdminRBAC() {
           کنترل دسترسی مبتنی بر نقش (RBAC)
         </h1>
       </div>
+
+      {/* پیام موفقیت ساخت کاربر — همراه با اطلاعات ورود */}
+      {createdInfo && (
+        <div className={`flex items-start gap-3 p-4 rounded-xl border ${darkMode ? 'bg-emerald-900/20 border-emerald-800' : 'bg-emerald-50 border-emerald-200'}`}>
+          <CheckCircle size={20} className="text-emerald-600 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm text-emerald-700 dark:text-emerald-400">کاربر با موفقیت ساخته شد</p>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+              ورود از صفحهٔ «ورود مدیریت» با
+              {' '}<span className="font-mono font-semibold">{createdInfo.username}</span>{' '}
+              (نام کاربری) و رمز عبوری که تعیین کردید انجام می‌شود.
+              {createdInfo.email ? ` اگر ایمیل ${createdInfo.email} را وارد کرده‌اید، با آن هم می‌توانید وارد شوید.` : ''}
+            </p>
+          </div>
+          <button onClick={() => setCreatedInfo(null)} className={`p-1 rounded-lg ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-emerald-100'}`} title="بستن">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -401,13 +436,22 @@ export default function AdminRBAC() {
                   className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1">ایمیل</label>
-                <input type="email" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})}
-                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
+                <label className="text-sm font-medium block mb-1">آدرس ورود (ایمیل یا نام کاربری)</label>
+                <input
+                  type="text"
+                  value={userForm.email}
+                  onChange={e => setUserForm({...userForm, email: e.target.value})}
+                  placeholder="اختیاری — خالی بگذارید تا با نام کاربری وارد شود"
+                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`}
+                />
+                <p className={`text-[11px] mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  اگر خالی باشد، ورود با «نام کاربری» + رمز عبور انجام می‌شود.
+                </p>
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1">تلفن</label>
-                <input type="tel" value={userForm.phone} onChange={e => setUserForm({...userForm, phone: e.target.value})}
+                <label className="text-sm font-medium block mb-1">تلفن *</label>
+                <input type="tel" inputMode="numeric" value={userForm.phone} onChange={e => setUserForm({...userForm, phone: e.target.value})}
+                  placeholder="09121234567 — الزامی و یکتا"
                   className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
               </div>
               <div>

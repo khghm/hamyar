@@ -130,7 +130,7 @@ export async function fetchStaffAccounts(): Promise<SystemUser[]> {
 
 export async function updateStaffAccount(
   staffId: string,
-  patch: { display_name?: string; role_id?: string; active?: boolean },
+  patch: { display_name?: string; role_id?: string; active?: boolean; username?: string; phone?: string },
 ): Promise<{ ok: boolean; error?: string }> {
   const { error } = await supabase
     .from('staff_accounts')
