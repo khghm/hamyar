@@ -1,28 +1,70 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Monitor, Film, ShoppingBag, Globe, ArrowLeft, Newspaper, ShieldCheck, Sparkles,
+  Clock4, CreditCard, Headphones, Bot, PenTool, Wifi, Server, CheckCircle2,
+} from 'lucide-react';
 import { useApp } from '../store';
-import { Monitor, Film, ShoppingBag, Globe, ArrowLeft, Newspaper, Star, Shield, Clock, PenTool, Wifi } from 'lucide-react';
-import { useBanner } from '../hooks/useBanner';
 import Seo from '../components/Seo';
+import BrandVisual from '../components/BrandVisual';
+import { toJalaliString } from '../utils/jalali';
 
+/**
+ * صفحهٔ اصلی — بازطراحی‌شده با تمرکز روی سلسله‌مراتب بصری، اعتماد و مسیرهای
+ * واضح خرید/سفارش. تصاویر هیرو به‌صورت گرادیان برند + SVG محلی هستند (بدون
+ * وابستگی به دامنهٔ خارجی) و آمار از دادهٔ واقعی خوانده می‌شود.
+ */
 export default function Home() {
-  const { darkMode, news } = useApp();
-  const banner = useBanner('home');
+  const { darkMode, products, news, services: allServices, mediaItems } = useApp();
 
-  const features = [
-    { icon: Monitor, title: 'خدمات کافی‌نت', desc: 'پرینت، اسکن، تایپ، ترجمه، ثبت‌نام و تمامی خدمات اداری', path: '/services', color: 'from-blue-500 to-cyan-500' },
-    { icon: Film, title: 'کالکشن فیلم و سریال', desc: 'بزرگ‌ترین مجموعه فیلم، سریال، انیمیشن و انیمه با کیفیت بالا', path: '/media', color: 'from-purple-500 to-pink-500' },
-    { icon: ShoppingBag, title: 'فروشگاه محصولات', desc: 'فروش فلش، هارد، کابل، شارژر، دوربین مداربسته و لوازم جانبی', path: '/store', color: 'from-green-500 to-emerald-500' },
-    { icon: Globe, title: 'طراحی وب‌سایت', desc: 'طراحی سایت، ساخت اپلیکیشن و ربات تلگرامی و غیرتلگرامی', path: '/webdesign', color: 'from-orange-500 to-red-500' },
-    { icon: PenTool, title: 'تولید محتوا', desc: 'تولید محتوای متنی، تصویری و ویدیویی، مدیریت شبکه‌های اجتماعی و سئو', path: '/content', color: 'from-pink-500 to-rose-500' },
-    { icon: Wifi, title: 'نمایندگی اینترنت آسیاتک', desc: 'ثبت‌نام و فروش سرویس‌های اینترنت ثابت ADSL، VDSL و فیبر نوری آسیاتک', path: '/asiatech', color: 'from-red-500 to-orange-500' },
+  const publishedNews = news.filter(n => (n.status ? n.status === 'published' : n.active !== false));
+
+  // آمار واقعی و قابل‌اعتماد برای بازدیدکنندهٔ عمومی (نه شمارندهٔ سفارش‌های خصوصی)
+  const stats = [
+    { value: products.length, label: 'محصول و کالای دیجیتال' },
+    { value: allServices.length, label: 'خدمت قابل سفارش' },
+    { value: mediaItems.length, label: 'عنوان فیلم و سریال' },
+    { value: publishedNews.length, label: 'خبر و مقاله' },
+  ].map(s => ({ ...s, value: s.value.toLocaleString('fa-IR') }));
+
+  const services = [
+    {
+      to: '/services', icon: Monitor, title: 'خدمات کافی‌نت',
+      desc: 'پرینت، اسکن، کپی، تایپ، لمینت و بسته‌بندی — همان روز',
+      points: ['پرینت رنگی و سیاه‌وسفید', 'اسکن و تایپ فارسی/انگلیسی'],
+    },
+    {
+      to: '/media', icon: Film, title: 'کالکشن فیلم و سریال',
+      desc: 'کپی فیلم، سریال، انیمیشن و انیمه روی فلش و هارد شما',
+      points: ['کیفیت اورجینال', 'تحویل روی حافظهٔ خودتان'],
+    },
+    {
+      to: '/store', icon: ShoppingBag, title: 'فروشگاه محصولات دیجیتال',
+      desc: 'فلش، هارد، شارژر، لوازم جانبی موبایل و کامپیوتر',
+      points: ['اصالت کالا', 'ارسال سراسری'],
+    },
+    {
+      to: '/webdesign', icon: Globe, title: 'طراحی وب‌سایت',
+      desc: 'سایت فروشگاهی، شرکتی و شخصی؛ سریع، امن و سئوشده',
+      points: ['طراحی اختصاصی', 'پشتیبانی پس از تحویل'],
+    },
+    {
+      to: '/content', icon: PenTool, title: 'تولید محتوا',
+      desc: 'متن، تصویر و ویدئوی تبلیغاتی متناسب با کسب‌وکار شما',
+      points: ['سناریو و کپی‌رایتینگ', 'تحویل مرحله‌ای'],
+    },
+    {
+      to: '/asiatech', icon: Wifi, title: 'اینترنت آسیاتک',
+      desc: 'ثبت‌نام و تمدید سرویس ADSL و VDSL با پشتیبانی محلی',
+      points: ['ثبت سریع', 'پیگیری تا نصب'],
+    },
   ];
 
-  const stats = [
-    { value: '+۵۰۰', label: 'مشتری راضی' },
-    { value: '+۱۰۰۰', label: 'سفارش انجام‌شده' },
-    { value: '+۵۰', label: 'پروژه طراحی سایت' },
-    { value: '+۵۰۰', label: 'عنوان فیلم و سریال' },
+  const reasons = [
+    { icon: ShieldCheck, title: 'ضمانت و اصالت', desc: 'همهٔ کالاها با ضمانت و فاکتور رسمی تحویل داده می‌شوند.' },
+    { icon: Clock4, title: 'تحویل به‌موقع', desc: 'سفارش‌های کافی‌نت در همان مراجعه و سفارش‌های ویژه در زمان اعلامی انجام می‌شود.' },
+    { icon: CreditCard, title: 'پرداخت امن', desc: 'پرداخت آنلاین از طریق درگاه بانکی و ثبت خودکار فاکتور.' },
+    { icon: Headphones, title: 'پشتیبانی واقعی', desc: 'پاسخ‌گویی تلفنی و پیام‌رسان‌ها در ساعات کاری، توسط تیم خودمان.' },
   ];
 
   return (
@@ -41,216 +83,155 @@ export default function Home() {
           inLanguage: 'fa-IR',
         }}
       />
-      {/* Hero */}
-      <section className="relative overflow-hidden min-h-[600px] flex items-center">
-        {/* Background Image */}
-        <div className="absolute inset-0">
-          {banner?.imageUrl ? (
-            <img 
-              src={banner.imageUrl} 
-              alt={banner.title} 
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <img 
-              src="https://image.qwenlm.ai/generated-images/237dfaca-3d3f-4459-88a5-757847e70940/_result.png" 
-              alt="کافی نت همیار" 
-              className="w-full h-full object-cover"
-            />
-          )}
-          {/* Overlay Gradient */}
-          <div className={`absolute inset-0 ${darkMode ? 'bg-gradient-to-br from-slate-900/90 via-blue-900/80 to-slate-900/90' : 'bg-gradient-to-br from-blue-50/90 via-white/85 to-purple-50/90'}`}></div>
-        </div>
-        
-        {/* Decorative Elements */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 right-20 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 left-20 w-96 h-96 bg-purple-500 rounded-full blur-3xl"></div>
-        </div>
-        
-        {/* Content */}
-        <div className="max-w-7xl mx-auto px-4 py-20 lg:py-32 relative z-10 w-full">
-          <div className="text-center max-w-3xl mx-auto">
-            <h1 className="text-4xl lg:text-6xl font-black mb-6 leading-tight">
-              <span className="bg-gradient-to-l from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {banner?.title || 'کافی نت همیار'}
-              </span>
+
+      {/* ---------------- Hero ---------------- */}
+      <section className="relative overflow-hidden bg-[#0b1533]">
+        <div
+          className="absolute inset-0 opacity-90"
+          style={{ backgroundImage: 'url(/hero-pattern.svg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-l from-[#0b1533]/40 via-[#0b1533]/70 to-[#0b1533]" />
+
+        <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24 grid lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-white/90 text-xs backdrop-blur border border-white/15">
+              <Sparkles size={14} /> بیش از یک دهه تجربه در خدمات دیجیتال
+            </span>
+
+            <h1 className="mt-5 text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-[1.35]">
+              خدمات دیجیتال، فروشگاه و طراحی سایت
+              <span className="block text-sky-300 mt-2">همه در یک جا</span>
             </h1>
-            <p className={`text-lg lg:text-xl mb-8 leading-8 ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-              {banner?.description || 'مرکز خدمات و فروش دیجیتال - ارائه‌دهنده خدمات کافی‌نت، کپی مدیا، فروش محصولات دیجیتال و طراحی وب‌سایت'}
+
+            <p className="mt-5 text-sm md:text-base leading-8 text-slate-300 max-w-xl">
+              از پرینت و اسکن روزمره تا خرید کالای دیجیتال، کپی فیلم و سریال، طراحی وب‌سایت و
+              تولید محتوا؛ با فاکتور رسمی، پرداخت آنلاین و پشتیبانی واقعی.
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link to="/services" className="bg-blue-600 text-white px-8 py-3 rounded-xl font-medium hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg hover:shadow-xl">
-                مشاهده خدمات
-                <ArrowLeft size={18} />
+
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link
+                to="/services"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/40"
+              >
+                مشاهدهٔ خدمات <ArrowLeft size={16} />
               </Link>
-              <Link to="/store" className={`px-8 py-3 rounded-xl font-medium border-2 transition-all shadow-lg hover:shadow-xl ${darkMode ? 'border-slate-600 hover:bg-slate-800 bg-slate-800/50' : 'border-gray-300 hover:bg-gray-100 bg-white/50'}`}>
-                فروشگاه آنلاین
+              <Link
+                to="/store"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 text-white text-sm font-bold border border-white/20 hover:bg-white/15 backdrop-blur transition-colors"
+              >
+                فروشگاه آنلاین <ShoppingBag size={16} />
               </Link>
+            </div>
+
+            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-300">
+              {['فاکتور رسمی', 'پرداخت آنلاین امن', 'پشتیبانی تلفنی'].map(item => (
+                <li key={item} className="flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-emerald-400" /> {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Brand visual */}
+          <div className="relative hidden lg:block">
+            <div className="absolute -inset-6 bg-gradient-to-br from-sky-500/20 to-fuchsia-500/10 blur-2xl rounded-full" />
+            <div className="relative grid grid-cols-2 gap-4">
+              {[
+                { icon: Monitor, title: 'خدمات کافی‌نت', sub: 'همان روز' },
+                { icon: Globe, title: 'طراحی سایت', sub: 'سئوشده' },
+                { icon: ShoppingBag, title: 'فروشگاه', sub: 'ارسال سراسری' },
+                { icon: Bot, title: 'تولید محتوا', sub: 'تیم اختصاصی' },
+              ].map((card, i) => {
+                const Icon = card.icon;
+                return (
+                  <div
+                    key={card.title}
+                    className={`rounded-2xl border border-white/15 bg-white/10 backdrop-blur p-5 ${i % 2 ? 'translate-y-6' : ''}`}
+                  >
+                    <Icon size={22} className="text-sky-300 mb-3" />
+                    <div className="text-white font-bold text-sm">{card.title}</div>
+                    <div className="text-slate-300 text-xs mt-1">{card.sub}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className={`py-12 ${darkMode ? 'bg-slate-800' : 'bg-white'} shadow-sm`}>
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {stats.map((s, i) => (
-              <div key={i} className="text-center">
-                <div className="text-3xl font-black text-blue-600">{s.value}</div>
-                <div className={`text-sm mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.label}</div>
-              </div>
-            ))}
-          </div>
+      {/* ---------------- Stats ---------------- */}
+      <section className={`border-b ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-100'}`}>
+        <div className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
+          {stats.map(s => (
+            <div key={s.label} className="flex flex-col items-start">
+              <div className="text-2xl md:text-3xl font-black text-blue-600 tabular-nums leading-none">{s.value}</div>
+              <div className={`text-xs mt-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Services Banners */}
-      <section className="py-16 lg:py-24">
+      {/* ---------------- Services ---------------- */}
+      <section className="py-16 md:py-20">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">خدمات ما</h2>
-            <p className={`${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>شش جریان خدماتی برای پاسخگویی به تمامی نیازهای دیجیتال شما</p>
-          </div>
-          
-          {/* Banner Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Services Banner */}
-            <Link to="/services" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-              <img 
-                src="https://image.qwenlm.ai/generated-images/193d7018-ae58-4523-90d8-e520f4fd3d97/_result.png" 
-                alt="خدمات کافی‌نت" 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                    <Monitor size={24} className="text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">خدمات کافی‌نت</h3>
-                </div>
-                <p className="text-white/90 text-sm">پرینت، اسکن، تایپ، ترجمه و تمامی خدمات اداری</p>
-              </div>
-            </Link>
-
-            {/* Media Collection Banner */}
-            <Link to="/media" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-              <img 
-                src="https://image.qwenlm.ai/generated-images/2e802200-4ad1-479d-ad9f-a372419b960f/_result.png" 
-                alt="کالکشن فیلم و سریال" 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                    <Film size={24} className="text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">کالکشن فیلم و سریال</h3>
-                </div>
-                <p className="text-white/90 text-sm">بزرگ‌ترین مجموعه فیلم، سریال، انیمیشن و انیمه</p>
-              </div>
-            </Link>
-
-            {/* Store Banner */}
-            <Link to="/store" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-              <img 
-                src="https://image.qwenlm.ai/generated-images/e227c9df-ac37-42c1-8e31-b03668cfbf0b/_result.png" 
-                alt="فروشگاه محصولات" 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-                    <ShoppingBag size={24} className="text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">فروشگاه محصولات</h3>
-                </div>
-                <p className="text-white/90 text-sm">فلش، هارد، کابل، شارژر، دوربین مداربسته و لوازم جانبی</p>
-              </div>
-            </Link>
-
-            {/* Web Design Banner */}
-            <Link to="/webdesign" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-              <img 
-                src="https://image.qwenlm.ai/generated-images/3071704e-8190-450f-9e28-67597a67b94c/_result.png" 
-                alt="طراحی وب‌سایت" 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
-                    <Globe size={24} className="text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">طراحی وب‌سایت</h3>
-                </div>
-                <p className="text-white/90 text-sm">طراحی سایت، ساخت اپلیکیشن و ربات‌های تلگرامی و غیرتلگرامی</p>
-              </div>
-            </Link>
-
-            {/* Content Marketing Banner */}
-            <Link to="/content" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-              <img 
-                src="https://image.qwenlm.ai/generated-images/8f3c2a1e-7b4d-4e9f-a6c1-d52b8e9f0a37/_result.png" 
-                alt="تولید محتوا" 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
-                    <PenTool size={24} className="text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">تولید محتوا</h3>
-                </div>
-                <p className="text-white/90 text-sm">محتوای متنی، تصویری و ویدیویی، مدیریت شبکه‌های اجتماعی و سئو</p>
-              </div>
-            </Link>
-
-            {/* Asiatech Internet Banner */}
-            <Link to="/asiatech" className="group relative h-64 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all">
-              <img 
-                src="https://image.qwenlm.ai/generated-images/b7e14d92-3c6a-4f8b-9d2e-6a1c5f8b3e70/_result.png" 
-                alt="نمایندگی اینترنت آسیاتک" 
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
-                    <Wifi size={24} className="text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white">نمایندگی اینترنت آسیاتک</h3>
-                </div>
-                <p className="text-white/90 text-sm">ثبت‌نام سرویس‌های اینترنت ثابت ADSL، VDSL و فیبر نوری</p>
-              </div>
+          <div className="flex items-end justify-between gap-4 mb-10 flex-wrap">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-black">خدمات ما</h2>
+              <p className={`text-sm mt-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                هرچه برای کارهای دیجیتال خود لازم دارید، در یک مجموعه
+              </p>
+            </div>
+            <Link to="/services" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline">
+              همهٔ خدمات <ArrowLeft size={14} />
             </Link>
           </div>
-        </div>
-      </section>
 
-      {/* Why Us */}
-      <section className={`py-16 ${darkMode ? 'bg-slate-800/50' : 'bg-gray-50'}`}>
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">چرا همیار؟</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { icon: Star, title: 'کیفیت بالا', desc: 'ارائه خدمات با بالاترین کیفیت و دقت' },
-              { icon: Shield, title: 'اعتماد و امنیت', desc: 'حفظ امنیت اطلاعات و حریم خصوصی مشتریان' },
-              { icon: Clock, title: 'سرعت در انجام', desc: 'انجام سفارشات در سریع‌ترین زمان ممکن' },
-            ].map((item, i) => {
-              const Icon = item.icon;
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {services.map(s => {
+              const Icon = s.icon;
               return (
-                <div key={i} className="text-center p-6">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4">
-                    <Icon size={32} className="text-blue-600" />
+                <Link
+                  key={s.to}
+                  to={s.to}
+                  className={`group flex flex-col rounded-2xl border p-6 transition-all hover:-translate-y-1 hover:shadow-lg ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-600' : 'bg-white border-gray-200 hover:border-blue-300'}`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+                    <Icon size={24} className="text-blue-600" />
                   </div>
-                  <h3 className="font-bold text-lg mb-2">{item.title}</h3>
-                  <p className={`text-sm leading-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
+                  <h3 className="font-bold text-base mb-2">{s.title}</h3>
+                  <p className={`text-xs leading-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.desc}</p>
+                  <ul className={`mt-4 space-y-1.5 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {s.points.map(p => (
+                      <li key={p} className="flex items-center gap-1.5">
+                        <CheckCircle2 size={13} className="text-emerald-500 flex-shrink-0" /> {p}
+                      </li>
+                    ))}
+                  </ul>
+                  <span className="mt-5 inline-flex items-center gap-1 text-xs font-bold text-blue-600 group-hover:gap-2 transition-all">
+                    مشاهده و سفارش <ArrowLeft size={13} />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ---------------- Why us ---------------- */}
+      <section className={`py-16 ${darkMode ? 'bg-slate-800/40' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-2xl md:text-3xl font-black text-center mb-3">چرا کافی نت همیار؟</h2>
+          <p className={`text-center text-sm mb-10 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            چیزی که ما را متفاوت می‌کند، شفافیت و پیگیری تا پایان کار است
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {reasons.map(r => {
+              const Icon = r.icon;
+              return (
+                <div key={r.title} className={`rounded-2xl border p-6 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                  <Icon size={26} className="text-blue-600 mb-4" />
+                  <h3 className="font-bold text-sm mb-2">{r.title}</h3>
+                  <p className={`text-xs leading-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{r.desc}</p>
                 </div>
               );
             })}
@@ -258,36 +239,70 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Latest News */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Newspaper size={24} className="text-blue-600" />
-              آخرین اخبار
-            </h2>
-            <Link to="/news" className="text-blue-600 text-sm font-medium flex items-center gap-1 hover:underline">
-              مشاهده همه
-              <ArrowLeft size={14} />
-            </Link>
+      {/* ---------------- Latest news ---------------- */}
+      {publishedNews.length > 0 && (
+        <section className="py-16 md:py-20">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
+              <h2 className="text-2xl md:text-3xl font-black flex items-center gap-2">
+                <Newspaper size={24} className="text-blue-600" /> آخرین اخبار
+              </h2>
+              <Link to="/news" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline">
+                همهٔ اخبار <ArrowLeft size={14} />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {publishedNews.slice(0, 3).map(item => (
+                <Link
+                  key={item.id}
+                  to={`/news/${item.slug || item.id}`}
+                  className={`group rounded-2xl overflow-hidden border transition-all hover:shadow-lg ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
+                >
+                  {item.image ? (
+                    <img src={item.image} alt={item.coverAlt || item.title} loading="lazy" className="w-full h-40 object-cover" />
+                  ) : (
+                    <BrandVisual seed={item.title} icon={Newspaper} className="w-full h-40" />
+                  )}
+                  <div className="p-4">
+                    <span className={`text-[11px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {item.category || 'اخبار'} · {toJalaliString(item.publishedAt || item.date)}
+                    </span>
+                    <h3 className="font-bold text-sm leading-6 mt-1 line-clamp-2 group-hover:text-blue-600">{item.title}</h3>
+                    <p className={`text-xs leading-6 mt-2 line-clamp-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {item.excerpt || item.caption}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {news.filter(n => n.active).slice(0, 3).map(item => (
-              <div key={item.id} className={`rounded-xl overflow-hidden border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-                <div className={`h-40 ${item.image ? '' : 'bg-gradient-to-br from-blue-500 to-purple-600'} flex items-center justify-center`}>
-                  {item.image ? <img src={item.image} alt={item.title} className="w-full h-full object-cover" /> : <Newspaper size={48} className="text-white/50" />}
-                </div>
-                <div className="p-4">
-                  <h3 className="font-bold mb-2">{item.title}</h3>
-                  <p className={`text-sm line-clamp-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{item.caption}</p>
-                  <span className={`text-xs mt-2 block ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>{item.date}</span>
-                </div>
+        </section>
+      )}
+
+      {/* ---------------- CTA ---------------- */}
+      <section className="pb-16 md:pb-20">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-blue-700 to-indigo-800 p-8 md:p-12">
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'url(/hero-pattern.svg)', backgroundSize: 'cover' }} />
+            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div>
+                <h2 className="text-xl md:text-2xl font-black text-white">سفارش خود را همین امروز ثبت کنید</h2>
+                <p className="text-sm text-blue-100 mt-2 leading-7">
+                  برای مشاورهٔ رایگان یا ثبت سفارش، با ما تماس بگیرید یا از طریق پیام‌رسان‌ها در ارتباط باشید.
+                </p>
               </div>
-            ))}
+              <div className="flex flex-wrap gap-3">
+                <Link to="/contact" className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white text-blue-700 text-sm font-bold hover:bg-blue-50">
+                  تماس با ما <Headphones size={16} />
+                </Link>
+                <Link to="/track" className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/10 text-white text-sm font-bold border border-white/25 hover:bg-white/20">
+                  پیگیری سفارش <Server size={16} />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     </div>
   );
 }
-

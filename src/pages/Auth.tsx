@@ -225,6 +225,7 @@ export default function Auth() {
   return (
     <div className="fade-in min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className={`w-full max-w-md p-8 rounded-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'} shadow-xl`}>
+        <h1 className="sr-only">ورود و ثبت‌نام کافی نت همیار</h1>
         {/* Tabs */}
         <div className="flex mb-8 rounded-xl overflow-hidden border border-gray-200 dark:border-slate-600">
           <button onClick={() => { setMode('customer'); setError(''); }}

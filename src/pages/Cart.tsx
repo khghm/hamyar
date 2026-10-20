@@ -111,6 +111,7 @@ export default function Cart() {
   if (!currentUser) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12 text-center">
+        <h1 className="sr-only">سبد خرید</h1>
         <ShoppingCart size={64} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
         <h2 className="text-2xl font-bold mb-4">لطفاً ابتدا وارد حساب کاربری خود شوید</h2>
         <Link to="/auth" className="inline-block px-6 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700">
@@ -123,8 +124,12 @@ export default function Cart() {
   if (cart.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12 text-center">
+        <h1 className="sr-only">سبد خرید</h1>
         <ShoppingCart size={64} className={`mx-auto mb-4 ${darkMode ? 'text-slate-600' : 'text-gray-300'}`} />
         <h2 className="text-2xl font-bold mb-4">سبد خرید شما خالی است</h2>
+        <p className={`text-sm mb-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          از فروشگاه محصولی انتخاب کنید یا برای سفارش خدمات با ما تماس بگیرید.
+        </p>
         <Link to="/store" className="inline-block px-6 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700">
           بازگشت به فروشگاه
         </Link>

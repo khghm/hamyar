@@ -106,6 +106,8 @@ const DEFAULT_PERMISSIONS: Permission[] = [
   { id: 'perm40', name: 'گزارش‌های همکاران', description: 'مشاهده گزارش‌های عملکرد همکاران', module: 'همکاران' },
   { id: 'perm41', name: 'مشاهده تیکت‌ها', description: 'مشاهده تیکت‌های پشتیبانی مشتریان', module: 'پشتیبانی' },
   { id: 'perm42', name: 'مدیریت تیکت‌ها', description: 'پاسخ‌دهی، تغییر وضعیت و اولویت تیکت‌ها', module: 'پشتیبانی' },
+  { id: 'perm44', name: 'مشاهده اخبار', description: 'مشاهدهٔ فهرست مقاله‌ها، پیش‌نویس‌ها و آمار بازدید', module: 'اخبار' },
+  { id: 'perm45', name: 'مدیریت اخبار', description: 'ایجاد، ویرایش، انتشار و حذف مقاله‌ها + تنظیمات سئو', module: 'اخبار' },
 ];
 
 const DEFAULT_ROLES: Role[] = [

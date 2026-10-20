@@ -27,7 +27,7 @@ export default function ContentMarketing() {
           />
         ) : (
           <img
-            src="https://image.qwenlm.ai/generated-images/8f3c2a1e-7b4d-4e9f-a6c1-d52b8e9f0a37/_result.png"
+            src="/hero-pattern.svg"
             alt="تولید محتوا و دیجیتال مارکتینگ"
             className="w-full h-full object-cover"
           />
@@ -135,3 +135,4 @@ export default function ContentMarketing() {
     </div>
   );
 }
+

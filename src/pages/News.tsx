@@ -89,8 +89,8 @@ export default function News() {
 
       <div className="max-w-6xl mx-auto px-4 py-10">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          <div className="flex-1 min-w-[220px] relative">
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="relative">
             <Search size={17} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
@@ -98,13 +98,14 @@ export default function News() {
               onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="جستجو در اخبار و مقالات…"
               aria-label="جستجو در اخبار"
-              className={`w-full pr-10 pl-3 py-2.5 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200'}`}
+              className={`w-full h-11 pr-10 pl-3 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200'}`}
             />
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className={`text-xs ml-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>دسته:</span>
             <button
               onClick={() => { setCategory('all'); setPage(1); }}
-              className={`px-3 py-2 rounded-xl text-xs font-medium border transition-colors ${category === 'all' ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-gray-200 text-slate-600'}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${category === 'all' ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-gray-200 text-slate-600'}`}
             >
               همه
             </button>
@@ -112,7 +113,7 @@ export default function News() {
               <button
                 key={cat}
                 onClick={() => { setCategory(cat); setPage(1); }}
-                className={`px-3 py-2 rounded-xl text-xs font-medium border transition-colors ${category === cat ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-gray-200 text-slate-600'}`}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${category === cat ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-gray-200 text-slate-600'}`}
               >
                 {cat}
               </button>

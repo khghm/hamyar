@@ -41,7 +41,10 @@ const emptyDraft = (): Draft => ({
 });
 
 export default function AdminNewsCMS() {
-  const { darkMode, news, setNews, pushAuditLog } = useApp();
+  const { darkMode, news, setNews, pushAuditLog, hasPermission } = useApp();
+  // نوشتن در جدول news به مجوز «مدیریت اخبار» (یا مدیریت تنظیمات) نیاز دارد؛
+  // کاربری که فقط مجوز مشاهده دارد باید صفحه را read-only ببیند، نه خطای RLS.
+  const canManage = hasPermission('perm45') || hasPermission('perm31');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -189,10 +192,19 @@ export default function AdminNewsCMS() {
             مقاله‌ها را بنویسید، سئو را تنظیم کنید و منتشر کنید — صفحهٔ عمومی: <a href="/news" target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">/news</a>
           </p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
-          <Plus size={16} /> مقالهٔ جدید
-        </button>
+        {canManage && (
+          <button onClick={openNew} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
+            <Plus size={16} /> مقالهٔ جدید
+          </button>
+        )}
       </div>
+
+      {!canManage && (
+        <div className={`p-3 rounded-xl border text-xs leading-6 ${darkMode ? 'bg-amber-900/20 border-amber-800 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+          شما فقط <strong>مجوز مشاهده</strong> دارید؛ برای ساخت یا ویرایش مقاله، از مدیر کل بخواهید مجوز{' '}
+          <strong>«مدیریت اخبار»</strong> را به نقش شما بدهد.
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -281,11 +293,15 @@ export default function AdminNewsCMS() {
                     <td className="p-3">
                       <div className="flex items-center gap-1">
                         <a href={`/news/${n.slug || n.id}`} target="_blank" rel="noreferrer" title="مشاهده" className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-600 text-slate-300' : 'hover:bg-gray-100 text-slate-500'}`}><Eye size={15} /></a>
-                        <button onClick={() => openEdit(n)} title="ویرایش" className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-600 text-slate-300' : 'hover:bg-gray-100 text-slate-500'}`}><Pencil size={15} /></button>
-                        <button onClick={() => togglePublish(n)} title={st === 'published' ? 'بازگشت به پیش‌نویس' : 'انتشار'} className={`p-1.5 rounded-lg ${st === 'published' ? 'text-amber-600 hover:bg-amber-500/10' : 'text-emerald-600 hover:bg-emerald-500/10'}`}>
-                          {st === 'published' ? <Clock size={15} /> : <Globe size={15} />}
-                        </button>
-                        <button onClick={() => remove(n)} title="حذف" className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10"><Trash2 size={15} /></button>
+                        {canManage && (
+                          <>
+                            <button onClick={() => openEdit(n)} title="ویرایش" className={`p-1.5 rounded-lg ${darkMode ? 'hover:bg-slate-600 text-slate-300' : 'hover:bg-gray-100 text-slate-500'}`}><Pencil size={15} /></button>
+                            <button onClick={() => togglePublish(n)} title={st === 'published' ? 'بازگشت به پیش‌نویس' : 'انتشار'} className={`p-1.5 rounded-lg ${st === 'published' ? 'text-amber-600 hover:bg-amber-500/10' : 'text-emerald-600 hover:bg-emerald-500/10'}`}>
+                              {st === 'published' ? <Clock size={15} /> : <Globe size={15} />}
+                            </button>
+                            <button onClick={() => remove(n)} title="حذف" className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10"><Trash2 size={15} /></button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -483,3 +499,5 @@ export default function AdminNewsCMS() {
     </div>
   );
 }
+
+

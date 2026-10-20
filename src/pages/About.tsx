@@ -19,7 +19,7 @@ export default function About() {
           />
         ) : (
           <img 
-            src="https://image.qwenlm.ai/generated-images/62908c70-02c9-4588-8706-7c7cadc5777e/_result.png" 
+            src="/hero-pattern.svg" 
             alt="درباره کافی نت همیار" 
             className="w-full h-full object-cover"
           />
@@ -143,3 +143,4 @@ export default function About() {
     </div>
   );
 }
+

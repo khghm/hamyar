@@ -26,7 +26,7 @@ export default function Asiatech() {
           />
         ) : (
           <img
-            src="https://image.qwenlm.ai/generated-images/b7e14d92-3c6a-4f8b-9d2e-6a1c5f8b3e70/_result.png"
+            src="/hero-pattern.svg"
             alt="نمایندگی رسمی اینترنت آسیاتک"
             className="w-full h-full object-cover"
           />
@@ -129,3 +129,4 @@ export default function Asiatech() {
     </div>
   );
 }
+

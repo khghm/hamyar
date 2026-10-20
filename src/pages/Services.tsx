@@ -77,7 +77,7 @@ export default function Services() {
           />
         ) : (
           <img 
-            src="https://image.qwenlm.ai/generated-images/bbba49ef-6db2-4768-afc4-0fb99c0bafc5/_result.png" 
+            src="/hero-pattern.svg" 
             alt="خدمات کافی‌نت همیار" 
             className="w-full h-full object-cover"
           />
@@ -182,37 +182,39 @@ export default function Services() {
       </div>
 
       {/* Services Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(service => (
           <div
             key={service.id}
-            className={`p-5 rounded-xl border transition-all hover:shadow-lg ${
+            className={`flex flex-col p-5 rounded-xl border transition-all hover:shadow-lg ${
               darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'
             }`}
           >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2 flex-1">
-                <span className="text-2xl">{categoryIcons[service.category] || '📌'}</span>
-                <h3 className="font-bold flex-1">{service.name}</h3>
+            <div className="flex items-start justify-between mb-3 gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="text-2xl flex-shrink-0">{categoryIcons[service.category] || '📌'}</span>
+                <h3 className="font-bold text-sm leading-6 line-clamp-2">{service.name}</h3>
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-500'}`}>
+              <span className={`text-[10px] px-2 py-1 rounded-full flex-shrink-0 ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-500'}`}>
                 {service.category}
               </span>
             </div>
-            <p className={`text-sm mb-4 leading-6 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            <p className={`text-xs mb-4 leading-6 line-clamp-3 min-h-[4.5rem] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               {service.description}
             </p>
-            <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-slate-700">
-              <div>
-                <span className="text-blue-600 font-bold text-lg">{formatPrice(service.basePrice)}</span>
-                <span className={`text-xs mr-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>/ {service.unit}</span>
+            <div className="mt-auto flex items-end justify-between pt-3 border-t border-gray-200 dark:border-slate-700 gap-2">
+              <div className="min-w-0">
+                <div className="text-blue-600 font-bold text-base whitespace-nowrap">
+                  {formatPrice(service.basePrice)} <span className="text-[10px] font-normal text-slate-400">تومان</span>
+                </div>
+                <div className={`text-[10px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>به ازای هر {service.unit}</div>
               </div>
               <Link
                 to={`/services/${service.id}`}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
+                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-all shadow-sm hover:shadow-md whitespace-nowrap"
               >
                 ثبت سفارش
-                <ArrowLeft size={16} />
+                <ArrowLeft size={14} />
               </Link>
             </div>
           </div>
@@ -241,3 +243,4 @@ export default function Services() {
     </div>
   );
 }
+

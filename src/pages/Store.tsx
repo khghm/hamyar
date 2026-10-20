@@ -2,10 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { useCatalogStore } from '../state/catalogStore';
-import { Search, SlidersHorizontal, ShoppingCart, X, Star, ChevronDown, Heart } from 'lucide-react';
+import { Search, SlidersHorizontal, ShoppingCart, X, Star, ChevronDown, Heart, Package } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 import { track } from '../utils/analytics';
 import SafeImage from '../components/SafeImage';
+import BrandVisual from '../components/BrandVisual';
 import { onTabVisible } from '../lib/realtime';
 
 export default function Store() {
@@ -139,7 +140,7 @@ export default function Store() {
           />
         ) : (
           <img 
-            src="https://image.qwenlm.ai/generated-images/9457689d-cfab-485b-9c4b-437a4dabb462/_result.png" 
+            src="/hero-pattern.svg" 
             alt="فروشگاه محصولات دیجیتال" 
             className="w-full h-full object-cover"
           />
@@ -161,16 +162,16 @@ export default function Store() {
         <div className="flex-1 relative">
           <Search size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="text" placeholder="جستجو در محصولات..." value={search} onChange={e => { setSearch(e.target.value); if (e.target.value.length >= 3) track('internal_search', { q: e.target.value, area: 'store' }); }}
-            className={`w-full pr-10 pl-4 py-3 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-400' : 'bg-white border-gray-200 placeholder-gray-400'}`} />
+            className={`w-full h-11 pr-10 pl-4 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-400' : 'bg-white border-gray-200 placeholder-gray-400'}`} />
         </div>
         <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-          className={`px-4 py-3 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200'}`}>
+          className={`h-11 px-4 rounded-xl border text-sm ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200'}`}>
           <option value="default">مرتب‌سازی</option>
           <option value="price-asc">ارزان‌ترین</option>
           <option value="price-desc">گران‌ترین</option>
           <option value="name">نام محصول</option>
         </select>
-        <button onClick={() => setShowMobileFilter(true)} className="md:hidden flex items-center gap-2 px-4 py-3 rounded-xl bg-blue-600 text-white">
+        <button onClick={() => setShowMobileFilter(true)} className="md:hidden h-11 flex items-center justify-center gap-2 px-4 rounded-xl bg-blue-600 text-white text-sm">
           <SlidersHorizontal size={18} /> فیلتر
         </button>
       </div>
@@ -197,34 +198,43 @@ export default function Store() {
         {/* Products Grid */}
         <div className="flex-1">
           <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{filtered.length} محصول</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
             {filtered.map(product => (
-              <Link key={product.id} to={`/product/${product.id}`} className={`rounded-xl border overflow-hidden transition-all hover:shadow-lg block ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-                <div className={`h-48 flex items-center justify-center ${darkMode ? 'bg-slate-700' : 'bg-gray-50'} relative`}>
-                  <SafeImage src={product.image} alt={product.name} className="w-full h-full object-cover" />
+              <Link key={product.id} to={`/product/${product.id}`} className={`group rounded-xl border overflow-hidden transition-all hover:shadow-lg block ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-600' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
+                <div className={`relative aspect-[4/3] overflow-hidden ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
+                  <SafeImage
+                    src={product.image}
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    fallback={<BrandVisual seed={product.name} icon={Package} className="w-full h-full" iconSize={34} />}
+                  />
                   {product.originalPrice && (
-                    <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
-                      {Math.round((1 - product.price / product.originalPrice) * 100)}%
+                    <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">
+                      {Math.round((1 - product.price / product.originalPrice) * 100)}٪
                     </span>
                   )}
                   {product.stock < 10 && (
-                    <span className="absolute top-2 right-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">موجودی محدود</span>
+                    <span className="absolute top-2 right-2 bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full">موجودی محدود</span>
                   )}
                 </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-sm mb-1 line-clamp-2">{product.name}</h3>
-                  <p className={`text-xs mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{product.brand} | {categoryLabels[product.category]}</p>
-                  <div className="flex items-center justify-between">
+                <div className="p-3">
+                  <h3 className="font-bold text-xs md:text-sm leading-6 line-clamp-2 min-h-[3rem]">{product.name}</h3>
+                  <p className={`text-[11px] mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{product.brand} · {categoryLabels[product.category]}</p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                      <span className="font-bold text-blue-600">{formatPrice(product.price)}</span>
-                      <span className="text-xs text-slate-400 mr-1">تومان</span>
+                      <div className="font-bold text-sm text-blue-600 whitespace-nowrap">
+                        {formatPrice(product.price)} <span className="text-[10px] font-normal text-slate-400">تومان</span>
+                      </div>
                       {product.originalPrice && (
-                        <div className="text-xs text-slate-400 line-through">{formatPrice(product.originalPrice)}</div>
+                        <div className="text-[10px] text-slate-400 line-through">{formatPrice(product.originalPrice)}</div>
                       )}
                     </div>
-                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(product.id); }}
-                      className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all">
-                      <ShoppingCart size={16} />
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToCart(product.id); }}
+                      aria-label={`افزودن ${product.name} به سبد خرید`}
+                      className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-medium hover:bg-blue-700 transition-colors whitespace-nowrap"
+                    >
+                      <ShoppingCart size={13} /> افزودن
                     </button>
                   </div>
                 </div>
@@ -295,3 +305,4 @@ export default function Store() {
     </div>
   );
 }
+

@@ -26,7 +26,7 @@ export default function WebDesign() {
           />
         ) : (
           <img 
-            src="https://image.qwenlm.ai/generated-images/f176a0ca-e78a-405e-b84e-9b37fbaa319d/_result.png" 
+            src="/hero-pattern.svg" 
             alt="طراحی وب‌سایت حرفه‌ای" 
             className="w-full h-full object-cover"
           />
@@ -151,3 +151,4 @@ export default function WebDesign() {
     </div>
   );
 }
+

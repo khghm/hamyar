@@ -414,11 +414,19 @@ export const useNotificationStore = create<NotificationState>()(
             try {
               const s = get();
               if (!s.hydrated) return;
+              const raw = String(ev?.message || 'خطا در برقراری ارتباط با سرور');
+              // پیام خام Postgres برای مدیر گمراه‌کننده است؛ اگر خطا از RLS باشد
+              // علت واقعی «نداشتن مجوز» است و همان را واضح می‌گوییم.
+              const isRls = /row-level security|violates row-level|permission denied/i.test(raw);
+              const message = isRls
+                ? `دسترسی لازم برای ذخیرهٔ این بخش را ندارید (${ev?.table || 'general'}). از مدیر کل بخواهید مجوز مربوطه را به نقش شما بدهد.`
+                : `${raw} (${ev?.table || 'general'})`;
               s.pushNotification({
                 type: 'system',
                 priority: 'high',
                 title: 'خطای همگام‌سازی',
-                message: String(ev?.message || 'خطا در برقراری ارتباط با سرور') + ' (' + (ev?.table || 'general') + ')',
+                message,
+                key: 'sync-err-' + (ev?.table || 'general'),
               });
             } catch {}
           });

@@ -80,7 +80,7 @@ export default function Contact() {
           />
         ) : (
           <img
-            src="https://image.qwenlm.ai/generated-images/fee27274-9d94-4aad-8962-1cc1496347b3/_result.png"
+            src="/hero-pattern.svg"
             alt="تماس با ما"
             className="w-full h-full object-cover"
           />
@@ -183,3 +183,4 @@ export default function Contact() {
     </div>
   );
 }
+

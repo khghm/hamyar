@@ -5,6 +5,7 @@ import { Search, Filter, Star, Heart, Eye, ChevronDown, X, SlidersHorizontal } f
 import { useBanner } from '../hooks/useBanner';
 import { track } from '../utils/analytics';
 import SafeImage from '../components/SafeImage';
+import BrandVisual from '../components/BrandVisual';
 
 export default function MediaCatalog() {
   const { darkMode, mediaItems, currentUser, addToFavorites, selectMedia } = useApp();
@@ -53,7 +54,7 @@ export default function MediaCatalog() {
           />
         ) : (
           <img 
-            src="https://image.qwenlm.ai/generated-images/dafa2905-55af-4a19-9235-93202ba272f8/_result.png" 
+            src="/hero-pattern.svg" 
             alt="کالکشن فیلم و سریال" 
             className="w-full h-full object-cover"
           />
@@ -156,7 +157,7 @@ export default function MediaCatalog() {
             <div key={item.id} className={`group rounded-xl overflow-hidden border transition-all hover:shadow-xl hover:-translate-y-1 ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
               <Link to={`/media/${item.id}`} className="block">
                 <div className="relative aspect-[2/3] overflow-hidden">
-                  <SafeImage src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <SafeImage src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" fallback={<BrandVisual seed={item.title} icon={Film} className="w-full h-full" iconSize={38} />} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                   {/* Quality Badge */}
                   <span className="absolute top-2 right-2 bg-yellow-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">{item.quality}</span>
@@ -263,3 +264,4 @@ export default function MediaCatalog() {
 }
 
 function Film(props: any) { return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/></svg>; }
+

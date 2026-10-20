@@ -110,6 +110,14 @@ export function getJalaliDayName(date: Date): string {
 // تبدیل رشته تاریخ میلادی به شمسی
 export function toJalaliString(dateStr: string): string {
   if (!dateStr) return '';
+  // مقادیر قدیمیِ ذخیره‌شده ممکن است از قبل شمسی باشند (مثل «1403/06/01»)؛
+  // تبدیل دوبارهٔ آن‌ها سال را به ۷۸۲ می‌رساند. پس اگر سال در بازهٔ شمسی بود،
+  // همان را با قالب یکسان برمی‌گردانیم.
+  const jalaliMatch = String(dateStr).trim().match(/^(1[3-4]\d{2})[/-](\d{1,2})[/-](\d{1,2})/);
+  if (jalaliMatch) {
+    const [, jy, jm, jd] = jalaliMatch;
+    return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`;
+  }
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return '';
   return formatJalali(date);

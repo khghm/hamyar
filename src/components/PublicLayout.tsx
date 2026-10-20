@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { RouteLoading } from './FullPageLoader';
 import { useApp } from '../store';
 import { track } from '../utils/analytics';
+import SafeImage from './SafeImage';
 import { Sun, Moon, Menu, X, User, ChevronDown, ShoppingCart, MessageCircle, Send, Instagram, Shield } from 'lucide-react';
 
 export default function PublicLayout() {
@@ -49,30 +50,66 @@ export default function PublicLayout() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo — از تنظیمات «درباره ما» */}
-            <Link to="/" className="flex items-center gap-2">
-              {aboutContent.logo ? (
-                <img src={aboutContent.logo} alt="لوگوی کافی نت همیار" className="w-10 h-10 object-contain" />
-              ) : (
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg">H</div>
-              )}
-              <span className="font-bold text-lg hidden sm:block">کافی نت همیار</span>
+            <Link to="/" className="flex items-center gap-2 flex-shrink-0" aria-label="کافی نت همیار — صفحهٔ اصلی">
+              <SafeImage
+                src={aboutContent.logo || '/brand-logo.png'}
+                alt="لوگوی کافی نت همیار"
+                width={40}
+                height={40}
+                loading="eager"
+                className="w-10 h-10 object-contain"
+                fallback={
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg">H</div>
+                }
+              />
+              <span className="font-bold text-[15px] whitespace-nowrap hidden sm:block">کافی نت همیار</span>
             </Link>
 
-            {/* Desktop Nav */}
-            <div className="hidden lg:flex items-center gap-1">
-              {navItems.map(item => (
+            {/* Desktop Nav — ۶ مسیر اصلی در نوار و بقیه در منوی «بیشتر» */}
+            <div className="hidden lg:flex items-center gap-0.5">
+              {navItems.slice(0, 6).map(item => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-2.5 py-2 rounded-lg text-[13px] font-medium whitespace-nowrap transition-all ${
                     isActive(item.path)
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-blue-600 text-white shadow-sm'
                       : darkMode ? 'text-slate-300 hover:bg-slate-700 hover:text-white' : 'text-slate-600 hover:bg-gray-100 hover:text-slate-900'
                   }`}
                 >
                   {item.label}
                 </Link>
               ))}
+
+              {navItems.length > 6 && (
+                <div className="relative group">
+                  <button
+                    className={`px-2.5 py-2 rounded-lg text-[13px] font-medium whitespace-nowrap flex items-center gap-1 ${
+                      darkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-gray-100'
+                    }`}
+                    aria-haspopup="true"
+                  >
+                    بیشتر <ChevronDown size={14} />
+                  </button>
+                  <div className={`invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-all absolute left-0 top-full pt-2 w-48 z-50`}>
+                    <div className={`rounded-xl shadow-xl py-1.5 ${darkMode ? 'bg-slate-700 border border-slate-600' : 'bg-white border border-gray-200'}`}>
+                      {navItems.slice(6).map(item => (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          className={`block px-4 py-2 text-[13px] whitespace-nowrap ${
+                            isActive(item.path)
+                              ? 'bg-blue-600 text-white'
+                              : darkMode ? 'text-slate-300 hover:bg-slate-600' : 'text-slate-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -115,7 +152,7 @@ export default function PublicLayout() {
                   )}
                 </div>
               ) : (
-                <Link to="/auth" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-all">
+                <Link to="/auth" className="bg-blue-600 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-blue-700 transition-all whitespace-nowrap shadow-sm">
                   ورود / ثبت‌نام
                 </Link>
               )}
@@ -150,7 +187,7 @@ export default function PublicLayout() {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main className="flex-1 pb-16 lg:pb-0">
         <Suspense fallback={<RouteLoading />}>
           <Outlet />
         </Suspense>

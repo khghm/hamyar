@@ -2191,7 +2191,7 @@ export const ADMIN_PAGE_PERMISSIONS: Record<string, string[]> = {
   '/admin/backup': ['perm33'],
 
   '/admin/settings': ['perm30', 'perm31'],
-  '/admin/news': ['perm30', 'perm31'],
+  '/admin/news': ['perm30', 'perm31', 'perm44', 'perm45'],
 
 };
 
@@ -2453,5 +2453,6 @@ export function resolveNotificationMeta(
     badgeStyle: badgeStyle(color, darkMode),
   };
 }
+
 
 
