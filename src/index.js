@@ -365,6 +365,169 @@ async function handleOtpVerify(env, request) {
   return json(session);
 }
 
+// ------------------------------------------------------------------- seo ---
+/**
+ * سئوی سمت سرور:
+ *   • /robots.txt و /sitemap.xml
+ *   • تزریق متای اختصاصی هر مقاله (و محصول/خدمت) داخل HTML اولیه تا ربات‌های
+ *     شبکه‌های اجتماعی که جاوااسکریپت اجرا نمی‌کنند هم عنوان/توضیح/تصویر درست
+ *     ببینند. متای سمت کلاینت (کامپوننت Seo) برای ناوبری داخلی باقی است.
+ */
+const SITE_FALLBACK = 'https://hamyar.pardismms.workers.dev';
+
+const escapeHtml = (value) => String(value == null ? '' : value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+
+const escapeXml = (value) => escapeHtml(value).replace(/'/g, '&apos;');
+
+function injectSeo(html, seo) {
+  if (!seo) return html;
+  let out = html;
+  const title = escapeHtml(seo.title);
+  const description = escapeHtml(seo.description || '');
+  const url = escapeHtml(seo.url);
+
+  out = out.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+  out = out.replace(/(<link rel="canonical" href=")[^"]*(")/, `$1${url}$2`);
+  out = out.replace(/(<meta name="description" content=")[^"]*(")/, `$1${description}$2`);
+  out = out.replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${title}$2`);
+  out = out.replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${description}$2`);
+  out = out.replace(/(<meta property="og:url" content=")[^"]*(")/, `$1${url}$2`);
+  out = out.replace(/(<meta name="twitter:title" content=")[^"]*(")/, `$1${title}$2`);
+  out = out.replace(/(<meta name="twitter:description" content=")[^"]*(")/, `$1${description}$2`);
+
+  const tags = [
+    seo.image ? `<meta property="og:image" content="${escapeHtml(seo.image)}" />` : '',
+    seo.image ? `<meta name="twitter:image" content="${escapeHtml(seo.image)}" />` : '',
+    `<meta property="og:type" content="${escapeHtml(seo.type || 'website')}" />`,
+    seo.published ? `<meta property="article:published_time" content="${escapeHtml(seo.published)}" />` : '',
+    seo.modified ? `<meta property="article:modified_time" content="${escapeHtml(seo.modified)}" />` : '',
+    seo.author ? `<meta property="article:author" content="${escapeHtml(seo.author)}" />` : '',
+    seo.noindex ? '<meta name="robots" content="noindex, nofollow" />' : '',
+    seo.jsonLd ? `<script type="application/ld+json">${JSON.stringify(seo.jsonLd)}</script>` : '',
+  ].filter(Boolean).join('\n    ');
+
+  return out.replace('<!--SEO_META-->', tags);
+}
+
+/** متای مسیر را از دیتابیس می‌سازد (فقط مقالات اخبار در این مرحله). */
+async function buildSeoForPath(env, url) {
+  const newsMatch = url.pathname.match(/^\/news\/([^/]+)\/?$/);
+  if (!newsMatch) return null;
+
+  const slug = decodeURIComponent(newsMatch[1]);
+  let row = null;
+  try {
+    const rows = await supabaseFetch(
+      env,
+      `/rest/v1/news?slug=eq.${encodeURIComponent(slug)}&select=slug,title,excerpt,content,image,cover_alt,seo_title,seo_description,author,published_at,date,status,active,category,tags&limit=1`,
+    );
+    row = Array.isArray(rows) ? rows[0] : null;
+  } catch {
+    return null;
+  }
+  if (!row) return null;
+
+  const isPublished = row.status ? row.status === 'published' : row.active !== false;
+  const origin = url.origin;
+  const canonical = `${origin}/news/${row.slug || slug}`;
+  const title = row.seo_title || row.title;
+  const description = row.seo_description || row.excerpt || String(row.content || '').replace(/[#>*_`]/g, '').slice(0, 160);
+  const image = row.image ? (String(row.image).startsWith('http') ? row.image : `${origin}${row.image}`) : undefined;
+  const publishedAt = row.published_at || row.date || undefined;
+
+  return {
+    title: `${title} | کافی نت همیار`,
+    description,
+    url: canonical,
+    image,
+    type: 'article',
+    published: publishedAt ? new Date(publishedAt).toISOString() : undefined,
+    author: row.author || 'تیم محتوا',
+    noindex: !isPublished,
+    jsonLd: isPublished ? {
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: title,
+      description,
+      image: image ? [image] : undefined,
+      datePublished: publishedAt ? new Date(publishedAt).toISOString() : undefined,
+      author: { '@type': 'Person', name: row.author || 'تیم محتوا' },
+      publisher: { '@type': 'Organization', name: 'کافی نت همیار' },
+      mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
+      articleSection: row.category || 'اخبار',
+      inLanguage: 'fa-IR',
+    } : undefined,
+  };
+}
+
+function robotsTxt(url) {
+  const origin = url.origin || SITE_FALLBACK;
+  const body = [
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /admin',
+    'Disallow: /auth',
+    'Disallow: /payment',
+    'Disallow: /api/',
+    '',
+    `Sitemap: ${origin}/sitemap.xml`,
+    '',
+  ].join('\n');
+  return new Response(body, {
+    headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=3600' },
+  });
+}
+
+async function sitemapXml(env, url) {
+  const origin = url.origin || SITE_FALLBACK;
+  const today = new Date().toISOString().slice(0, 10);
+  const staticPaths = [
+    ['/', '1.0', 'daily'],
+    ['/services', '0.9', 'weekly'],
+    ['/store', '0.9', 'daily'],
+    ['/media', '0.7', 'weekly'],
+    ['/webdesign', '0.8', 'monthly'],
+    ['/content', '0.8', 'monthly'],
+    ['/asiatech', '0.6', 'monthly'],
+    ['/news', '0.9', 'daily'],
+    ['/about', '0.5', 'monthly'],
+    ['/contact', '0.6', 'monthly'],
+    ['/faq', '0.5', 'monthly'],
+    ['/track', '0.4', 'monthly'],
+  ];
+
+  let news = [];
+  try {
+    news = await supabaseFetch(
+      env,
+      '/rest/v1/news?or=(status.eq.published,and(status.is.null,active.eq.true))&select=slug,date,published_at&order=published_at.desc&limit=2000',
+    );
+  } catch {
+    news = [];
+  }
+
+  const entries = staticPaths.map(([path, priority, freq]) => (
+    `<url><loc>${escapeXml(origin + path)}</loc><lastmod>${today}</lastmod><changefreq>${freq}</changefreq><priority>${priority}</priority></url>`
+  ));
+
+  for (const n of Array.isArray(news) ? news : []) {
+    if (!n || !n.slug) continue;
+    const lastmod = (n.published_at || n.date || today).toString().slice(0, 10);
+    entries.push(
+      `<url><loc>${escapeXml(`${origin}/news/${n.slug}`)}</loc><lastmod>${escapeXml(lastmod)}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>`,
+    );
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join('\n')}\n</urlset>`;
+  return new Response(xml, {
+    headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=600' },
+  });
+}
+
 // ---------------------------------------------------------------- request ---
 async function handleRequestPayment(env, request) {
   const user = await requireUser(env, request);
@@ -685,6 +848,18 @@ async function handleAsset(request, env) {
     } else if (url.pathname === '/' || url.pathname.endsWith('.html')) {
       headers.set('cache-control', 'no-cache');
     }
+
+    // تزریق متای سئو برای صفحات HTML (مثلاً مقالهٔ خبر)
+    if (isHtml && request.method === 'GET') {
+      try {
+        const html = await asset.text();
+        const seo = await buildSeoForPath(env, url);
+        return new Response(injectSeo(html, seo), { status: asset.status, headers });
+      } catch {
+        return new Response(asset.body, { status: asset.status, headers });
+      }
+    }
+
     return new Response(asset.body, { status: asset.status, headers });
   }
 
@@ -704,12 +879,21 @@ async function handleAsset(request, env) {
     headers: request.headers,
   }));
   if (index.status === 404) return new Response('Not found', { status: 404 });
-  return new Response(index.body, {
-    status: 200,
-    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' },
-  });
-}
 
+  try {
+    const html = await index.text();
+    const seo = await buildSeoForPath(env, url);
+    return new Response(injectSeo(html, seo), {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' },
+    });
+  } catch {
+    return new Response(index.body, {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' },
+    });
+  }
+}
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -734,6 +918,12 @@ export default {
       }
       if (url.pathname === '/api/otp/verify' && request.method === 'POST') {
         return await handleOtpVerify(env, request);
+      }
+      if (url.pathname === '/robots.txt') {
+        return robotsTxt(url);
+      }
+      if (url.pathname === '/sitemap.xml') {
+        return await sitemapXml(env, url);
       }
       if (url.pathname === '/api/zarinpal/request' && request.method === 'POST') {
         return await handleRequestPayment(env, request);
@@ -760,3 +950,4 @@ export default {
     return handleAsset(request, env);
   },
 };
+

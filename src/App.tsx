@@ -48,6 +48,7 @@ const AdminOrders = lazyRoute(() => import('./pages/admin/Orders'));
 const AdminCustomers = lazyRoute(() => import('./pages/admin/Customers'));
 const AdminProducts = lazyRoute(() => import('./pages/admin/Products'));
 const AdminMedia = lazyRoute(() => import('./pages/admin/Media'));
+const AdminNewsCMS = lazyRoute(() => import('./pages/admin/NewsCMS'));
 const AdminServices = lazyRoute(() => import('./pages/admin/Services'));
 const AdminProjects = lazyRoute(() => import('./pages/admin/Projects'));
 const AdminFinance = lazyRoute(() => import('./pages/admin/Finance'));
@@ -131,7 +132,7 @@ function AppRoutes() {
           <Route path="/media/:id" element={<MediaDetail />} />
           {/* Details/order page for every item of طراحی سایت & تولید محتوا */}
           <Route path="/project-services/:id" element={<ProjectServiceDetail />} />
-          <Route path="/news/:id" element={<NewsDetail />} />
+          <Route path="/news/:slug" element={<NewsDetail />} />
           <Route path="/track" element={<TrackOrder />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/cart" element={<Cart />} />
@@ -145,6 +146,7 @@ function AppRoutes() {
           <Route path="invites" element={<Guarded path="/admin/invites"><AdminInvites /></Guarded>} />
           <Route path="products" element={<Guarded path="/admin/products"><AdminProducts /></Guarded>} />
           <Route path="media" element={<Guarded path="/admin/media"><AdminMedia /></Guarded>} />
+          <Route path="news" element={<Guarded path="/admin/news"><AdminNewsCMS /></Guarded>} />
           <Route path="services" element={<Guarded path="/admin/services"><AdminServices /></Guarded>} />
           <Route path="projects" element={<Guarded path="/admin/projects"><AdminProjects /></Guarded>} />
           <Route path="finance" element={<Guarded path="/admin/finance"><AdminFinance /></Guarded>} />
@@ -216,3 +218,4 @@ function AnalyticsBootstrap() {
   useBehaviorTracking();
   return null;
 }
+

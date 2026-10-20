@@ -2,7 +2,7 @@ import React, { Suspense, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { RouteLoading } from './FullPageLoader';
 import { useApp, ADMIN_PAGE_PERMISSIONS } from '../store';
-import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText, Target, Globe, LifeBuoy, Bell } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Package, Film, Wrench, FolderOpen, DollarSign, Settings, LogOut, Menu, X, ChevronLeft, StickyNote, BarChart3, Truck, UserCog, Percent, MessageSquare, Shield, Download, HelpCircle, Star, Gift, Video, BookOpen, FileText, Target, Globe, LifeBuoy, Bell, Newspaper } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
 export default function AdminLayout() {
@@ -36,6 +36,7 @@ export default function AdminLayout() {
     { path: '/admin/invites', icon: Gift, label: 'کدهای دعوت' },
     { path: '/admin/products', icon: Package, label: 'محصولات' },
     { path: '/admin/media', icon: Film, label: 'کالکشن مدیا' },
+    { path: '/admin/news', icon: Newspaper, label: 'اخبار و مقاله‌ها' },
     { path: '/admin/services', icon: Wrench, label: 'خدمات' },
     { path: '/admin/projects', icon: FolderOpen, label: 'پروژه‌ها' },
     { path: '/admin/finance', icon: DollarSign, label: 'حسابداری' },
@@ -211,3 +212,4 @@ export default function AdminLayout() {
     </div>
   );
 }
+

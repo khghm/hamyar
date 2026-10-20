@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../store';
 import { Monitor, Film, ShoppingBag, Globe, ArrowLeft, Newspaper, Star, Shield, Clock, PenTool, Wifi } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
+import Seo from '../components/Seo';
 
 export default function Home() {
   const { darkMode, news } = useApp();
@@ -26,6 +27,20 @@ export default function Home() {
 
   return (
     <div className="fade-in">
+      <Seo
+        title="کافی نت همیار | خدمات دیجیتال، فروشگاه، کپی مدیا و طراحی سایت"
+        description="کافی نت همیار: خدمات کافی‌نت، فروش محصولات دیجیتال، کپی مدیا، طراحی سایت، تولید محتوا و پشتیبانی آنلاین."
+        path="/"
+        type="website"
+        keywords={['کافی نت همیار', 'خدمات کافی نت', 'طراحی سایت', 'کپی مدیا', 'فروشگاه دیجیتال', 'تولید محتوا']}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: 'کافی نت همیار',
+          url: window.location.origin,
+          inLanguage: 'fa-IR',
+        }}
+      />
       {/* Hero */}
       <section className="relative overflow-hidden min-h-[600px] flex items-center">
         {/* Background Image */}
@@ -275,3 +290,4 @@ export default function Home() {
     </div>
   );
 }
+

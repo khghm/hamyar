@@ -248,6 +248,20 @@ export interface NewsItem {
   content: string;
   date: string;
   active: boolean;
+  /** آدرس خوانا برای سئو: /news/<slug> */
+  slug?: string;
+  excerpt?: string;
+  category?: string;
+  tags?: string[];
+  /** draft | published */
+  status?: 'draft' | 'published';
+  publishedAt?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  coverAlt?: string;
+  author?: string;
+  readingMinutes?: number;
+  views?: number;
 }
 
 export interface PortfolioItem {
@@ -2177,6 +2191,7 @@ export const ADMIN_PAGE_PERMISSIONS: Record<string, string[]> = {
   '/admin/backup': ['perm33'],
 
   '/admin/settings': ['perm30', 'perm31'],
+  '/admin/news': ['perm30', 'perm31'],
 
 };
 
@@ -2438,4 +2453,5 @@ export function resolveNotificationMeta(
     badgeStyle: badgeStyle(color, darkMode),
   };
 }
+
 

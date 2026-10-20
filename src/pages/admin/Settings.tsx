@@ -71,7 +71,6 @@ export default function AdminSettings() {
   const tabs = [
     { id: 'general', label: 'عمومی' },
     { id: 'banners', label: 'بنرها' },
-    { id: 'news', label: 'اخبار' },
     { id: 'portfolio', label: 'نمونه‌کارها' },
     { id: 'about', label: 'درباره ما' },
   ];
@@ -170,88 +169,6 @@ export default function AdminSettings() {
             </div>
             <button className="px-6 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">ذخیره تنظیمات</button>
           </div>
-        </div>
-      )}
-
-      {/* News Management */}
-      {tab === 'news' && (
-        <div className="space-y-4">
-          <button onClick={() => { setNewsForm({ title: '', image: '', caption: '', content: '', date: '', active: true }); setEditNewsId(null); setShowNewsForm(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
-            <Plus size={16} /> خبر جدید
-          </button>
-          <div className="space-y-3">
-            {news.map(n => (
-              <div key={n.id} className={`p-4 rounded-xl border flex items-center justify-between ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-slate-600 overflow-hidden">
-                    {n.image && <img src={n.image} alt="" className="w-full h-full object-cover" />}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm">{n.title}</h4>
-                    <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{toJalaliString(n.date)}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => { setNewsForm(n); setEditNewsId(n.id); setShowNewsForm(true); }} className="text-blue-600 text-xs">ویرایش</button>
-                  <button onClick={() => setNews(news.filter(x => x.id !== n.id))} className="text-red-500 text-xs">حذف</button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {showNewsForm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowNewsForm(false)}>
-              <div className={`w-full max-w-lg p-6 rounded-2xl max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-slate-800' : 'bg-white'}`} onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold">{editNewsId ? 'ویرایش خبر' : 'خبر جدید'}</h3>
-                  <button onClick={() => setShowNewsForm(false)}><X size={20} /></button>
-                </div>
-                <div className="space-y-3">
-                  <input type="text" placeholder="عنوان خبر" value={newsForm.title} onChange={e => setNewsForm({...newsForm, title: e.target.value})}
-                    className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
-                  <input type="text" placeholder="کپشن" value={newsForm.caption} onChange={e => setNewsForm({...newsForm, caption: e.target.value})}
-                    className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} />
-                  <textarea placeholder="متن کامل خبر" value={newsForm.content} onChange={e => setNewsForm({...newsForm, content: e.target.value})}
-                    className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-gray-50 border-gray-200'}`} rows={5} />
-                  <div>
-                    <label className="text-sm mb-1 block">تصویر خبر</label>
-                    <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer w-fit ${darkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}>
-                      <Upload size={16} /> انتخاب تصویر
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={async (e) => {
-                          const url = await handleImageUpload('news')(e);
-                          if (url) setNewsForm({...newsForm, image: url});
-                        }} 
-                        className="hidden" 
-                      />
-                    </label>
-                    {newsForm.image && (
-                      <div className="relative mt-2 w-32 h-20">
-                        <img src={newsForm.image} alt="" className="w-full h-full object-cover rounded" />
-                        <button 
-                          onClick={async () => {
-                            if (newsForm.image) await deleteImageFromSupabase(newsForm.image);
-                            setNewsForm({...newsForm, image: ''});
-                          }}
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={newsForm.active} onChange={e => setNewsForm({...newsForm, active: e.target.checked})} />
-                    <span className="text-sm">فعال (نمایش در سایت)</span>
-                  </label>
-                  <button onClick={saveNews} className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">ذخیره</button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
