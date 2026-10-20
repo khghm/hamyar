@@ -238,6 +238,20 @@ let notificationRefreshInFlight = false;
  */
 let currentRecipientId: string | null = null;
 
+/**
+ * آیا اعلانِ این نوع باید نمایش داده شود؟
+ *
+ * تنظیمات (تب «تنظیمات» مرکز اعلان‌ها) قبلاً فقط روی اعلان‌های تولیدشده در
+ * مرورگر اثر می‌گذاشت؛ ردیف‌هایی که سرور (تریگرهای سفارش/تیکت) می‌سازد بی‌توجه
+ * به تنظیمات نمایش داده می‌شدند. این تابع همان قاعده را برای همهٔ مسیرها
+ * (hydrate، realtime و رفرش) اعمال می‌کند.
+ */
+function isNotificationTypeVisible(settings: NotificationSettings, type: string): boolean {
+  if (!settings.enabled) return false;
+  const def = settings.types.find((t: NotificationTypeDef) => t.id === type);
+  return def ? def.enabled : true;
+}
+
 const debouncedNotificationRefresh = debounce(() => {
   refreshNotificationsFromServer();
 }, 400);
@@ -257,9 +271,11 @@ async function refreshNotificationsFromServer() {
     const cloud = await fetchNotifications().catch(() => null);
     if (!Array.isArray(cloud)) return;
     // فقط اعلان‌های همین کاربر + اعلان‌های سراسری (نه ردیف‌های سایر کارمندان)
-    const visibleCloud = currentRecipientId
+    const refreshSettings = useNotificationStore.getState().notificationSettings;
+    const visibleCloud = (currentRecipientId
       ? cloud.filter((n: AdminNotification) => !n.userId || n.userId === currentRecipientId)
-      : cloud;
+      : cloud
+    ).filter((n: AdminNotification) => isNotificationTypeVisible(refreshSettings, n.type));
     const curr = useNotificationStore.getState().notifications;
     const maxItems = useNotificationStore.getState().notificationSettings.maxItems;
     const byKey = new Map<string, AdminNotification>();
@@ -365,9 +381,10 @@ export const useNotificationStore = create<NotificationState>()(
               uid = authData?.user?.id ?? null;
             } catch { uid = null; }
             currentRecipientId = uid;
-            const visibleCloud = uid
+            const visibleCloud = (uid
               ? cloud.filter((n: AdminNotification) => !n.userId || n.userId === uid)
-              : cloud;
+              : cloud
+            ).filter((n: AdminNotification) => isNotificationTypeVisible(get().notificationSettings, n.type));
 
             set((s: NotificationState) => {
               const localList = Array.isArray(s.notifications) ? s.notifications : [];
@@ -604,9 +621,10 @@ export const useNotificationStore = create<NotificationState>()(
             // باشد که در دیتابیس مانده است.
             const cloud = await fetchNotifications().catch(() => null);
             if (Array.isArray(cloud)) {
-              const visibleCloud = uid
+              const visibleCloud = (uid
                 ? cloud.filter((n: AdminNotification) => !n.userId || n.userId === uid)
-                : cloud;
+                : cloud
+              ).filter((n: AdminNotification) => isNotificationTypeVisible(get().notificationSettings, n.type));
               const localOnly = get().notifications.filter((n: AdminNotification) => !isServerNotificationId(n.id));
               const merged = [...visibleCloud, ...localOnly].slice(0, get().notificationSettings.maxItems);
               set({
@@ -647,54 +665,65 @@ export const useNotificationStore = create<NotificationState>()(
 
       notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
 
-      updateNotificationSettings: (patch) =>
+      updateNotificationSettings: (patch) => {
         set((state: NotificationState) => {
           const nextSettings = { ...state.notificationSettings, ...patch };
           let nextNotifications = Array.isArray(state.notifications) ? state.notifications : [];
           if (typeof patch.maxItems === 'number') {
             nextNotifications = nextNotifications.slice(0, patch.maxItems!);
           }
+          // غیرفعال‌کردن یک نوع (یا خاموش‌کردن کل سیستم) باید همان لحظه روی
+          // اعلان‌های موجود هم اثر بگذارد، نه فقط روی اعلان‌های بعدی.
+          nextNotifications = nextNotifications.filter((n: AdminNotification) =>
+            isNotificationTypeVisible(nextSettings, n.type),
+          );
           const nextUnread = nextNotifications.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0);
           return {
             notificationSettings: nextSettings,
             notifications: nextNotifications,
             unreadNotificationsCount: nextUnread,
           };
-        }),
+        });
+        // با روشن‌کردن دوبارهٔ یک نوع، اعلان‌های قبلی از سرور برگردند.
+        debouncedNotificationRefresh();
+      },
 
       saveNotificationType: (input) => {
         const id = input.id.trim();
         if (!id) return;
         set((state: NotificationState) => {
           const exists = state.notificationSettings.types.some((t: NotificationTypeDef) => t.id === id);
-          if (exists) {
-            return {
-              notificationSettings: {
+          const nextSettings = exists
+            ? {
                 ...state.notificationSettings,
                 types: state.notificationSettings.types.map((t: NotificationTypeDef) =>
                   t.id === id ? { ...t, ...input, id, color: normalizeHex(input.color || t.color) } : t,
                 ),
-              },
-            };
-          }
-          const created: NotificationTypeDef = {
-            id,
-            label: input.label || 'اعلان جدید',
-            color: normalizeHex(input.color || '#0ea5e9'),
-            icon: input.icon || '🔔',
-            enabled: input.enabled ?? true,
-            builtin: false,
-            deletable: true,
-            eventLabel: input.eventLabel,
-            sectionPath: input.sectionPath,
-          };
+              }
+            : {
+                ...state.notificationSettings,
+                types: [...state.notificationSettings.types, {
+                  id,
+                  label: input.label || 'اعلان جدید',
+                  color: normalizeHex(input.color || '#0ea5e9'),
+                  icon: input.icon || '🔔',
+                  enabled: input.enabled ?? true,
+                  builtin: false,
+                  deletable: true,
+                  eventLabel: input.eventLabel,
+                  sectionPath: input.sectionPath,
+                } as NotificationTypeDef],
+              };
+          const visible = state.notifications.filter((n: AdminNotification) =>
+            isNotificationTypeVisible(nextSettings, n.type),
+          );
           return {
-            notificationSettings: {
-              ...state.notificationSettings,
-              types: [...state.notificationSettings.types, created],
-            },
+            notificationSettings: nextSettings,
+            notifications: visible,
+            unreadNotificationsCount: visible.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0),
           };
         });
+        debouncedNotificationRefresh();
       },
 
       deleteNotificationType: (id) =>
@@ -709,13 +738,23 @@ export const useNotificationStore = create<NotificationState>()(
           };
         }),
 
-      resetNotificationTypes: () =>
-        set((state: NotificationState) => ({
-          notificationSettings: {
+      resetNotificationTypes: () => {
+        set((state: NotificationState) => {
+          const nextSettings = {
             ...state.notificationSettings,
             types: DEFAULT_NOTIFICATION_TYPES.map((t: NotificationTypeDef) => ({ ...t })),
-          },
-        })),
+          };
+          const visible = state.notifications.filter((n: AdminNotification) =>
+            isNotificationTypeVisible(nextSettings, n.type),
+          );
+          return {
+            notificationSettings: nextSettings,
+            notifications: visible,
+            unreadNotificationsCount: visible.reduce((c: number, n: AdminNotification) => c + (n.read ? 0 : 1), 0),
+          };
+        });
+        debouncedNotificationRefresh();
+      },
 
       sendSystemNotification: ({ title, message, typeId, priority, link, audience }) => {
         const trimmedTitle = title.trim();
@@ -842,6 +881,8 @@ export const useNotificationStore = create<NotificationState>()(
             // کارمندان دیگر هم زنده به لیست اضافه می‌شد و یک رویداد به شکل
             // چند اعلان تکراری دیده می‌شد.
             if (currentRecipientId && incoming.userId && incoming.userId !== currentRecipientId) return;
+            // نوع غیرفعال‌شده در «تنظیمات» نباید زنده هم اضافه شود.
+            if (!isNotificationTypeVisible(st.notificationSettings, incoming.type)) return;
 
             const idx = st.notifications.findIndex(n => n.id === incoming.id);
             if (idx === -1) {
@@ -964,3 +1005,4 @@ export const useNotificationStore = create<NotificationState>()(
     if (prev.notifications !== cur.notifications) computeUnread();
   });
 })();
+

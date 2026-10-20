@@ -154,6 +154,13 @@ export default function NotificationSettingsTab(props: SettingsTabProps) {
 
   return (
     <div className="space-y-4">
+      {/* راهنمای کوتاه: تغییرات خودکار ذخیره و فوراً اعمال می‌شوند */}
+      <div className={`${card} px-4 py-3 text-xs leading-6 opacity-80`}>
+        هر تغییری در این تب <strong>همان لحظه</strong> اعمال و به‌صورت خودکار ذخیره می‌شود؛ نیازی به دکمهٔ ذخیره نیست.
+        خاموش‌کردن یک نوع اعلان، اعلان‌های موجودِ همان نوع را هم از فهرست پنهان می‌کند
+        (روشن‌کردن دوباره، آن‌ها را از سرور برمی‌گرداند).
+      </div>
+
       {/* ---------------- Global behavior ---------------- */}
       <div className={`${card} p-4`}>
         <h2 className="text-sm font-bold mb-3 flex items-center gap-2">
