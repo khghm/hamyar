@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store';
-import { Search, SlidersHorizontal, DollarSign, Filter, ArrowLeft } from 'lucide-react';
+import { Search, SlidersHorizontal, DollarSign, Filter, ArrowLeft, Printer, ScanLine, Type, Languages, PenLine, FileText, Copy, Disc, Layers, BookOpen, Package, BarChart3, RefreshCw, ShieldCheck, Scale, Coins, Shield, Smartphone, BadgeCheck, Banknote, Landmark, Gavel, CreditCard, Lightbulb, Radio, Laptop, FolderOpen } from 'lucide-react';
 import { useBanner } from '../hooks/useBanner';
 
 export default function Services() {
@@ -36,33 +36,33 @@ export default function Services() {
 
   const formatPrice = (p: number) => p.toLocaleString('fa-IR') + ' تومان';
 
-  const categoryIcons: Record<string, string> = {
-    'پرینت': '🖨️',
-    'اسکن': '📄',
-    'تایپ': '⌨️',
-    'ترجمه': '🌐',
-    'ثبت‌نام': '📝',
-    'رزومه': '📋',
-    'کپی': '📑',
-    'نصب': '💿',
-    'لمینت': '📃',
-    'صحافی': '📚',
-    'ارائه': '📊',
-    'تبدیل': '🔄',
-    'نظام وظیفه': '🎖️',
-    'قوه قضاییه': '⚖️',
-    'مالیاتی': '💰',
-    'بیمه': '🛡️',
-    'شارژ': '📱',
-    'پلیس +۱۰': '👮',
-    'مالی': '💵',
-    'بانکی': '🏦',
-    'حقوقی': '⚖️',
-    'قبوض': '💳',
-    'مشاوره': '💡',
-    'مخابرات': '📡',
-    'طراحی': '💻',
-    'اداری': '📂',
+  const categoryIcons: Record<string, typeof Package> = {
+    'پرینت': Printer,
+    'اسکن': ScanLine,
+    'تایپ': Type,
+    'ترجمه': Languages,
+    'ثبت‌نام': PenLine,
+    'رزومه': FileText,
+    'کپی': Copy,
+    'نصب': Disc,
+    'لمینت': Layers,
+    'صحافی': BookOpen,
+    'ارائه': BarChart3,
+    'تبدیل': RefreshCw,
+    'نظام وظیفه': ShieldCheck,
+    'قوه قضاییه': Scale,
+    'مالیاتی': Coins,
+    'بیمه': Shield,
+    'شارژ': Smartphone,
+    'پلیس +۱۰': BadgeCheck,
+    'مالی': Banknote,
+    'بانکی': Landmark,
+    'حقوقی': Gavel,
+    'قبوض': CreditCard,
+    'مشاوره': Lightbulb,
+    'مخابرات': Radio,
+    'طراحی': Laptop,
+    'اداری': FolderOpen,
   };
 
   return (
@@ -93,7 +93,7 @@ export default function Services() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-12">
+      <div className="container-page section-tight">
 
       {/* Search & Filter Bar */}
       <div className={`flex flex-col md:flex-row gap-4 mb-6 p-4 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-white shadow-sm border border-gray-100'}`}>
@@ -186,13 +186,11 @@ export default function Services() {
         {filtered.map(service => (
           <div
             key={service.id}
-            className={`flex flex-col p-5 rounded-xl border transition-all hover:shadow-lg ${
-              darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300'
-            }`}
+            className="card card-hover flex flex-col p-5"
           >
             <div className="flex items-start justify-between mb-3 gap-2">
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className="text-2xl flex-shrink-0">{categoryIcons[service.category] || '📌'}</span>
+                <span className="flex-shrink-0 text-brand-600">{(() => { const Icon = categoryIcons[service.category] || Package; return <Icon size={22} />; })()}</span>
                 <h3 className="font-bold text-sm leading-6 line-clamp-2">{service.name}</h3>
               </div>
               <span className={`text-[10px] px-2 py-1 rounded-full flex-shrink-0 ${darkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-slate-500'}`}>
@@ -243,4 +241,8 @@ export default function Services() {
     </div>
   );
 }
+
+
+
+
 

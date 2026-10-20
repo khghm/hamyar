@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../store';
 import Seo from '../components/Seo';
+import { useReveal } from '../hooks/useReveal';
 import BrandVisual from '../components/BrandVisual';
 import { toJalaliString } from '../utils/jalali';
 
@@ -16,6 +17,7 @@ import { toJalaliString } from '../utils/jalali';
  */
 export default function Home() {
   const { darkMode, products, news, services: allServices, mediaItems } = useApp();
+  useReveal();
 
   const publishedNews = news.filter(n => (n.status ? n.status === 'published' : n.active !== false));
 
@@ -92,7 +94,7 @@ export default function Home() {
         />
         <div className="absolute inset-0 bg-gradient-to-l from-[#0b1533]/40 via-[#0b1533]/70 to-[#0b1533]" />
 
-        <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24 grid lg:grid-cols-2 gap-12 items-center">
+        <div className="container-page relative py-16 md:py-24 grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 text-white/90 text-xs backdrop-blur border border-white/15">
               <Sparkles size={14} /> بیش از یک دهه تجربه در خدمات دیجیتال
@@ -161,7 +163,7 @@ export default function Home() {
 
       {/* ---------------- Stats ---------------- */}
       <section className={`border-b ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-100'}`}>
-        <div className="max-w-7xl mx-auto px-4 py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="container-page py-8 grid grid-cols-2 md:grid-cols-4 gap-6">
           {stats.map(s => (
             <div key={s.label} className="flex flex-col items-start">
               <div className="text-2xl md:text-3xl font-black text-blue-600 tabular-nums leading-none">{s.value}</div>
@@ -172,8 +174,8 @@ export default function Home() {
       </section>
 
       {/* ---------------- Services ---------------- */}
-      <section className="py-16 md:py-20">
-        <div className="max-w-7xl mx-auto px-4">
+      <section className="section reveal">
+        <div className="container-page">
           <div className="flex items-end justify-between gap-4 mb-10 flex-wrap">
             <div>
               <h2 className="text-2xl md:text-3xl font-black">خدمات ما</h2>
@@ -218,8 +220,8 @@ export default function Home() {
       </section>
 
       {/* ---------------- Why us ---------------- */}
-      <section className={`py-16 ${darkMode ? 'bg-slate-800/40' : 'bg-gray-50'}`}>
-        <div className="max-w-7xl mx-auto px-4">
+      <section className="section section-alt reveal">
+        <div className="container-page">
           <h2 className="text-2xl md:text-3xl font-black text-center mb-3">چرا کافی نت همیار؟</h2>
           <p className={`text-center text-sm mb-10 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
             چیزی که ما را متفاوت می‌کند، شفافیت و پیگیری تا پایان کار است
@@ -241,8 +243,8 @@ export default function Home() {
 
       {/* ---------------- Latest news ---------------- */}
       {publishedNews.length > 0 && (
-        <section className="py-16 md:py-20">
-          <div className="max-w-7xl mx-auto px-4">
+        <section className="section reveal">
+          <div className="container-page">
             <div className="flex items-end justify-between gap-4 mb-8 flex-wrap">
               <h2 className="text-2xl md:text-3xl font-black flex items-center gap-2">
                 <Newspaper size={24} className="text-blue-600" /> آخرین اخبار
@@ -280,8 +282,8 @@ export default function Home() {
       )}
 
       {/* ---------------- CTA ---------------- */}
-      <section className="pb-16 md:pb-20">
-        <div className="max-w-7xl mx-auto px-4">
+      <section className="section-tight reveal">
+        <div className="container-page">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-blue-700 to-indigo-800 p-8 md:p-12">
             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'url(/hero-pattern.svg)', backgroundSize: 'cover' }} />
             <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">

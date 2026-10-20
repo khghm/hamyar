@@ -87,7 +87,7 @@ export default function News() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-10">
+      <div className="container-page section-tight">
         {/* Filters */}
         <div className="flex flex-col gap-3 mb-6">
           <div className="relative">
@@ -105,7 +105,7 @@ export default function News() {
             <span className={`text-xs ml-1 ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>دسته:</span>
             <button
               onClick={() => { setCategory('all'); setPage(1); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${category === 'all' ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-gray-200 text-slate-600'}`}
+              className={`chip ${category === 'all' ? 'chip-active' : ''}`}
             >
               همه
             </button>
@@ -113,7 +113,7 @@ export default function News() {
               <button
                 key={cat}
                 onClick={() => { setCategory(cat); setPage(1); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${category === cat ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-gray-200 text-slate-600'}`}
+                className={`chip ${category === cat ? 'chip-active' : ''}`}
               >
                 {cat}
               </button>
@@ -133,7 +133,7 @@ export default function News() {
             {paged.map(item => {
               const slug = item.slug || item.id;
               return (
-                <article key={item.id} className={`group rounded-2xl overflow-hidden border transition-all hover:shadow-lg ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
+                <article key={item.id} className="card card-hover group overflow-hidden">
                   <Link to={`/news/${slug}`} aria-label={item.title}>
                     <div className="relative h-44 overflow-hidden">
                       {item.image ? (
@@ -195,3 +195,4 @@ export default function News() {
     </div>
   );
 }
+

@@ -38,6 +38,7 @@ const ProductDetail = lazyRoute(() => import('./pages/ProductDetail'));
 const MediaDetail = lazyRoute(() => import('./pages/MediaDetail'));
 const ProjectServiceDetail = lazyRoute(() => import('./pages/ProjectServiceDetail'));
 const NewsDetail = lazyRoute(() => import('./pages/NewsDetail'));
+const NotFound = lazyRoute(() => import('./pages/NotFound'));
 const TrackOrder = lazyRoute(() => import('./pages/TrackOrder'));
 const FAQ = lazyRoute(() => import('./pages/FAQ'));
 const Cart = lazyRoute(() => import('./pages/Cart'));
@@ -133,6 +134,7 @@ function AppRoutes() {
           {/* Details/order page for every item of طراحی سایت & تولید محتوا */}
           <Route path="/project-services/:id" element={<ProjectServiceDetail />} />
           <Route path="/news/:slug" element={<NewsDetail />} />
+          <Route path="*" element={<NotFound />} />
           <Route path="/track" element={<TrackOrder />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/cart" element={<Cart />} />
@@ -218,4 +220,5 @@ function AnalyticsBootstrap() {
   useBehaviorTracking();
   return null;
 }
+
 

@@ -156,7 +156,7 @@ export default function Store() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="container-page section-tight">
       {/* Header */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="flex-1 relative">
@@ -200,7 +200,7 @@ export default function Store() {
           <p className={`text-sm mb-4 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{filtered.length} محصول</p>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
             {filtered.map(product => (
-              <Link key={product.id} to={`/product/${product.id}`} className={`group rounded-xl border overflow-hidden transition-all hover:shadow-lg block ${darkMode ? 'bg-slate-800 border-slate-700 hover:border-blue-600' : 'bg-white border-gray-200 hover:border-blue-300'}`}>
+              <Link key={product.id} to={`/product/${product.id}`} className="card card-hover group block overflow-hidden">
                 <div className={`relative aspect-[4/3] overflow-hidden ${darkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                   <SafeImage
                     src={product.image}
@@ -305,4 +305,5 @@ export default function Store() {
     </div>
   );
 }
+
 

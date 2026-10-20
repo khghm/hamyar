@@ -45,6 +45,7 @@ export default function PublicLayout() {
 
   return (
     <div className={`min-h-screen flex flex-col ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-gray-50 text-slate-800'}`}>
+      <a href="#main-content" className="skip-link">پرش به محتوای اصلی</a>
       {/* Navbar */}
       <nav className={`sticky top-0 z-50 shadow-lg ${darkMode ? 'bg-slate-800/95 backdrop-blur-md border-b border-slate-700' : 'bg-white/95 backdrop-blur-md border-b border-gray-200'}`}>
         <div className="max-w-7xl mx-auto px-4">
@@ -114,13 +115,13 @@ export default function PublicLayout() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              <button onClick={toggleDarkMode} className={`p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700 text-yellow-400' : 'hover:bg-gray-100 text-slate-600'}`}>
+              <button onClick={toggleDarkMode} className={`w-11 h-11 flex items-center justify-center rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700 text-yellow-400' : 'hover:bg-gray-100 text-slate-600'}`} aria-label="تغییر حالت روشن/تاریک">
                 {darkMode ? <Sun size={20} /> : <Moon size={20} />}
               </button>
 
               {/* Cart Icon */}
               {currentUser && (
-                <Link to="/cart" className={`relative p-2 rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`}>
+                <Link to="/cart" className={`relative w-11 h-11 flex items-center justify-center rounded-lg transition-all ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-100'}`} aria-label="سبد خرید">
                   <ShoppingCart size={20} />
                   {cartItemsCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
@@ -158,7 +159,7 @@ export default function PublicLayout() {
               )}
 
               {/* Mobile menu button */}
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 rounded-lg">
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden w-11 h-11 flex items-center justify-center rounded-lg" aria-label="منو">
                 {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
@@ -187,7 +188,7 @@ export default function PublicLayout() {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 pb-16 lg:pb-0">
+      <main id="main-content" className="flex-1 pb-16 lg:pb-0">
         <Suspense fallback={<RouteLoading />}>
           <Outlet />
         </Suspense>
