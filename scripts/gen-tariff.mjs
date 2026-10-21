@@ -130,7 +130,7 @@ const tsLines = S.map((s, i) =>
 
 const sqlLines = S.map((s, i) =>
   `  ('${slug(i)}', '${s[0]}', '${s[1]}', ${s[2]}, '${s[3]}', '${s[4]}', true, null, null),`
-).join('\n').replace(/,(\s*)$/, ');');
+).join('\n').replace(/,$/, ';');
 
 // --- patch TS files ---
 for (const f of ['src/data/seed.ts', 'src/state/catalogStore.ts']) {
