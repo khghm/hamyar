@@ -120,7 +120,7 @@ serve(async (req) => {
     p_total: total,
     p_paid: paidAmount,
     p_payment_method: paymentMethod === 'wallet' ? 'wallet' : 'online',
-    p_gateway_ref: gatewayRef,
+    p_gateway_ref: gatewayRef ?? null,
     p_form_data: formData ?? {},
     p_documents: documents ?? {},
   }).select().single()
