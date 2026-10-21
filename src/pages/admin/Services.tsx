@@ -170,14 +170,20 @@ export default function AdminServices() {
                 {(form.fields || []).map((f, i) => (
                   <div key={i} className={`p-3 rounded-lg border ${darkMode ? 'border-slate-600' : 'border-gray-200'} space-y-2`}>
                     <div className="grid grid-cols-2 gap-2">
-                      <input placeholder="key" value={f.key} onChange={e => updateField(i, { key: e.target.value })} className={inputCls} />
-                      <input placeholder="label" value={f.label} onChange={e => updateField(i, { label: e.target.value })} className={inputCls} />
+                      <input placeholder="کلید (انگلیسی، یکتا)" value={f.key} onChange={e => updateField(i, { key: e.target.value })} className={inputCls} />
+                      <input placeholder="عنوان فیلد" value={f.label} onChange={e => updateField(i, { label: e.target.value })} className={inputCls} />
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <select value={f.type} onChange={e => updateField(i, { type: e.target.value as ServiceFormField['type'] })} className={inputCls}>
-                        {FIELD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        <option value="text">متن</option>
+                        <option value="tel">تلفن</option>
+                        <option value="number">عدد</option>
+                        <option value="email">ایمیل</option>
+                        <option value="date">تاریخ</option>
+                        <option value="select">انتخابی</option>
+                        <option value="textarea">متن چندخطی</option>
                       </select>
-                      <input placeholder="placeholder" value={f.placeholder || ''} onChange={e => updateField(i, { placeholder: e.target.value })} className={inputCls} />
+                      <input placeholder="متن راهنما (placeholder)" value={f.placeholder || ''} onChange={e => updateField(i, { placeholder: e.target.value })} className={inputCls} />
                       <label className="flex items-center gap-2 text-sm">
                         <input type="checkbox" checked={!!f.required} onChange={e => updateField(i, { required: e.target.checked })} /> الزامی
                       </label>
@@ -185,7 +191,7 @@ export default function AdminServices() {
                     {f.type === 'select' && (
                       <input placeholder="گزینه‌ها (با کاما جدا کنید)" value={(f.options || []).join(',')} onChange={e => updateField(i, { options: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })} className={inputCls} />
                     )}
-                    <button onClick={() => removeField(i)} className="text-red-500 text-xs">حذف</button>
+                    <button onClick={() => removeField(i)} className="text-red-500 text-xs">حذف این فیلد</button>
                   </div>
                 ))}
               </div>
@@ -197,14 +203,14 @@ export default function AdminServices() {
                 {(form.docs || []).map((d, i) => (
                   <div key={i} className={`p-3 rounded-lg border ${darkMode ? 'border-slate-600' : 'border-gray-200'} space-y-2`}>
                     <div className="grid grid-cols-2 gap-2">
-                      <input placeholder="key" value={d.key} onChange={e => updateDoc(i, { key: e.target.value })} className={inputCls} />
-                      <input placeholder="label" value={d.label} onChange={e => updateDoc(i, { label: e.target.value })} className={inputCls} />
+                      <input placeholder="کلید (انگلیسی، یکتا)" value={d.key} onChange={e => updateDoc(i, { key: e.target.value })} className={inputCls} />
+                      <input placeholder="عنوان مدرک" value={d.label} onChange={e => updateDoc(i, { label: e.target.value })} className={inputCls} />
                     </div>
-                    <input placeholder="hint" value={d.hint || ''} onChange={e => updateDoc(i, { hint: e.target.value })} className={inputCls} />
+                    <input placeholder="راهنمای بارگذاری (hint)" value={d.hint || ''} onChange={e => updateDoc(i, { hint: e.target.value })} className={inputCls} />
                     <label className="flex items-center gap-2 text-sm">
                       <input type="checkbox" checked={!!d.required} onChange={e => updateDoc(i, { required: e.target.checked })} /> الزامی
                     </label>
-                    <button onClick={() => removeDoc(i)} className="text-red-500 text-xs">حذف</button>
+                    <button onClick={() => removeDoc(i)} className="text-red-500 text-xs">حذف این مدرک</button>
                   </div>
                 ))}
               </div>

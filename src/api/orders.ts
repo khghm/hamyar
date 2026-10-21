@@ -44,7 +44,8 @@ export async function placeOrder(body: PlaceOrderRequest): Promise<PlaceOrderRes
   const jwt = (await supabase.auth.getSession()).data.session?.access_token;
   if (!jwt) return { ok: false, error: 'وارد حساب کاربری شوید' };
 
-  const res = await fetch('/functions/v1/place-order', {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const res = await fetch(`${supabaseUrl}/functions/v1/place-order`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${jwt}`,
